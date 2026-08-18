@@ -79,7 +79,9 @@ Lina_cpx/
 ├── sql/lina_schema.sql             ← 14 tables + seeds (D-002-corrected)
 ├── tests/                          ← unit tests (exact-math critical)
 ├── scripts/                        ← db helpers
-└── models/                         ← .gguf host models (gitignored)
+├── models/                         ← .gguf host models (gitignored)
+├── reference/                      ← principal-provided material lives in `code_and_concept/`
+│                                      (gitignored, disposable — removed after Value Engine milestone)
 ```
 
 ## 4 · Build / Test / Run
@@ -116,6 +118,9 @@ ctest --output-on-failure
   decisions or constraints.
 - **Dual bus in code:** anything a human said or LiNa said → cognitive path; anything a
   process did → telemetry path.
+- **Personality = polytope.** No prompt-persona logic; LiNa's character is her 14D
+  shape. Providers plug in from outside the core (D-023). DragonCache carve/mmap and
+  Dragonfly DB are separate systems — never core code (D-020).
 - **No new dependencies** without a DECISIONS entry.
 - **No Python.** Not even "just for tests" unless the principal explicitly authorizes it.
 
@@ -146,14 +151,18 @@ _Last updated: 2026-08-18 (foundation phase)._
 - ✅ `AGENTS.md` (this file).
 - ✅ Environment audited: cmake 3.28.3, GCC 13.3.0, GMP headers present.
   ❌ Not yet installed: PostgreSQL, libpq-dev, pgvector, pkg-config.
-  ❌ Git repo not initialized (pending principal).
+- ✅ Git repo initialized, first commit pushed (`bfc9d1b`, branch `main`).
 - ✅ Season bounds reconciled (D-002): fall `order_min 3.2`, `chaos_max 3.8`.
+- ✅ D-003 resolution path chosen: principal-provided reference material (book proofs +
+  original C++ code) → **math-only extraction**; `code_and_concept/` gitignored,
+  disposable (delivered 2026-08-18).
 
 ### Next: Build Phase (in order)
 
-1. **Value Engine** (`value_engine.hpp/.cpp`) — depends only on GMP; buildable and
-   testable before PostgreSQL is installed. **Gated on D-003 resolution** (encoder
-   patterns, scoring bodies, season-requirement thresholds).
+1. **Value Engine** (`value_engine.hpp/.cpp`) — ✅ **COMPLETE.** Header + implementation
+   authored (D-011…D-025); exact-math suite green (159 checks, `ctest` 100%).
+   Includes the D-024 projection fix: corrected vectors always land strictly inside
+   the polytope (Invariant 5).
 2. **Memory Module** (`memory_module.hpp/.cpp`) — depends on value engine.
 3. **Storage** — install PostgreSQL/pgvector; `sql/lina_schema.sql` (with D-010 tier
    column); `postgres_backend.hpp/.cpp`, `storage_backend.hpp`.
@@ -163,10 +172,11 @@ _Last updated: 2026-08-18 (foundation phase)._
 
 ### Open items for the principal
 
-- **D-003 (critical):** blueprint references "your existing code" for function bodies
-  that don't exist in-repo. Provide original code, or authorize canonical authorship.
-- Git init go-ahead.
-- Postgres/pgvector install approval (needs apt + sudo + network).
+- **D-003 resolved:** reference material (`code_and_concept/`) fully read and extracted
+  (2026-08-18); formulas/patterns recorded in D-011…D-019; carve/mmap infrastructure
+  excluded per D-020. Value Engine implementation is un-gated.
+- Postgres/pgvector install approval (needs apt + sudo + network). Not a blocker for
+  the Value Engine milestone (GMP-only).
 
 ## 8 · Working Agreement with the Principal
 

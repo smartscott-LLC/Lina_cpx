@@ -28,6 +28,10 @@ models/*.bin
 models/*.safetensors
 models/*.onnx
 
+# --- Principal-provided reference material (disposable; never committed) ---
+code_and_concept/
+reference/
+
 # --- Environment / secrets ---
 .env
 .env.*

@@ -11,6 +11,15 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **Value Engine milestone (Chamber 1) — complete**
+  - `code_and_concept/` reference material fully read and extracted (D-011…D-019).
+  - `include/value_engine.hpp` + `src/value_engine.cpp` authored (exact rational
+    polytope, encoder, correction, wisdom filter, feedback, season evaluator).
+  - Boundary-rounding fix (D-024): projection lands strictly inside the polytope,
+    honoring Invariant 5. Reference bug in `confirm_correction` fixed (D-017).
+  - Exact-math unit tests (159 checks) — `ctest` 100% green.
+  - Clarifications recorded: DragonCache/Dragonfly are separate systems (D-020);
+    no provider/prompt/persona logic in the core (D-023).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).
@@ -24,5 +33,8 @@ All notable changes to the LINA Core Substrate are recorded here.
 ### Notes
 
 - Foundation phase complete. Build phase (Value Engine first) begins next — see `AGENTS.md` §7.
-- Open decision awaiting principal input: `docs/DECISIONS.md` **D-003** (blueprint references
-  "your existing code" for several function bodies; no such code exists in-repo).
+- Git repository initialized by the principal; first commit pushed (`bfc9d1b`, `main`).
+- `docs/DECISIONS.md` **D-003** resolution path chosen: principal-provided reference
+  material (book proofs + original C++ code) with **math-only extraction**; the material
+  lives in `code_and_concept/` (gitignored, disposable). Value Engine authorship in
+  progress.

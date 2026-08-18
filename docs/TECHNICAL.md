@@ -345,11 +345,18 @@ class HostModelAdapter {
 `GenerationConfig`: `max_tokens 2048`, `temperature 0.7`, `top_p 0.9`, `top_k 40`,
 `stream false`, optional `stream_callback`.
 
-### 5.2 Adapters
+### 5.2 Providers Plug In (D-023)
 
-- **`LlamaCppAdapter`** — local, pimpl'd; full linkage is a later milestone (D-007).
-- **`ExternalApiAdapter`** — remote endpoint + API key; transport decided at the
-  adapter milestone (D-007).
+The adapter interface is the contract; concrete providers are **not** core code —
+they plug into the module from outside:
+
+- **`LlamaCppAdapter`** — declared in the blueprint; the actual llama.cpp linkage
+  plugs in from outside the core (D-007).
+- **`ExternalApiAdapter`** — likewise plugs in.
+
+No fallback orchestrators, no provider-selection logic: the core speaks to **one**
+driver through the contract. LiNa's personality is the polytope, not prompt blocks —
+no persona prompts enter the core (D-023).
 
 ### 5.3 Egress Isolation (Invariant 4)
 
@@ -418,7 +425,7 @@ Compiler flags (spec §8.1): `-O3 -march=native -Wall -Wextra -Werror
 |---|---|
 | D-001 | Blueprint > TECHNICAL.md > DECISIONS.md > code |
 | D-002 | C++ seasonal bounds are operative; SQL `fall` row corrected (3.2 / 3.8) |
-| D-003 | **Open** — missing "existing code" bodies: patterns, scoring formulas, season requirements |
+| D-003 | Canonical authorship, grounded in principal-provided reference (book proofs + code); math-only extraction; `reference/` disposable |
 | D-004 | `postgres_backend.hpp` added to declare `PostgresBackend` |
 | D-005 | `PostgresBackend` implements `StorageBackend` + `MemoryStore` |
 | D-006 | Qt6 UI deferred; `LINA_ENABLE_UI=OFF` default |
@@ -426,6 +433,8 @@ Compiler flags (spec §8.1): `-O3 -march=native -Wall -Wextra -Werror
 | D-008 | Binary version 9.0.0 per spec; changelog tracks milestones |
 | D-009 | libpq text-format array vectors; `<->` cosine search |
 | D-010 | `tier` column added to `lina_memory_items` |
+| D-020 | DragonCache carve/mmap + ring buffers excluded; Dragonfly DB plugs in, never core |
+| D-023 | No provider/prompt/persona logic in the core; personality = polytope |
 
 ---
 
