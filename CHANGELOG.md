@@ -60,6 +60,26 @@ All notable changes to the LINA Core Substrate are recorded here.
     first draft ships with the `[Polytope aligned: …]` fallback marker. One retry
     pass; `AcceptableVariance` stays in the grace zone. `orchestrator_tests` +8
     checks (23 total); `ctest` 5/5 (353 checks total).
+- **Command center UI (D-038) — the window becomes a 3-panel control deck**
+  - Left: RAM/CPU/session-time gauges + one-click test harness (every suite binary
+    + `ctest`, streaming results into a scrollable box).
+  - Middle: selectable chat bubbles, file/folder attachments, expanding input
+    (Ctrl+Enter, capped at 20% of panel height), fluid thinking indicator, inline
+    approval cards with auto-approve.
+  - Right: live log reel with pause/resume autoscroll; core telemetry events stream
+    in on the telemetry bus (Invariant 6 — never the cognitive bus).
+  - Settings modal: auto-approve, approval timeout, telemetry interval, log level
+    filter, log capacity, test binary directory. Obsidian marble / midnight blue
+    with metallic gold/silver accents.
+  - Core seams (D-038): `request_approval()` human-in-the-loop gate for her tools
+    (blueprint §6) + `set_telemetry_sink()` technical-event bus. `chat()` runs on a
+    worker thread — the window stays live. `ui_tests` 19 checks (was 5);
+    `orchestrator_tests` 28 (was 23); `ctest` 5/5 (372 checks total).
+- **Emergent personality (D-039) — the prompt carries identity, never persona**
+  - `build_system_prompt()` no longer tells her what to align with or how to speak:
+    the polytope-framing paragraph and behavioral directives are gone (blueprint
+    §7.2 prompt text amended by principal directive). She drafts freely; the gate
+    decides (Invariant 5 holds structurally, not verbally).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

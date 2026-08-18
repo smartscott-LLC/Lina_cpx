@@ -22,7 +22,8 @@ class LinaCore;
 
 namespace ui {
 
-/// The chat window: conversation view + input line, bound to a LinaCore.
+/// The command center: telemetry + test harness | chat workspace | log reel,
+/// bound to a LinaCore (D-038).
 class ChatWindow {
 public:
     explicit ChatWindow(LinaCore& core);
@@ -31,11 +32,23 @@ public:
     ChatWindow(const ChatWindow&) = delete;
     ChatWindow& operator=(const ChatWindow&) = delete;
 
-    /// Send a message through the core (public for tests).
+    /// Send a message through the core (async; public for tests).
     void sendMessage(const QString& text);
 
     /// Current conversation text (public for tests).
     QString conversationText() const;
+
+    /// True while a chat is being processed in the worker thread.
+    bool isBusy() const;
+
+    /// Process events until idle (or timeout). Returns false on timeout.
+    bool waitForIdle(int timeout_ms) const;
+
+    /// Approval gate state (D-038) — public for tests.
+    bool hasPendingApproval() const;
+    void resolvePendingApproval(bool approve);
+    bool autoApproveEnabled() const;
+    void setAutoApprove(bool enabled);
 
     /// Show the window and run the Qt event loop. Blocks until closed.
     int run();

@@ -12,7 +12,9 @@
  * passes through her polytope before it reaches the user (Invariant 5).
  */
 
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -23,6 +25,25 @@
 #include "value_engine.hpp"
 
 namespace lina {
+
+// D-038: the human-in-the-loop approval gate (her tools, blueprint §6). The
+// UI renders an approval card for these; a future tool executor calls
+// request_approval() before acting.
+struct ApprovalRequest {
+    std::string action_id;
+    std::string tool_name;
+    std::string description;
+    int64_t timeout_ms{30000};
+};
+
+enum class ApprovalDecision { Approved, Denied, TimedOut };
+
+using ApprovalHandler =
+    std::function<ApprovalDecision(const ApprovalRequest&)>;
+
+// D-038: technical-event sink — the telemetry bus (Invariant 6: process
+// events never touch the cognitive bus). The UI routes these to the log reel.
+using TelemetrySink = std::function<void(const std::string&)>;
 
 struct LinaConfig {
     std::string db_connection{"postgresql://localhost/lina"};
@@ -68,6 +89,13 @@ public:
     // D-033: attach the symbiote driver — providers plug in from outside.
     void attach_model(std::unique_ptr<model::HostModelAdapter> adapter);
 
+    // D-038: approval gate + telemetry bus.
+    void set_approval_handler(ApprovalHandler handler);
+    void set_telemetry_sink(TelemetrySink sink);
+    // Blocks (up to request.timeout_ms) for a human decision. Denied when no
+    // handler is registered. Future tool executor calls this before acting.
+    ApprovalDecision request_approval(const ApprovalRequest& request);
+
 private:
     LinaConfig config_;
     bool ready_{false};
@@ -80,6 +108,12 @@ private:
 
     std::string current_session_id_;
     std::vector<std::pair<std::string, std::string>> conversation_history_;
+
+    ApprovalHandler approval_handler_;
+    TelemetrySink telemetry_sink_;
+    std::mutex sink_mutex_;
+
+    void emit_telemetry(const std::string& message);
 
     void initialize();
     std::string build_system_prompt();

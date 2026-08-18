@@ -166,7 +166,21 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   revise toward her center; the regenerated candidate is re-evaluated. Revision
   leaves `Violation` → delivered; still violating → first draft + `[Polytope aligned:
   …]` fallback marker (Invariant 5 holds — no raw candidate reaches any output).
-  `orchestrator_tests` 23 checks (was 15); `ctest` 5/5, **353 checks total**.
+  `orchestrator_tests` 23 checks; pushed (`4cb929c`).
+- ✅ **Command center UI (D-038, extends D-036):** the built-in window is now the
+  3-panel deck — left: RAM/CPU/session gauges + test harness (suite binaries/ctest
+  via QProcess); middle: selectable bubbles, attachments, expanding input,
+  thinking indicator, inline approval cards; right: live log reel with pause/resume;
+  settings modal (auto-approve, timeouts, log filter). Core seams added:
+  `request_approval()` approval gate + `set_telemetry_sink()` telemetry bus
+  (Invariant 6 — technical events never hit the cognitive bus). `chat()` is async
+  (worker thread). `ui_tests` 19 checks (was 5), `orchestrator_tests` 28 (was 23),
+  **ctest 5/5 — 372 checks total**.
+- ✅ **Emergent personality (D-039):** the system prompt now carries identity +
+  seasonal context only — no polytope-framing instructions, no behavioral
+  directives (blueprint §7.2 prompt text amended by principal directive). She
+  drafts freely; alignment is enforced **structurally** by the gate in `chat()`
+  (Invariant 5) — never by telling her what to be.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -175,9 +189,11 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** the UI milestone + D-037 (pending principal's say-so — tree has uncommitted work).
+1. **Push** the command center + D-038 (pending principal's say-so — tree has uncommitted work).
 2. **llama.cpp driver (the voice)** — queued: `llama_adapter.cpp` plugs into
    `make_driver()` (D-035); `LINA_ENABLE_LLAMA=ON` wiring; model in `models/`.
+3. **Her tools (blueprint §6)** — the human-in-the-loop action ledger is schema'd
+   (`lina_actions`); the approval gate (D-038) is already wired and waiting.
 
 ### Open items for the principal
 

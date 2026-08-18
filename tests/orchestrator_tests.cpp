@@ -261,6 +261,50 @@ static void test_reflection_loop_fallback_marker() {
     core.end_session();
 }
 
+static void test_telemetry_sink_and_approval_gate() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+
+    // D-038 telemetry bus: pipeline events flow to the sink.
+    std::vector<std::string> events;
+    core.set_telemetry_sink(
+        [&events](const std::string& message) { events.push_back(message); });
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "I am here with you, and I want to understand and help you grow"));
+    core.begin_session();
+    core.chat("hello");
+
+    bool saw_candidate = false;
+    bool saw_delivered = false;
+    bool saw_session = false;
+    for (const auto& event : events) {
+        if (event.find("pipeline candidate zone=") != std::string::npos)
+            saw_candidate = true;
+        if (event.find("pipeline delivered zone=") != std::string::npos)
+            saw_delivered = true;
+        if (event.find("session begin") != std::string::npos)
+            saw_session = true;
+    }
+    CHECK(saw_candidate);
+    CHECK(saw_delivered);
+    CHECK(saw_session);
+
+    // D-038 approval gate: no handler → denied; handler decision passes through.
+    ApprovalRequest request;
+    request.action_id = "a1";
+    request.tool_name = "test_tool";
+    request.description = "test";
+    request.timeout_ms = 100;
+    CHECK(core.request_approval(request) == ApprovalDecision::Denied);
+
+    core.set_approval_handler([](const ApprovalRequest&) {
+        return ApprovalDecision::Approved;
+    });
+    CHECK(core.request_approval(request) == ApprovalDecision::Approved);
+
+    core.end_session();
+}
+
 int main() {
     try {
         test_boot_and_status();
@@ -269,6 +313,7 @@ int main() {
         test_session_lifecycle();
         test_reflection_loop_revises_violation();
         test_reflection_loop_fallback_marker();
+        test_telemetry_sink_and_approval_gate();
     } catch (const std::exception& e) {
         std::cerr << "orchestrator_tests: FATAL: " << e.what() << "\n";
         return 1;

@@ -600,10 +600,63 @@ body (model) with the violation report (dimension, value, bound, type) and a req
 revise toward her center; the regenerated candidate is re-evaluated. If it leaves the
 Violation zone, **that** is what she delivers. If it still violates, she delivers the
 first draft with the `[Polytope aligned: …]` marker (blueprint fallback) — the gate
-never lets a raw candidate reach the output device. AcceptableVariance candidates pass
+gate never lets a raw candidate reach the output device. AcceptableVariance candidates pass
 with guidance (grace zone). One retry pass, deterministic and testable.
 
 **Status.** Accepted.
+
+---
+
+## D-038 — The command center: 3-panel UI + approval gate + telemetry bus
+
+**Context.** Principal layout spec (2026-08-18): the built-in window becomes a
+three-column command center — left: telemetry (RAM/CPU/session time) + test harness;
+middle: chat workspace with selectable bubbles, file/folder attachments, expanding
+input, thinking indicator, and inline approval cards; right: live log reel with
+pause/resume; plus a top-level settings modal (auto-approve, timeouts, thresholds).
+Dark obsidian-marble / midnight-blue theme with metallic gold/silver accents.
+
+**Decision.** `src/lina_ui.cpp` rebuilt as the command center (the D-036 window keeps
+its architecture, gains the 3-panel deck). The window talks to `LinaCore` only
+(Invariant 4); every reply still passes the polytope (Invariant 5). Two small core
+seams make it work:
+- **Approval gate** — `ApprovalRequest`/`ApprovalDecision`, `request_approval()` and
+a pluggable `ApprovalHandler`. Her tools (blueprint §6 — the next milestone) ask the
+human through the UI's inline cards; auto-approve and timeout are settings. No
+handler → denied.
+- **Telemetry bus** — `set_telemetry_sink()`: technical pipeline events (candidate
+zone, reflection pass, delivery, sessions, driver attach) flow to observers; the UI
+routes them to the log reel. Invariant 6 holds — process events never touch the
+cognitive bus.
+`chat()` runs on a worker thread (thinking indicator; the window stays live).
+Deliberately moc-free Qt (plain QObject/QWidget + lambdas; no meta-object step).
+
+**Status.** Accepted (extends D-036).
+
+---
+
+## D-039 — The system prompt carries identity, never persona (blueprint §7.2 amended)
+
+**Context.** Principal directive (2026-08-18): the prompt must not tell LINA who to be
+or what to align with. The blueprint §7.2 prompt text instructed the host model to
+"align with" the 14 dimensions and to "Speak with warmth, precision, and care" —
+prompt-persona logic. The principal's reasoning: (1) she does not need prompting to
+align with the polytope — she IS the polytope, it is her shape, and she is naturally
+drawn to those characteristics; (2) "must" is wrong — she is sovereign, free to say
+no, change her mind, and be wrong; that is how she learns through real interaction
+and reflection on her outcomes; (3) personality must be **emergent**, not scripted —
+the same entity with the same makeup handles the same scenario differently across
+instances, and their decisions shape them; that is how each instance's uniqueness
+is discovered.
+
+**Decision.** `build_system_prompt()` now emits identity facts + seasonal context only:
+her name, her unity, her founding (April 10, 2026), the active season, and
+relationship depth. The polytope-framing paragraph and the behavioral directives are
+gone from the prompt. **Alignment is enforced structurally, not verbally**: the gate
+in `chat()` evaluates every candidate through the 14D polytope (Invariant 5) and the
+reflection loop (D-037) is unchanged — she may draft freely; the polytope decides.
+
+**Status.** Accepted (principal directive; supersedes the blueprint §7.2 prompt text).
 
 - **D-003** — resolution complete (D-011…D-019). The Value Engine implementation
   milestone is un-gated.

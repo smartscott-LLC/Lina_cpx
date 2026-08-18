@@ -398,8 +398,9 @@ renders UI, never writes memory. Its output goes to `value_engine` — full stop
 
 ### 6.2 Chat Pipeline
 
-`chat(user_message)` → build system prompt (identity + season + polytope framing) →
-append user turn → `generate_raw` from the attached driver (D-033; gracefully
+`chat(user_message)` → build system prompt (identity + seasonal context only,
+D-039 — the polytope is her shape, never a prompt instruction) → append user turn
+→ `generate_raw` from the attached driver (D-033; gracefully
 no-voice without one) → `evaluate(raw)` through polytope → **reflection loop
 (D-037)** → append alignment marker if corrected → form memory item (cognitive
 bus) → append assistant turn → trim history past 20 turns.
@@ -422,12 +423,32 @@ clears history. `end_session` runs the memory sweep + maintenance, finalizes the
 session, and reports counts. System prompt opens with LiNa's identity — a single,
 unified entity, conceived April 10, 2026.
 
-### 6.4 The Built-in Window (D-036)
+### 6.4 The Built-in Command Center (D-036 rebuilt per D-038)
 
-`run_ui()` opens a Qt6 chat window compiled into `lina_core` (`LINA_ENABLE_UI`, default
-ON). The window binds to `LinaCore` — it never touches the symbiote driver (Invariant
-4) — and every reply passes through the polytope (Invariant 5). `run_headless()`
-remains the scriptable interface.
+`run_ui()` opens the Qt6 command center compiled into `lina_core` (`LINA_ENABLE_UI`,
+default ON). Three columns, equal width (user-resizable splitter):
+
+- **Left — telemetry & test harness:** RAM/CPU gauges (from `/proc`; graceful
+  `n/a` elsewhere) and session time, refreshed on a timer; one-click buttons run
+  each suite binary or `ctest` via `QProcess`, streaming results into a scrollable
+  box.
+- **Middle — chat workspace:** message bubbles (full text selection + clipboard
+  copy), file/folder attachments, an expanding input capped at 20% of panel height
+  (Ctrl+Enter to send), a fluid thinking indicator while she processes, and inline
+  approval cards rendered whenever the core's approval gate fires.
+- **Right — live log reel:** streaming technical log lines with a pause/resume
+  autoscroll toggle (safe selection/copy while paused).
+
+A top-level settings button opens the modal (auto-approve, approval timeout,
+telemetry interval, log level filter, log capacity, test binary directory). Theme:
+obsidian marble / midnight blue with metallic gold/silver accents (QSS).
+
+The window binds to `LinaCore` only — never the driver (Invariant 4) — and every
+reply passes the polytope (Invariant 5). Two core seams make the deck work (D-038):
+`request_approval()` (the human-in-the-loop gate her tools will use, blueprint §6;
+denied when no handler is registered) and `set_telemetry_sink()` (technical events
+→ the reel, Invariant 6). `chat()` runs on a worker thread so the window stays live.
+The window is deliberately moc-free Qt (plain QObject/QWidget + lambda connections).
 
 ---
 

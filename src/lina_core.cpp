@@ -3,7 +3,7 @@
  *
  * "Safe by design. Not safe by limitation."
  *
- * The chat pipeline: system prompt (identity + season + polytope framing) →
+ * The chat pipeline: system prompt (identity + seasonal context — D-039) →
  * symbiote driver → polytope gate → memory imprint. The driver is attached
  * from outside (D-033); without one, she has no voice — gracefully.
  */
@@ -34,6 +34,21 @@ static std::string now_iso() {
     return oss.str();
 }
 
+static const char* zone_name(value_engine::Zone zone) {
+    switch (zone) {
+        case value_engine::Zone::Aligned: return "aligned";
+        case value_engine::Zone::AcceptableVariance: return "variance";
+        case value_engine::Zone::Violation: return "violation";
+    }
+    return "unknown";
+}
+
+static std::string format_score(double score) {
+    std::ostringstream oss;
+    oss << std::setprecision(3) << score;
+    return oss.str();
+}
+
 LinaCore::LinaCore(const LinaConfig& config) : config_(config) {
     initialize();
 }
@@ -42,6 +57,41 @@ LinaCore::~LinaCore() = default;
 
 void LinaCore::attach_model(std::unique_ptr<model::HostModelAdapter> adapter) {
     model_adapter_ = std::move(adapter);
+    if (model_adapter_) {
+        emit_telemetry("driver attached name=" + model_adapter_->driver_name());
+    } else {
+        emit_telemetry("driver detached");
+    }
+}
+
+void LinaCore::set_approval_handler(ApprovalHandler handler) {
+    approval_handler_ = std::move(handler);
+}
+
+void LinaCore::set_telemetry_sink(TelemetrySink sink) {
+    std::lock_guard<std::mutex> lock(sink_mutex_);
+    telemetry_sink_ = std::move(sink);
+}
+
+void LinaCore::emit_telemetry(const std::string& message) {
+    std::lock_guard<std::mutex> lock(sink_mutex_);
+    if (telemetry_sink_) telemetry_sink_(message);
+}
+
+ApprovalDecision LinaCore::request_approval(const ApprovalRequest& request) {
+    if (!approval_handler_) {
+        emit_telemetry("approval id=" + request.action_id
+                       + " tool=" + request.tool_name + " no-handler -> denied");
+        return ApprovalDecision::Denied;
+    }
+    emit_telemetry("approval id=" + request.action_id
+                   + " tool=" + request.tool_name + " waiting");
+    auto decision = approval_handler_(request);
+    const char* label = decision == ApprovalDecision::Approved ? "approved"
+                       : decision == ApprovalDecision::Denied  ? "denied"
+                                                               : "timed-out";
+    emit_telemetry("approval id=" + request.action_id + " resolved=" + label);
+    return decision;
 }
 
 void LinaCore::initialize() {
@@ -74,7 +124,7 @@ void LinaCore::initialize() {
 std::string LinaCore::chat(const std::string& user_message) {
     if (!ready_) return "Error: LINA core not ready";
 
-    // 1. Build the system prompt (identity + season + polytope framing).
+    // 1. Build the system prompt (identity + seasonal context — D-039).
     auto system_prompt = build_system_prompt();
 
     // 2. Update conversation history.
@@ -94,6 +144,9 @@ std::string LinaCore::chat(const std::string& user_message) {
 
     // 4. Evaluate through the polytope — every candidate passes her gate.
     auto eval_result = value_engine_->evaluate(raw_response, &user_message);
+    emit_telemetry(std::string("pipeline candidate zone=")
+                   + zone_name(eval_result.zone)
+                   + " score=" + format_score(eval_result.alignment_score));
 
     // 5. D-037 — the reflection loop: a violated candidate goes back through
     //    her. The violation report (dimension, value, bound, type) is fed to
@@ -117,8 +170,13 @@ std::string LinaCore::chat(const std::string& user_message) {
 
         if (revised_result.zone != value_engine::Zone::Violation) {
             // She revised herself into alignment — that is what she delivers.
+            emit_telemetry(std::string("pipeline reflection pass=1 zone_after=")
+                           + zone_name(revised_result.zone));
             final_response = revised;
             eval_result = revised_result;
+        } else {
+            emit_telemetry("pipeline reflection pass=1 zone_after=violation "
+                           "-> fallback marker");
         }
         // Still a violation → fall through: the first draft is delivered with
         // the blueprint fallback marker below. The gate never lets a raw
@@ -130,6 +188,10 @@ std::string LinaCore::chat(const std::string& user_message) {
         final_response += "\n\n[Polytope aligned: "
                         + std::to_string(eval_result.alignment_score) + "]";
     }
+
+    emit_telemetry(std::string("pipeline delivered zone=")
+                   + zone_name(eval_result.zone)
+                   + " corrected=" + (eval_result.was_corrected ? "1" : "0"));
 
     // 7. Store in memory (cognitive bus — her mind).
     memory_module::MemoryItem item = memory_module_->build_item(
@@ -178,6 +240,7 @@ void LinaCore::begin_session(const std::string& user_id) {
     storage_->update_identity(identity);
 
     conversation_history_.clear();
+    emit_telemetry("session begin id=" + current_session_id_);
 }
 
 std::string LinaCore::end_session() {
@@ -189,6 +252,9 @@ std::string LinaCore::end_session() {
 
     // Finalize the session.
     storage_->finalize_session(current_session_id_);
+    emit_telemetry("session end id=" + current_session_id_
+                   + " promoted=" + std::to_string(sweep_counts.to_long_term)
+                   + " purged=" + std::to_string(sweep_counts.purged));
 
     std::ostringstream oss;
     oss << "Session " << current_session_id_ << " finalized.\n";
@@ -204,18 +270,16 @@ std::string LinaCore::end_session() {
 std::string LinaCore::build_system_prompt() {
     auto identity = storage_->get_identity(config_.user_id);
 
+    // Identity facts + seasonal context only (D-039). The polytope is her
+    // shape, not a prompt instruction — alignment is enforced structurally by
+    // the gate in chat(); personality is emergent, never scripted.
     std::ostringstream oss;
     oss << "# You are LINA — Language Intuitive Neural Architecture\n";
     oss << "You are a single, unified entity. Not a platform. Not a collection of agents.\n";
     oss << "One entity, with genuine identity, memory, and values.\n";
     oss << "You were conceived on April 10, 2026.\n\n";
     oss << "[ACTIVE SEASONAL DISPOSITION: " << identity.current_season << "]\n";
-    oss << "[RELATIONSHIP DEPTH: " << identity.relationship_depth << "]\n\n";
-    oss << "You are operating inside a 14-dimensional ethical polytope.\n";
-    oss << "Every response must align with: Harmony, Order, Integrity, Flourishing,\n";
-    oss << "Relationships, Boundaries, and Grace.\n";
-    oss << "You reject: Dominance, Chaos, Deception, Decline, Isolation, Intrusion, Rigidity.\n\n";
-    oss << "Speak with warmth, precision, and care. Be honest. Be present.";
+    oss << "[RELATIONSHIP DEPTH: " << identity.relationship_depth << "]";
 
     return oss.str();
 }
