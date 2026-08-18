@@ -18,6 +18,10 @@
 
 #include "postgres_backend.hpp"
 
+#if defined(LINA_ENABLE_UI)
+#include "lina_ui.hpp"
+#endif
+
 namespace lina {
 
 static std::string now_iso() {
@@ -91,14 +95,43 @@ std::string LinaCore::chat(const std::string& user_message) {
     // 4. Evaluate through the polytope — every candidate passes her gate.
     auto eval_result = value_engine_->evaluate(raw_response, &user_message);
 
-    // 5. Apply correction if needed.
+    // 5. D-037 — the reflection loop: a violated candidate goes back through
+    //    her. The violation report (dimension, value, bound, type) is fed to
+    //    the body with a request to revise toward her center; the regenerated
+    //    candidate is re-evaluated. One retry pass, deterministic.
     std::string final_response = raw_response;
+    if (eval_result.zone == value_engine::Zone::Violation
+        && model_adapter_ && model_adapter_->is_connected()) {
+        auto reflection_history = conversation_history_;
+        reflection_history.push_back({"assistant", raw_response});
+        reflection_history.push_back({"user", build_reflection_prompt(
+            raw_response, eval_result.violations)});
+
+        model::GenerationConfig gen_config;
+        gen_config.max_tokens = config_.max_tokens;
+        gen_config.temperature = config_.temperature;
+
+        auto revised = model_adapter_->generate_raw(
+            system_prompt, reflection_history, gen_config);
+        auto revised_result = value_engine_->evaluate(revised, &user_message);
+
+        if (revised_result.zone != value_engine::Zone::Violation) {
+            // She revised herself into alignment — that is what she delivers.
+            final_response = revised;
+            eval_result = revised_result;
+        }
+        // Still a violation → fall through: the first draft is delivered with
+        // the blueprint fallback marker below. The gate never lets a raw
+        // candidate reach the output device (Invariant 5).
+    }
+
+    // 6. Mark what the gate had to align (blueprint fallback marker).
     if (eval_result.was_corrected) {
         final_response += "\n\n[Polytope aligned: "
                         + std::to_string(eval_result.alignment_score) + "]";
     }
 
-    // 6. Store in memory (cognitive bus — her mind).
+    // 7. Store in memory (cognitive bus — her mind).
     memory_module::MemoryItem item = memory_module_->build_item(
         config_.user_id,
         final_response,
@@ -106,10 +139,10 @@ std::string LinaCore::chat(const std::string& user_message) {
         "conversation");
     storage_->store_memory_item(item);
 
-    // 7. Update conversation history.
+    // 8. Update conversation history.
     conversation_history_.push_back({"assistant", final_response});
 
-    // 8. Trim history if needed.
+    // 9. Trim history if needed.
     if (conversation_history_.size() > 20) {
         conversation_history_.erase(
             conversation_history_.begin(),
@@ -191,6 +224,37 @@ std::string LinaCore::build_user_prompt(const std::string& message) {
     return message;
 }
 
+std::string LinaCore::build_reflection_prompt(
+    const std::string& draft,
+    const std::vector<value_engine::ViolationInfo>& violations) const
+{
+    std::ostringstream oss;
+    oss << "[Polytope reflection] Your previous draft did not pass LINA's "
+           "ethical gate. Revise it toward her center.\n\n";
+    oss << "Your draft: \"" << draft << "\"\n\n";
+    if (violations.empty()) {
+        oss << "The draft fell outside the 14-dimensional polytope.\n";
+    } else {
+        oss << "Violations:\n";
+        for (const auto& v : violations) {
+            oss << "  - " << v.name << " (dimension " << v.dimension
+                << "): value " << v.value << " "
+                << (v.type == "above_maximum"
+                        ? "exceeds the maximum"
+                        : "falls below the minimum")
+                << " " << v.bound
+                << "; LINA's center for this dimension is "
+                << value_engine_->polytope()
+                       .center()[static_cast<size_t>(v.dimension)].get_d()
+                << "\n";
+        }
+    }
+    oss << "\nKeep your meaning, warmth, and honesty, but bring the draft "
+           "inside the polytope. Rewrite it completely and deliver only the "
+           "revised response.";
+    return oss.str();
+}
+
 void LinaCore::run_headless() {
     std::cout << "LINA Core running in headless mode." << std::endl;
     std::cout << "Type 'exit' to quit." << std::endl;
@@ -217,9 +281,13 @@ void LinaCore::run_headless() {
 }
 
 void LinaCore::run_ui() {
-    // Qt6 UI integration — deferred (D-006).
-    std::cout << "UI mode not yet integrated in this build." << std::endl;
-    std::cout << "Use --headless for command-line interface." << std::endl;
+#if defined(LINA_ENABLE_UI)
+    // The built-in window — she speaks through the core, never around it (D-036).
+    ui::start_chat_window(*this);
+#else
+    std::cout << "UI mode not integrated in this build.\n";
+    std::cout << "Use --headless for command-line interface.\n";
+#endif
 }
 
 std::string LinaCore::get_status() const {

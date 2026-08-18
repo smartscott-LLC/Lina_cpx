@@ -47,6 +47,19 @@ All notable changes to the LINA Core Substrate are recorded here.
   - D-034 fix: tier moves are UPSERTs on the unified table (global `item_id` PK).
   - `lina_core` binary boots headless against the live stack; orchestrator suite
     green (15 checks). `ctest` 4/4 (325 checks total).
+- **UI milestone — built into the core (D-036, supersedes D-006)**
+  - Qt6 chat window inside `lina_core`: `src/lina_ui.cpp`, `include/lina_ui.hpp`,
+    `LINA_ENABLE_UI` default ON (blueprint §8.1). Window ↔ `LinaCore` only
+    (Invariant 4); every reply passes the polytope gate.
+  - Offscreen integration suite green (5 checks). `ctest` 5/5 (345 checks).
+- **Reflection loop (D-037) — the violated candidate goes back through her**
+  - `chat()` now feeds a `Violation`-zone draft back to the body with the full
+    violation report (dimension, value, bound, type, LINA's center) and asks for a
+    revision toward her center; the regenerated candidate is re-evaluated.
+  - Leaves `Violation` → the revision is what she delivers; still violating → the
+    first draft ships with the `[Polytope aligned: …]` fallback marker. One retry
+    pass; `AcceptableVariance` stays in the grace zone. `orchestrator_tests` +8
+    checks (23 total); `ctest` 5/5 (353 checks total).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

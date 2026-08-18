@@ -84,6 +84,10 @@ private:
     void initialize();
     std::string build_system_prompt();
     std::string build_user_prompt(const std::string& message);
+    // D-037: builds the violation report fed back to the body for revision.
+    std::string build_reflection_prompt(
+        const std::string& draft,
+        const std::vector<value_engine::ViolationInfo>& violations) const;
 };
 
 } // namespace lina

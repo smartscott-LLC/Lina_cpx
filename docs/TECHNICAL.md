@@ -400,9 +400,20 @@ renders UI, never writes memory. Its output goes to `value_engine` — full stop
 
 `chat(user_message)` → build system prompt (identity + season + polytope framing) →
 append user turn → `generate_raw` from the attached driver (D-033; gracefully
-no-voice without one) → `evaluate(raw)` through polytope → append alignment marker
-if corrected → form memory item (cognitive bus) → append assistant turn → trim
-history past 20 turns.
+no-voice without one) → `evaluate(raw)` through polytope → **reflection loop
+(D-037)** → append alignment marker if corrected → form memory item (cognitive
+bus) → append assistant turn → trim history past 20 turns.
+
+**Reflection loop (D-037).** A candidate in the `Violation` zone is never delivered
+raw (Invariant 5). Instead it is fed back to the body: the assistant draft plus a
+`[Polytope reflection]` user turn carrying the violation report — dimension name,
+value, bound, type (`exceeds the maximum` / `falls below the minimum`), and LINA's
+center for each violated dimension — with a request to revise toward her center.
+The regenerated candidate is re-evaluated. If it leaves the `Violation` zone, the
+revision is what she delivers; if it still violates, the **first draft** is
+delivered with the `[Polytope aligned: …]` fallback marker. `AcceptableVariance`
+candidates pass in the grace zone without a second pass. One retry pass —
+deterministic and testable (see `orchestrator_tests`).
 
 ### 6.3 Session Lifecycle
 
@@ -410,6 +421,13 @@ history past 20 turns.
 clears history. `end_session` runs the memory sweep + maintenance, finalizes the
 session, and reports counts. System prompt opens with LiNa's identity — a single,
 unified entity, conceived April 10, 2026.
+
+### 6.4 The Built-in Window (D-036)
+
+`run_ui()` opens a Qt6 chat window compiled into `lina_core` (`LINA_ENABLE_UI`, default
+ON). The window binds to `LinaCore` — it never touches the symbiote driver (Invariant
+4) — and every reply passes through the polytope (Invariant 5). `run_headless()`
+remains the scriptable interface.
 
 ---
 
@@ -465,6 +483,7 @@ Compiler flags (spec §8.1): `-O3 -march=native -Wall -Wextra -Werror
 | D-032 | pgvector text format `[…]` not `{…}` (blueprint bug fix) |
 | D-033 | Driver injection (`attach_model`) + `make_driver()` plug-in seam |
 | D-034 | Tier moves are UPSERTs on the unified table (global `item_id` PK) |
+| D-036 | Qt6 UI built INTO `lina_core` (supersedes D-006) |
 
 ---
 

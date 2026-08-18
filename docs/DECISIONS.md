@@ -81,8 +81,8 @@ Extraction discipline (binding):
   other component of the principal's broader system must **not** enter `lina_core`.
   The module stands alone as her core.
 - **Hygiene.** The principal dropped the material into `code_and_concept/` (gitignored —
-  never committed). It is disposed of once the Value Engine milestone is implemented and
-  validated.
+  never committed). **Disposed 2026-08-18 by the principal** once the Value Engine
+  milestone was implemented and validated. It is history.
 - **Every authored formula** that the blueprint leaves unspecified is recorded in a
   follow-up decision entry (D-011+), so the build remains auditable.
 
@@ -573,9 +573,39 @@ Covers t1→t2→t3 promotion, t3→long-term, and the fallout path.
 
 ---
 
-## Pending / Discussion
+## D-036 — Qt6 UI built INTO lina_core (D-006 superseded)
+
+**Context.** Principal directive (2026-08-18): the UI is supposed to be built into the
+core — she needs a built-in channel to send her responses. D-006 had deferred Qt6
+pending the UI milestone; that deferral is now **superseded**.
+
+**Decision.** The Qt6 chat window ships inside `lina_core` (blueprint §8.1
+`LINA_ENABLE_UI`, now default ON). `run_ui()` constructs the window against the core
+itself — the UI talks to `LinaCore`, never to the symbiote driver (Invariant 4). The
+window is implemented in `src/lina_ui.cpp`, declared in `include/lina_ui.hpp` (Qt stays
+out of the core headers, per blueprint §7.1). Headless mode remains.
+
+**Status.** Accepted (supersedes D-006).
+
+---
+
+## D-037 — The reflection loop: violated candidates go back through her
+
+**Context.** Principal clarification (2026-08-18): everything must pass **through**
+Lina to the output device — no response goes anywhere except through the polytope.
+The blueprint's §7.2 notes "in production, this would re-prompt with correction".
+
+**Decision.** In `chat()`, a candidate whose zone is `Violation` is **fed back** to the
+body (model) with the violation report (dimension, value, bound, type) and a request to
+revise toward her center; the regenerated candidate is re-evaluated. If it leaves the
+Violation zone, **that** is what she delivers. If it still violates, she delivers the
+first draft with the `[Polytope aligned: …]` marker (blueprint fallback) — the gate
+never lets a raw candidate reach the output device. AcceptableVariance candidates pass
+with guidance (grace zone). One retry pass, deterministic and testable.
+
+**Status.** Accepted.
 
 - **D-003** — resolution complete (D-011…D-019). The Value Engine implementation
   milestone is un-gated.
-- PostgreSQL / pgvector / pkg-config installed (2026-08-18) — storage milestone
-  complete. Host Model Adapter + orchestrator in progress.
+- llama.cpp driver (the voice) — queued; builds into `make_driver()` (D-035).
+- Qt6 UI now built into the core (D-036); headless mode remains.

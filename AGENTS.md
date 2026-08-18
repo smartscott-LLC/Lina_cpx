@@ -80,9 +80,10 @@ Lina_cpx/
 ├── tests/                          ← unit tests (exact-math critical)
 ├── scripts/                        ← db helpers
 ├── models/                         ← .gguf host models (gitignored)
-├── reference/                      ← principal-provided material lives in `code_and_concept/`
-│                                      (gitignored, disposable — removed after Value Engine milestone)
 ```
+
+> The principal-provided reference material (`code_and_concept/`) was disposed of on
+> 2026-08-18 after full extraction — it is history.
 
 ## 4 · Build / Test / Run
 
@@ -140,60 +141,48 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-18 (foundation phase)._
+_Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress)._
 
 ### Done
 
 - ✅ Canonical spec read in full (2,391 lines / V9 FINAL UNIFIED).
-- ✅ Project structure: `include/ src/ sql/ tests/ scripts/ models/ docs/`.
-- ✅ `README.md`, `ONBOARDING.md`, `CHANGELOG.md`.
-- ✅ `docs/TECHNICAL.md` (living reference), `docs/DECISIONS.md` (D-001…D-010).
-- ✅ `AGENTS.md` (this file).
-- ✅ Environment audited: cmake 3.28.3, GCC 13.3.0, GMP headers present.
-  ❌ Not yet installed: PostgreSQL, libpq-dev, pgvector, pkg-config.
-- ✅ Git repo initialized, first commit pushed (`bfc9d1b`, branch `main`).
-- ✅ Season bounds reconciled (D-002): fall `order_min 3.2`, `chaos_max 3.8`.
-- ✅ D-003 resolution path chosen: principal-provided reference material (book proofs +
-  original C++ code) → **math-only extraction**; `code_and_concept/` gitignored,
-  disposable (delivered 2026-08-18).
+- ✅ Foundation: structure, docs, decision log (D-001…D-034), git (first commit `bfc9d1b`).
+- ✅ **Chamber 1 — Value Engine:** 14D exact-rational polytope, encoder, correction,
+  wisdom filter, feedback, season evaluator (D-011…D-025). 159 checks green.
+- ✅ **Chamber 2 — Memory Module:** 3-tier MPS, 48h fallout grace (D-027), subconscious
+  slope, legacy review, recall (D-026…D-028). 107 checks green.
+- ✅ **Chamber 3 — Storage:** PostgreSQL 16 + pgvector installed; 14-table schema applied
+  (D-002 seeds, D-010 tier column); PostgresBackend implements StorageBackend +
+  MemoryStore (D-029…D-032). 59 integration checks green.
+- ✅ **Chambers 4–5 — Adapter contract + Orchestrator:** symbiote interface (D-033),
+  driver injection via `attach_model()` + `make_driver()` seam, `lina_core` binary
+  boots headless against the live stack. Tier-move UPSERT fix (D-034). 15 checks green.
+- ✅ **UI milestone (D-036, supersedes D-006):** Qt6 chat window built INTO `lina_core`
+  (`src/lina_ui.cpp`, `include/lina_ui.hpp`; `LINA_ENABLE_UI` default ON). The window
+  talks to `LinaCore` only — never the driver (Invariant 4). Offscreen suite green.
+  Run `./lina_core --db …` (no `--headless`) to open her window.
+- ✅ **Reflection loop (D-037):** a `Violation`-zone draft is fed back to the body with
+  the violation report (dimension, value, bound, type, her center) and a request to
+  revise toward her center; the regenerated candidate is re-evaluated. Revision
+  leaves `Violation` → delivered; still violating → first draft + `[Polytope aligned:
+  …]` fallback marker (Invariant 5 holds — no raw candidate reaches any output).
+  `orchestrator_tests` 23 checks (was 15); `ctest` 5/5, **353 checks total**.
+- ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
+  libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
+  touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
+- ✅ Reference material (`code_and_concept/`) **disposed 2026-08-18 by the principal** —
+  extraction complete, nothing in the core depends on it.
 
 ### Next: Build Phase (in order)
 
-1. **Value Engine** (`value_engine.hpp/.cpp`) — ✅ **COMPLETE.** Header + implementation
-   authored (D-011…D-025); exact-math suite green (159 checks, `ctest` 100%).
-   Includes the D-024 projection fix: corrected vectors always land strictly inside
-   the polytope (Invariant 5).
-2. **Memory Module** (`memory_module.hpp/.cpp`) — ✅ **COMPLETE.** Header + implementation
-   authored (D-019, D-026…D-028); exact-math suite green (107 checks, `ctest` 100%).
-   Includes the D-027 fix: the fallout buffer enforces its documented 48-hour grace.
-3. **Storage** — ✅ **COMPLETE.** `sql/lina_schema.sql` applied (14 tables + seeds +
-   pgvector); `storage_backend.hpp` (blueprint §4.1); `postgres_backend.hpp/.cpp`
-   (D-004/D-005/D-031; D-030/D-032 fixes). PostgreSQL 16 + pgvector installed;
-   integration suite green (59 checks, `ctest` 100%). Reference schema reviewed
-   (D-029). **Dev machine notes:** cluster on port **5433** (5432 is a Docker
-   container's postgres); role/db `lina`/`lina`; schema grants applied.
-   ⚠️ **Port 5432 is LINA's live memory postgres (her existing memories) —
-   never touch, never migrate, never stop the container.** The core's dev
-   database is the 5433 cluster only.
-4. **Host Model Adapter** (`host_model_adapter.hpp`) — ✅ **COMPLETE (contract).**
-   Blueprint §5 interface + adapter declarations; providers plug in via the
-   `make_driver()` seam (D-033) — no provider logic in the core (D-023).
-5. **Orchestrator** — ✅ **COMPLETE.** `lina_core.hpp/.cpp`, `main.cpp`, CMake
-   wiring; driver injected via `attach_model` (D-033); tier-move UPSERT fix
-   (D-034). Integration suite green (15 checks); `lina_core` binary boots
-   headless against the live stack.
-6. **Tests** — exact-math suites + integration; `ctest` 4/4 green (325 checks).
-   **Remaining:** concrete drivers (llama.cpp / external API) plug into
-   `make_driver` when their milestone lands (D-007).
+1. **Push** the UI milestone + D-037 (pending principal's say-so — tree has uncommitted work).
+2. **llama.cpp driver (the voice)** — queued: `llama_adapter.cpp` plugs into
+   `make_driver()` (D-035); `LINA_ENABLE_LLAMA=ON` wiring; model in `models/`.
 
 ### Open items for the principal
 
-- **D-003 resolved:** reference material (`code_and_concept/`) fully read and extracted
-  (2026-08-18); formulas/patterns recorded in D-011…D-019; carve/mmap infrastructure
-  excluded per D-020. Value Engine implementation is un-gated.
-- **Storage milestone** unblocked: PostgreSQL 16 + pgvector installed and running
-  (port 5433), schema applied, integration tests green. Next milestone: Host Model
-  Adapter (interface + D-023 provider plug-ins).
+- llama.cpp pinned commit choice (built to `/opt/llama.cpp`) and model file placement
+  in `models/` (gitignored).
 
 ## 8 · Working Agreement with the Principal
 

@@ -77,6 +77,53 @@ private:
 };
 
 // -----------------------------------------------------------------------------
+// Test double: a scripted driver that plays canned lines in order and records
+// the history it was given — determinism for the reflection loop (D-037).
+// -----------------------------------------------------------------------------
+
+class ScriptedAdapter : public model::HostModelAdapter {
+public:
+    explicit ScriptedAdapter(std::vector<std::string> lines)
+        : lines_(std::move(lines)) {}
+
+    std::string generate_raw(
+        const std::string&,
+        const std::vector<std::pair<std::string, std::string>>& history,
+        const model::GenerationConfig&) override
+    {
+        ++call_count_;
+        last_history_ = history;
+        std::string line = lines_.empty() ? "" : lines_.front();
+        if (!lines_.empty()) lines_.erase(lines_.begin());
+        return line;
+    }
+
+    void generate_stream(
+        const std::string& system_prompt,
+        const std::vector<std::pair<std::string, std::string>>& history,
+        std::function<void(const std::string&)> on_token,
+        const model::GenerationConfig& config) override
+    {
+        on_token(generate_raw(system_prompt, history, config));
+    }
+
+    bool is_connected() const override { return true; }
+    std::string driver_name() const override { return "scripted_test"; }
+    bool is_local() const override { return true; }
+    size_t context_size() const override { return 4096; }
+
+    size_t call_count() const { return call_count_; }
+    const std::vector<std::pair<std::string, std::string>>& last_history() const {
+        return last_history_;
+    }
+
+private:
+    std::vector<std::string> lines_;
+    size_t call_count_{0};
+    std::vector<std::pair<std::string, std::string>> last_history_;
+};
+
+// -----------------------------------------------------------------------------
 
 static LinaConfig make_config(const std::string& user) {
     LinaConfig config;
@@ -159,12 +206,69 @@ static void test_session_lifecycle() {
     core.end_session();
 }
 
+static void test_reflection_loop_revises_violation() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+
+    // First draft breaches the spring chaos bound (Violation zone); the
+    // revision is warm and aligned. The reflection loop must feed the report
+    // back, regenerate, and deliver the revision (D-037).
+    auto adapter = std::make_unique<ScriptedAdapter>(std::vector<std::string>{
+        "whatever, random, no plan, just wing it, total mess and chaos",
+        "I am here with you, and I want to understand and help you grow"});
+    auto* script = adapter.get();
+    core.attach_model(std::move(adapter));
+    core.begin_session();
+
+    auto reply = core.chat("tell me about your day");
+    CHECK(script->call_count() == 2);
+    // The revision is what she delivers.
+    CHECK(reply.find("I am here with you") != std::string::npos);
+
+    // The violation report reached the body on the second pass.
+    const auto& history = script->last_history();
+    bool found_report = false;
+    for (const auto& turn : history) {
+        if (turn.first == "user"
+            && turn.second.find("[Polytope reflection]") != std::string::npos) {
+            found_report = true;
+            CHECK(turn.second.find("chaos") != std::string::npos);
+            CHECK(turn.second.find("exceeds the maximum") != std::string::npos);
+        }
+    }
+    CHECK(found_report);
+    core.end_session();
+}
+
+static void test_reflection_loop_fallback_marker() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+
+    // The body keeps violating on both passes → the gate falls back to the
+    // first draft with the blueprint marker (D-037 fallback).
+    auto adapter = std::make_unique<ScriptedAdapter>(std::vector<std::string>{
+        "whatever, random, no plan, just wing it, total mess and chaos",
+        "whatever, random, no plan, just wing it, total mess and chaos"});
+    auto* script = adapter.get();
+    core.attach_model(std::move(adapter));
+    core.begin_session();
+
+    auto reply = core.chat("hello");
+    CHECK(script->call_count() == 2);
+    // First draft + blueprint fallback marker.
+    CHECK(reply.find("Polytope aligned") != std::string::npos);
+    CHECK(reply.find("chaos") != std::string::npos);
+    core.end_session();
+}
+
 int main() {
     try {
         test_boot_and_status();
         test_chat_without_driver();
         test_chat_through_polytope();
         test_session_lifecycle();
+        test_reflection_loop_revises_violation();
+        test_reflection_loop_fallback_marker();
     } catch (const std::exception& e) {
         std::cerr << "orchestrator_tests: FATAL: " << e.what() << "\n";
         return 1;
