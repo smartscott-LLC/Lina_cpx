@@ -65,35 +65,26 @@ add_executable(value_engine_tests tests/value_engine_tests.cpp)
 target_link_libraries(value_engine_tests PRIVATE lina_value_engine)
 add_test(NAME value_engine_tests COMMAND value_engine_tests)
 
-# --- Full executable (converges to spec §8.1 at orchestrator milestone) -----
+# --- Memory Module (Chamber 2) — depends on the value engine -----------------
+add_library(lina_memory_module STATIC src/memory_module.cpp)
+target_link_libraries(lina_memory_module PUBLIC lina_value_engine)
+
+add_executable(memory_module_tests tests/memory_module_tests.cpp)
+target_link_libraries(memory_module_tests PRIVATE lina_memory_module)
+add_test(NAME memory_module_tests COMMAND memory_module_tests)
+
+# --- Storage backend (Chamber 3) — PostgreSQL + pgvector -------------------
 if (LINA_ENABLE_STORAGE)
-    add_executable(lina_core
-        src/lina_core.cpp
-        src/value_engine.cpp
-        src/memory_module.cpp
-        src/postgres_backend.cpp
-        src/main.cpp
-    )
-    target_link_libraries(lina_core
-        ${GMP_LIBRARY}
-        ${GMPXX_LIBRARY}
-        ${PostgreSQL_LIBRARIES}
-        pthread
-    )
-    target_include_directories(lina_core PRIVATE
-        ${GMP_INCLUDE_DIR}
-        ${PostgreSQL_INCLUDE_DIRS}
-    )
-    if (LINA_ENABLE_UI)
-        target_link_libraries(lina_core Qt6::Widgets Qt6::Core Qt6::Gui Qt6::Network)
-    endif()
-    if (LINA_ENABLE_LLAMA)
-        target_link_libraries(lina_core llama)
-    endif()
-    set_target_properties(lina_core PROPERTIES
-        WIN32_EXECUTABLE TRUE
-        MACOSX_BUNDLE TRUE
-    )
-    install(TARGETS lina_core DESTINATION bin)
-    install(FILES sql/lina_schema.sql DESTINATION share/lina)
+    find_package(PkgConfig REQUIRED)
+    find_package(PostgreSQL REQUIRED)
+
+    add_library(lina_storage STATIC src/postgres_backend.cpp)
+    target_link_libraries(lina_storage PUBLIC lina_memory_module ${PostgreSQL_LIBRARIES})
+    target_include_directories(lina_storage PUBLIC ${PostgreSQL_INCLUDE_DIRS})
+
+    add_executable(storage_tests tests/storage_tests.cpp)
+    target_link_libraries(storage_tests PRIVATE lina_storage)
+    add_test(NAME storage_tests COMMAND storage_tests)
+    # NOTE: the lina_core executable (blueprint §8.1) lands at the
+    # orchestrator milestone — it needs src/lina_core.cpp + src/main.cpp.
 endif()

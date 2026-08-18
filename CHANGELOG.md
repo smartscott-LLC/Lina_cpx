@@ -20,6 +20,23 @@ All notable changes to the LINA Core Substrate are recorded here.
   - Exact-math unit tests (159 checks) — `ctest` 100% green.
   - Clarifications recorded: DragonCache/Dragonfly are separate systems (D-020);
     no provider/prompt/persona logic in the core (D-023).
+- **Memory Module milestone (Chamber 2) — complete**
+  - `include/memory_module.hpp` + `src/memory_module.cpp` authored (3-tier MPS:
+    formation, routing, sweep, 48h fallout grace, monthly maintenance, subconscious
+    slope, legacy review, recall, context injection).
+  - D-027 fix: fallout buffer now enforces the documented 48-hour second chance
+    (the reference reprocessed immediately).
+  - Test doubles live in `tests/` only (D-022); unit suite (107 checks) green.
+- **Storage milestone (Chamber 3) — complete**
+  - PostgreSQL 16 + pgvector + libpq + pkg-config installed (apt, dev machine).
+  - `sql/lina_schema.sql` — blueprint's 14 tables + pgvector index, D-002
+    corrected seeds, D-010 tier column — applied and verified (14 tables).
+  - `storage_backend.hpp`, `postgres_backend.hpp`, `postgres_backend.cpp` —
+    D-004 header, D-005/D-031 dual interface, D-030 fixes (dynamic params,
+    explicit columns, NULLIF optionals), D-032 fix (pgvector `[…]` format).
+  - Integration suite green (59 checks) — identity, memory round-trip, tier ops,
+    `<->` vector search, transcripts, sessions, actions, promotion log,
+    MemoryModule-over-Postgres end-to-end.
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

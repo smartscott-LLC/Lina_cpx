@@ -71,16 +71,25 @@ make && sudo make install
 
 ```bash
 # Start PostgreSQL if not already running
-sudo systemctl enable --now postgresql
+sudo service postgresql start
 
-# Create the database and apply the 14-table schema
-sudo -u postgres createdb lina
+# Create role + database, apply the 14-table schema
+sudo -u postgres psql -c "CREATE ROLE lina LOGIN PASSWORD 'lina';"
+sudo -u postgres psql -c "CREATE DATABASE lina OWNER lina;"
 sudo -u postgres psql -d lina -f sql/lina_schema.sql
 
+# Grant the app role the schema (tables are created by the postgres superuser)
+sudo -u postgres psql -d lina -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO lina;" \
+                        -c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO lina;"
+
 # Verify
-psql postgresql://localhost/lina -c "\dt"
+psql postgresql://lina:lina@localhost:5433/lina -c "\dt"
 # Expect 14 lina_* tables
 ```
+
+> **This dev machine:** the cluster listens on port **5433** — port 5432 belongs to a
+> Docker container's postgres. Use `postgresql://lina:lina@localhost:5433/lina`
+> (the integration tests default to this; override with `LINA_TEST_DB`).
 
 The schema (`sql/lina_schema.sql`, spec §6) creates the extension, 14 tables,
 the pgvector index, and seeds the four seasons' polytope constraints.
@@ -138,10 +147,14 @@ session finalization).
 ## 7. Test
 
 ```bash
-# After the tests milestone lands:
+# After the storage milestone: integration tests (need a live DB)
 cd build
 ctest --output-on-failure
 ```
+
+Test suites: `value_engine_tests` (exact rationals), `memory_module_tests`
+(lifecycle), `storage_tests` (PostgreSQL + pgvector integration — requires the
+schema applied and `postgresql://lina:lina@localhost:5433/lina` reachable).
 
 The value engine's exact rational math is correctness-critical: polytope containment,
 seasonal bounds, zone classification, correction projection, and memory scoring all get

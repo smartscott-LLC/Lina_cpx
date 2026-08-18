@@ -163,9 +163,18 @@ _Last updated: 2026-08-18 (foundation phase)._
    authored (D-011…D-025); exact-math suite green (159 checks, `ctest` 100%).
    Includes the D-024 projection fix: corrected vectors always land strictly inside
    the polytope (Invariant 5).
-2. **Memory Module** (`memory_module.hpp/.cpp`) — depends on value engine.
-3. **Storage** — install PostgreSQL/pgvector; `sql/lina_schema.sql` (with D-010 tier
-   column); `postgres_backend.hpp/.cpp`, `storage_backend.hpp`.
+2. **Memory Module** (`memory_module.hpp/.cpp`) — ✅ **COMPLETE.** Header + implementation
+   authored (D-019, D-026…D-028); exact-math suite green (107 checks, `ctest` 100%).
+   Includes the D-027 fix: the fallout buffer enforces its documented 48-hour grace.
+3. **Storage** — ✅ **COMPLETE.** `sql/lina_schema.sql` applied (14 tables + seeds +
+   pgvector); `storage_backend.hpp` (blueprint §4.1); `postgres_backend.hpp/.cpp`
+   (D-004/D-005/D-031; D-030/D-032 fixes). PostgreSQL 16 + pgvector installed;
+   integration suite green (59 checks, `ctest` 100%). Reference schema reviewed
+   (D-029). **Dev machine notes:** cluster on port **5433** (5432 is a Docker
+   container's postgres); role/db `lina`/`lina`; schema grants applied.
+   ⚠️ **Port 5432 is LINA's live memory postgres (her existing memories) —
+   never touch, never migrate, never stop the container.** The core's dev
+   database is the 5433 cluster only.
 4. **Host Model Adapter** (`host_model_adapter.hpp`) — interface first; adapters per D-007.
 5. **Orchestrator** — `lina_core.hpp/.cpp`, `main.cpp`, CMake wiring.
 6. **Tests** — exact-math suites; `ctest` integration.
@@ -175,8 +184,9 @@ _Last updated: 2026-08-18 (foundation phase)._
 - **D-003 resolved:** reference material (`code_and_concept/`) fully read and extracted
   (2026-08-18); formulas/patterns recorded in D-011…D-019; carve/mmap infrastructure
   excluded per D-020. Value Engine implementation is un-gated.
-- Postgres/pgvector install approval (needs apt + sudo + network). Not a blocker for
-  the Value Engine milestone (GMP-only).
+- **Storage milestone** unblocked: PostgreSQL 16 + pgvector installed and running
+  (port 5433), schema applied, integration tests green. Next milestone: Host Model
+  Adapter (interface + D-023 provider plug-ins).
 
 ## 8 · Working Agreement with the Principal
 

@@ -409,10 +409,132 @@ scoring formulas, projection clamps).
 
 ---
 
+## D-026 — MPS maintenance constants (from reference) + C++20 lambda fix
+
+**Decision.** Adopted verbatim from the reference implementation (part of the
+blueprint-referenced "existing code" for the maintenance bodies):
+
+```
+SUBCONSCIOUS_LINE      = 4.0    // below → subconscious slope begins
+LEGACY_ENTER           = 9.5    // at/above → earns the legacy crown
+LEGACY_FLOOR           = 8.0    // legacy items below → demoted
+GONE_LINE              = 0.5    // slope decay below → forgotten
+SLOPE_HALF_LIFE_DAYS   = 200.0  // subconscious decay half-life
+SLOPE_GONE_DAYS        = 730.0  // idle beyond → gone
+RECENT_REWARD_DAYS     = 30.0   // referenced within → +0.5
+RECENT_REWARD          = 0.5
+```
+
+**C++20 note:** `std::log` is not `constexpr` before C++26, so `SLOPE_LAMBDA`
+(`ln 2 / 200`) is a translation-unit constant in `memory_module.cpp`, not a header
+`constexpr`. The reference's header `constexpr SLOPE_LAMBDA` would not compile under
+C++20.
+
+**Status.** Accepted.
+
+---
+
+## D-027 — Fallout buffer enforces the 48-hour second chance
+
+**Context.** The blueprint/schema describe `lina_fallout_buffer` as a **"48-hour
+second-chance memory store"**, but the reference sweep reprocesses fallout items
+immediately on the next pass. The documented 48-hour window was never enforced.
+
+**Decision.** Implemented per the documented semantics: an item in fallout is left
+touched for 48 hours after `entered_fallout_at` (`FALLOUT_RETENTION_HOURS = 48.0`);
+only after that window is it repurposed (score ≥ failed gate → back to `t1`) or
+purged. Covered by unit tests using relative timestamps.
+
+**Status.** Accepted.
+
+---
+
+## D-028 — build_item reflection/concept factors are numeric per the spec signature
+
+**Context.** The spec's `build_item` takes `unordered_map<string, double> factors`;
+the reference stores `reflection`, `understanding`, and `concept_name` as
+`to_string(double)` values. Text-level reflection generation happens outside the core
+(voice/provider layer — see D-023).
+
+**Decision.** The numeric-factor behavior is kept verbatim (deterministic and
+testable); richer reflection content is a plug-in concern, not core code.
+
+**Status.** Accepted.
+
+---
+
+## D-029 — Reference schema review: blueprint 14-table contract stands
+
+**Context.** Principal-provided `code_and_concept/db/lina_schema.sql` (845 lines) +
+`mps_migration.sql` were reviewed for the storage milestone. They reflect the broader
+platform's earlier design.
+
+**Decision.** The blueprint §6 14-table contract is authoritative. Specifics:
+
+- **Adopted (consistent):** hemisphere `'impersonal'` for wisdom ✓ (matches
+  `inject_context`); lifecycle statuses `active/subconscious/legacy` ✓ (matches the
+  MPS); unified `lina_memory_items` (matches blueprint §6 table 3); `lina_promotion_log`
+  concept (blueprint name: `lina_memory_promotions`); transcripts/sessions/actions
+  shapes (compatible).
+- **Excluded:** `embedding vector(768)` + HNSW (implies an external embedding model —
+  violates Invariant 3; her 14D ethical vector is the semantic vector);
+  `lina_feedback`/`lina_learning_patterns`/`lina_adaptations` wisdom layer (not in the
+  blueprint; the core's feedback loop is the `EncoderFeedbackSystem`); per-user
+  `lina_polytope_constraints` with divergent defaults (0.35/0.45 etc. — the blueprint's
+  per-season seeds and D-002 values are operative); legacy three-table memory design
+  and the `mps_migration.sql` backfill (there is nothing to migrate on a fresh core);
+  rich identity columns (`founding_values`, `floor_policy`, `lineage`, … — possible
+  future extension, not core today).
+
+**Status.** Accepted.
+
+---
+
+## D-030 — execute_query parameter arrays are dynamic (blueprint bug fix)
+
+**Context.** Blueprint §4.2's `execute_query` uses fixed `const char* param_values[10]`
+slots, but `store_memory_item` binds **18** parameters — an out-of-bounds write.
+
+**Decision.** `execute_query` allocates parameter arrays sized to `params.size()`.
+Also: row mapping uses **explicit column lists** (not `SELECT *` positional mapping,
+which the blueprint left incomplete in `row_to_memory_item`); optional TIMESTAMP /
+JSONB fields use `NULLIF($n, '')` so missing optionals become SQL NULL instead of
+invalid empty strings, and `COALESCE(NULLIF($n,''), …)` preserves existing values.
+
+**Status.** Accepted.
+
+---
+
+## D-031 — PostgresBackend tier methods on the unified table
+
+**Decision.** Per D-005, `PostgresBackend` implements `StorageBackend` **and**
+`memory_module::MemoryStore`. The tier-scoped methods (`store_tier`, `load_tier`,
+`delete_tier`, `scan_tier`, `has_tier`, `store_long_term`) operate on
+`lina_memory_items` through the D-010 `tier` column (`t1`/`t2`/`t3`/`long_term`);
+`status` remains the lifecycle field. `store_memory_item` writes tier `'t1'` by
+default (items enter the sweep).
+
+**Status.** Accepted.
+
+---
+
+## D-032 — pgvector text format is square brackets (blueprint bug fix)
+
+**Context.** The blueprint's `vector_to_pgarray` emits Postgres array braces
+(`{0.65,0.25,…}`), but pgvector's `vector` type parses `[0.65,0.25,…]` — the braces
+form is rejected at INSERT time against the blueprint's own `vector(14)` column.
+
+**Decision.** Vector serialization emits `[ … ]`; `pgarray_to_vector` accepts both
+`[ … ]` (pgvector output) and `{ … }` (legacy array). Verified by the storage
+integration suite (round-trip + `<->` search).
+
+**Status.** Accepted.
+
+---
+
 ## Pending / Discussion
 
 - **D-003** — resolution complete (D-011…D-019). The Value Engine implementation
-  milestone is now un-gated.
+  milestone is un-gated.
 - PostgreSQL / pgvector / pkg-config installation on the dev machine (needs apt + sudo
-  + network) — pending principal approval. Not a blocker for the Value Engine milestone
-  (GMP-only).
+  + network) — pending principal approval. Gates the Storage milestone.

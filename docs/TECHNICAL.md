@@ -254,6 +254,9 @@ flowchart LR
 
 - **Sweep** (`run_sweep`): promotes across tiers by importance gate; under-gate items
   enter fallout or are repurposed/purged.
+- **Fallout grace (D-027):** an item in fallout is left untouched for 48 hours after
+  `entered_fallout_at` (`FALLOUT_RETENTION_HOURS = 48.0`); only then is it repurposed
+  (score ≥ failed gate → back to `t1`) or purged.
 - **Maintenance** (`run_maintenance`): monthly scoring decay based on reference count,
   recency, and age (`maintenance_delta`); items can be adjusted, moved to subconscious,
   decayed, or forgotten.
@@ -261,6 +264,21 @@ flowchart LR
   relevance has genuinely died.
 - **Formation bypass**: a moment scoring ≥ 8.0 at formation goes straight to long-term.
 - **Triggers** (`ingest_trigger`): `TRIGGER_RETENTION_FLOOR = 5.0` guarantees retention.
+
+### 3.2 Memory Lines & Maintenance Math (D-026)
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `SUBCONSCIOUS_LINE` | 4.0 | score below → subconscious slope begins |
+| `LEGACY_ENTER` | 9.5 | score at/above → earns the legacy crown |
+| `LEGACY_FLOOR` | 8.0 | legacy below → demoted |
+| `GONE_LINE` | 0.5 | slope decay below → forgotten |
+| `SLOPE_HALF_LIFE_DAYS` | 200.0 | subconscious decay half-life |
+| `SLOPE_GONE_DAYS` | 730.0 | idle beyond → gone |
+| `RECENT_REWARD_DAYS` / `RECENT_REWARD` | 30.0 / 0.5 | referenced within → +0.5 |
+
+Decay: `effective = score × e^(−λ·idle_days)` with `λ = ln 2 / 200`, anchored at the
+latest of decay start / last reference / creation.
 
 ### 3.2 Recall & Context Injection
 
@@ -321,7 +339,8 @@ schema exists (schema is applied via `sql/lina_schema.sql`, not auto-migrated).
 | 14 | `lina_telemetry_logs` | Technical process & diagnostic stream (telemetry bus) |
 
 Vector search: `CREATE INDEX … USING ivfflat (ethical_coordinates vector_cosine_ops)`,
-queried with `<->` cosine distance (D-009).
+queried with `<->` cosine distance (D-009). pgvector's text format is square brackets
+`[a,b,c]` — the backend serializes accordingly (D-032).
 
 ---
 
@@ -435,6 +454,14 @@ Compiler flags (spec §8.1): `-O3 -march=native -Wall -Wextra -Werror
 | D-010 | `tier` column added to `lina_memory_items` |
 | D-020 | DragonCache carve/mmap + ring buffers excluded; Dragonfly DB plugs in, never core |
 | D-023 | No provider/prompt/persona logic in the core; personality = polytope |
+| D-024 | Projection lands strictly inside the polytope (boundary rounding; Invariant 5) |
+| D-026 | MPS maintenance lines (4.0/9.5/8.0/0.5, 200d half-life, 730d horizon) |
+| D-027 | Fallout buffer enforces the documented 48-hour second chance |
+| D-028 | build_item reflection/concept factors numeric per spec; text reflection is a plug-in |
+| D-029 | Reference schema reviewed; blueprint 14-table contract stands |
+| D-030 | Dynamic query params + explicit columns + NULLIF optionals (blueprint bug fixes) |
+| D-031 | PostgresBackend tier ops on the unified table via the `tier` column |
+| D-032 | pgvector text format `[…]` not `{…}` (blueprint bug fix) |
 
 ---
 
