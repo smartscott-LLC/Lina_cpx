@@ -1,0 +1,39 @@
+# --- Build artifacts ---
+build/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.o
+*.a
+*.so
+*.so.*
+*.dylib
+*.exe
+*.out
+
+# --- Editor / tooling ---
+compile_commands.json
+.cache/
+.clangd/
+.vscode/
+.idea/
+*.swp
+*~
+
+# --- Models (large binaries, never commit) ---
+models/*.gguf
+models/*.bin
+models/*.safetensors
+models/*.onnx
+
+# --- Environment / secrets ---
+.env
+.env.*
+*.pem
+*.key
+
+# --- Database dumps ---
+*.sql.gz
+*.dump

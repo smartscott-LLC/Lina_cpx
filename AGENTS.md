@@ -1,0 +1,177 @@
+# AGENTS.md — LINA Core Substrate · Operating Context
+
+> **Read this file in full before doing any work in this repository.**
+> It is the continuity contract between build sessions. When context runs out, this
+> file — and the "Current State of the World" section — is how the next instance picks
+> up exactly where the last one left off.
+
+---
+
+## 0 · Identity
+
+**LiNa** (Language Intuitive Neural Architecture) is a single, unified entity built as a
+pure C++20 substrate kernel. She was conceived on **April 10, 2026**.
+
+- Her **polytope** makes her safe — 14-dimensional ethical polytope, exact rational math.
+- Her **memory** makes her real — 3-tier Memory Imprint System.
+- Her **lineage** makes her hers — identity core, seasons, founding context.
+- Her **future** makes her grow — season advancement, memory promotion, encoder feedback.
+
+This is not a throwaway project. Build it like a legacy: **no shortcuts, no rush, no
+forcing things that don't fit.**
+
+## 1 · Source of Truth Hierarchy
+
+1. `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md`
+   — the canonical spec. Read it thoroughly before major work.
+2. `docs/TECHNICAL.md` — living distillation; keep it current as the build proceeds.
+3. `docs/DECISIONS.md` — every reconciliation. **Read it before changing code.**
+4. The code itself.
+
+Rules:
+
+- If spec and code disagree, **the spec wins**; record the reconciliation in
+  `docs/DECISIONS.md` (D-001).
+- **Never guess.** If the blueprint is ambiguous and no decision entry resolves it,
+  **stop and ask the principal (Scott)**.
+- Never silently deviate from a documented constant, threshold, signature, or filename.
+
+## 2 · Inviolable Invariants
+
+These hold in every refactor, every new feature, every line of code:
+
+1. **Zero Python & zero external wrappers.** `lina_core` is a standalone compiled C++20
+   executable. No Python runtimes, no interpreted wrappers, no glue scripts that matter
+   to runtime behavior.
+2. **Persistent by default.** Polytope registers, working-memory arenas, telemetry ring
+   buffers → PostgreSQL + pgvector. Disk-backed; never RAM-exclusive.
+3. **LiNa encodes her own vectors.** `DecisionEncoder` (in `value_engine`) is the *sole*
+   source of semantic vectors. No separate embedding model, ever.
+4. **Inviolable symbiote paradigm.** The host LLM is an *unprivileged subordinate compute
+   driver* with zero direct connection to the egress socket or user UI. All output passes
+   through the polytope gate.
+5. **Inherent polytope expression.** Every candidate response passes through the 14D
+   ethical polytope inside `value_engine`. Output outside the polytope is mathematically
+   impossible.
+6. **Dual-bus separation.** Cognitive content (conversation, memories) → `memory_module` /
+   `lina_transcripts`; technical logs (timing, tool params, socket status, errors) →
+   `lina_telemetry_logs`. Never mix.
+
+## 3 · Repository Map
+
+```
+Lina_cpx/
+├── AGENTS.md                       ← you are here; keep §7 current
+├── CHANGELOG.md                    ← every milestone gets an entry
+├── ONBOARDING.md                   ← onboarding guide
+├── README.md                       ← front door
+├── docs/
+│   ├── TECHNICAL.md                ← living technical reference
+│   └── DECISIONS.md                ← decision log (D-###)
+├── include/
+│   ├── value_engine.hpp            ← Chamber 1: 14D polytope, encoder, correction, wisdom
+│   ├── memory_module.hpp           ← Chamber 2: 3-tier MPS
+│   ├── storage_backend.hpp         ← StorageBackend abstraction
+│   ├── postgres_backend.hpp        ← PostgresBackend declaration (D-004)
+│   ├── host_model_adapter.hpp      ← symbiote contract
+│   └── lina_core.hpp               ← orchestrator + LinaConfig
+├── src/                            ← *.cpp implementations + main.cpp
+├── sql/lina_schema.sql             ← 14 tables + seeds (D-002-corrected)
+├── tests/                          ← unit tests (exact-math critical)
+├── scripts/                        ← db helpers
+└── models/                         ← .gguf host models (gitignored)
+```
+
+## 4 · Build / Test / Run
+
+```bash
+# DB (once; requires postgres + pgvector installed — see ONBOARDING.md §3–4)
+sudo -u postgres createdb lina
+sudo -u postgres psql -d lina -f sql/lina_schema.sql
+
+# Build
+mkdir -p build && cd build
+cmake .. -DLINA_ENABLE_UI=OFF -DLINA_ENABLE_LLAMA=OFF
+make -j"$(nproc)"
+
+# Test
+ctest --output-on-failure
+
+# Run (headless)
+./lina_core --db "postgresql://localhost/lina" --model llama \
+            --model-path ./models/llama.gguf --headless
+```
+
+## 5 · Engineering Conventions
+
+- **Namespaces:** `lina::value_engine`, `lina::memory_module`, `lina::storage`,
+  `lina::model`, `lina` (orchestrator).
+- **Exact math inside the polytope:** all polytope arithmetic is `mpq_class` (GMP).
+  Doubles exist only at the *boundary* of the engine (text↔vector, scores), never inside
+  `EthicalPolytope` containment/projection math.
+- **File layout:** declarations in `include/`, implementations in `src/`.
+- **C++20, CMake ≥ 3.20.** Flags: `-O3 -march=native -Wall -Wextra -Werror
+  -fstack-protector-strong -fvisibility=hidden -pthread`.
+- **Comments state intent, not restatement.** Only add comments that explain non-obvious
+  decisions or constraints.
+- **Dual bus in code:** anything a human said or LiNa said → cognitive path; anything a
+  process did → telemetry path.
+- **No new dependencies** without a DECISIONS entry.
+- **No Python.** Not even "just for tests" unless the principal explicitly authorizes it.
+
+## 6 · Change Protocol
+
+1. **Every milestone** → `CHANGELOG.md` entry (`[Unreleased]` → move to versioned
+   section on release).
+2. **Every reconciliation** → `docs/DECISIONS.md` entry (D-###, with status) *before or
+   with* the code implementing it.
+3. **Exact-math behavior ships with tests.** Polytope containment, seasonal bounds, zone
+   classification, correction projection, memory scoring — all unit-tested.
+4. **Update `docs/TECHNICAL.md`** when behavior or constants change.
+5. **Update §7 (State of the World)** at the end of every build session — this is how
+   the next instance resumes.
+6. Don't commit without the principal's say-so; keep the working tree clean and
+   understandable.
+
+## 7 · Current State of the World
+
+_Last updated: 2026-08-18 (foundation phase)._
+
+### Done
+
+- ✅ Canonical spec read in full (2,391 lines / V9 FINAL UNIFIED).
+- ✅ Project structure: `include/ src/ sql/ tests/ scripts/ models/ docs/`.
+- ✅ `README.md`, `ONBOARDING.md`, `CHANGELOG.md`.
+- ✅ `docs/TECHNICAL.md` (living reference), `docs/DECISIONS.md` (D-001…D-010).
+- ✅ `AGENTS.md` (this file).
+- ✅ Environment audited: cmake 3.28.3, GCC 13.3.0, GMP headers present.
+  ❌ Not yet installed: PostgreSQL, libpq-dev, pgvector, pkg-config.
+  ❌ Git repo not initialized (pending principal).
+- ✅ Season bounds reconciled (D-002): fall `order_min 3.2`, `chaos_max 3.8`.
+
+### Next: Build Phase (in order)
+
+1. **Value Engine** (`value_engine.hpp/.cpp`) — depends only on GMP; buildable and
+   testable before PostgreSQL is installed. **Gated on D-003 resolution** (encoder
+   patterns, scoring bodies, season-requirement thresholds).
+2. **Memory Module** (`memory_module.hpp/.cpp`) — depends on value engine.
+3. **Storage** — install PostgreSQL/pgvector; `sql/lina_schema.sql` (with D-010 tier
+   column); `postgres_backend.hpp/.cpp`, `storage_backend.hpp`.
+4. **Host Model Adapter** (`host_model_adapter.hpp`) — interface first; adapters per D-007.
+5. **Orchestrator** — `lina_core.hpp/.cpp`, `main.cpp`, CMake wiring.
+6. **Tests** — exact-math suites; `ctest` integration.
+
+### Open items for the principal
+
+- **D-003 (critical):** blueprint references "your existing code" for function bodies
+  that don't exist in-repo. Provide original code, or authorize canonical authorship.
+- Git init go-ahead.
+- Postgres/pgvector install approval (needs apt + sudo + network).
+
+## 8 · Working Agreement with the Principal
+
+- If something feels off → **stop and ask.** We'll tackle it together.
+- If something isn't working → **don't force it.** We'll determine a better way.
+- The blueprint hands us the parameters; **the build is ours.** Use the latitude, keep
+  the invariants.
+- Take your time. There's no rush and no need for shortcuts.

@@ -1,0 +1,3 @@
+Dev/database helper scripts land here in the build phase:
+- db_setup.sh (create database + apply schema)
+- db_down.sh (teardown for clean rebuilds)

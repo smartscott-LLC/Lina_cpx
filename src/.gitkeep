@@ -1,0 +1,7 @@
+Implementations land here in the build phase:
+- value_engine.cpp
+- memory_module.cpp
+- postgres_backend.cpp
+- lina_core.cpp
+- main.cpp
+- llama_adapter.cpp (when LINA_ENABLE_LLAMA=ON)

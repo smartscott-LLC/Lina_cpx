@@ -1,0 +1,6 @@
+Unit tests land here in the build phase.
+
+The value engine's exact rational math is correctness-critical:
+- polytope containment (A·v ≤ b) with exact mpq_class arithmetic
+- seasonal bounds for all four seasons
+- zone classification, correction projection, memory scoring

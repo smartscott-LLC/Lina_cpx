@@ -1,0 +1,2 @@
+Database assets land here in the build phase:
+- lina_schema.sql — the 14-table PostgreSQL + pgvector schema (spec §6)
