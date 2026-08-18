@@ -399,9 +399,10 @@ renders UI, never writes memory. Its output goes to `value_engine` — full stop
 ### 6.2 Chat Pipeline
 
 `chat(user_message)` → build system prompt (identity + season + polytope framing) →
-append user turn → `generate_raw` from host model → `evaluate(raw)` through polytope →
-append alignment marker if corrected → form memory item (cognitive bus) → append
-assistant turn → trim history past 20 turns.
+append user turn → `generate_raw` from the attached driver (D-033; gracefully
+no-voice without one) → `evaluate(raw)` through polytope → append alignment marker
+if corrected → form memory item (cognitive bus) → append assistant turn → trim
+history past 20 turns.
 
 ### 6.3 Session Lifecycle
 
@@ -462,6 +463,8 @@ Compiler flags (spec §8.1): `-O3 -march=native -Wall -Wextra -Werror
 | D-030 | Dynamic query params + explicit columns + NULLIF optionals (blueprint bug fixes) |
 | D-031 | PostgresBackend tier ops on the unified table via the `tier` column |
 | D-032 | pgvector text format `[…]` not `{…}` (blueprint bug fix) |
+| D-033 | Driver injection (`attach_model`) + `make_driver()` plug-in seam |
+| D-034 | Tier moves are UPSERTs on the unified table (global `item_id` PK) |
 
 ---
 

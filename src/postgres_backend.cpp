@@ -436,7 +436,25 @@ void PostgresBackend::store_tier(const std::string& tier,
         "importance_score, geometric, emotional_marker, emotional_intensity, "
         "formation_source, seasonal_marker, created_at, trigger, kind, status, "
         "protected_flag, reference_count, must_keep, tier) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)",
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) "
+        // item_id is the GLOBAL primary key (blueprint §6 table 3): a tier move
+        // must UPDATE the row in place, not insert a copy (D-034). created_at
+        // is preserved from the original formation.
+        "ON CONFLICT (item_id) DO UPDATE SET "
+        "user_id = EXCLUDED.user_id, narrative = EXCLUDED.narrative, "
+        "hemisphere = EXCLUDED.hemisphere, "
+        "ethical_coordinates = EXCLUDED.ethical_coordinates, "
+        "importance_score = EXCLUDED.importance_score, "
+        "geometric = EXCLUDED.geometric, "
+        "emotional_marker = EXCLUDED.emotional_marker, "
+        "emotional_intensity = EXCLUDED.emotional_intensity, "
+        "formation_source = EXCLUDED.formation_source, "
+        "seasonal_marker = EXCLUDED.seasonal_marker, "
+        "trigger = EXCLUDED.trigger, kind = EXCLUDED.kind, "
+        "status = EXCLUDED.status, "
+        "protected_flag = EXCLUDED.protected_flag, "
+        "reference_count = EXCLUDED.reference_count, "
+        "must_keep = EXCLUDED.must_keep, tier = EXCLUDED.tier",
         {
             item.item_id,
             item.user_id,

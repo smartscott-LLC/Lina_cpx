@@ -532,9 +532,50 @@ integration suite (round-trip + `<->` search).
 
 ---
 
+## D-033 — Symbiote adapter injection & the driver seam
+
+**Context.** Blueprint §7 has `LinaCore` construct `LlamaCppAdapter`/`ExternalApiAdapter`
+internally. Per D-023, providers plug **into** the module — no provider logic in the
+core.
+
+**Decision.**
+
+- `LinaCore` receives its symbiote driver via `attach_model(unique_ptr<HostModelAdapter>)`
+  — injected from outside. The blueprint's internal construction is replaced by the
+  seam.
+- `model::make_driver(model_type, model_path, api_endpoint, api_key)` is declared in
+  `host_model_adapter.hpp` and defined in `src/model_driver.cpp` as the plug-in seam;
+  the core build currently returns `nullptr` (no driver compiled in). llama.cpp and
+  external-API drivers register there when their milestones land (D-007).
+- Without a driver, `chat()` degrades gracefully: `"_LINA has no voice right now._"`
+  (mirrors the reference implementation's no-voice path).
+- The spec's `chat()` calls `memory_module_->store()->store_memory_item(...)` — that
+  method is on `StorageBackend`, not `MemoryStore`; the orchestrator stores via
+  `storage_->store_memory_item(...)` instead (the backend implements both, D-005).
+
+**Status.** Accepted.
+
+---
+
+## D-034 — Tier moves are UPSERTs on the unified table (PK fix)
+
+**Context.** `lina_memory_items.item_id` is the **global** primary key (blueprint §6
+table 3). The reference sweep's tier moves do copy-then-delete — valid for per-tier
+tables, but on the unified table the copy INSERT collides with the still-present row.
+Surfaced by the orchestrator end-to-end test (chat item → sweep → fallout).
+
+**Decision.** `store_tier` upserts on `item_id` (`ON CONFLICT (item_id) DO UPDATE …`
+including `tier = EXCLUDED.tier`). A move updates the row in place; `created_at` is
+preserved from formation; the subsequent `delete_tier(old_tier, …)` becomes a no-op.
+Covers t1→t2→t3 promotion, t3→long-term, and the fallout path.
+
+**Status.** Accepted.
+
+---
+
 ## Pending / Discussion
 
 - **D-003** — resolution complete (D-011…D-019). The Value Engine implementation
   milestone is un-gated.
-- PostgreSQL / pgvector / pkg-config installation on the dev machine (needs apt + sudo
-  + network) — pending principal approval. Gates the Storage milestone.
+- PostgreSQL / pgvector / pkg-config installed (2026-08-18) — storage milestone
+  complete. Host Model Adapter + orchestrator in progress.

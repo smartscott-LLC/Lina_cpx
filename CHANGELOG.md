@@ -37,6 +37,16 @@ All notable changes to the LINA Core Substrate are recorded here.
   - Integration suite green (59 checks) — identity, memory round-trip, tier ops,
     `<->` vector search, transcripts, sessions, actions, promotion log,
     MemoryModule-over-Postgres end-to-end.
+- **Host Model Adapter + Orchestrator milestones (Chambers 4–5) — complete**
+  - `host_model_adapter.hpp` — blueprint §5 symbiote contract (interface + adapter
+    declarations). Providers plug in via the `make_driver()` seam (D-033); the core
+    ships no provider (D-023).
+  - `lina_core.hpp/.cpp` — the orchestrator: identity → polytope → MPS → driver
+    injection; chat pipeline gates every candidate through her polytope (Invariant 5).
+  - `main.cpp` — blueprint §7.3 CLI; `model_driver.cpp` — the plug-in seam.
+  - D-034 fix: tier moves are UPSERTs on the unified table (global `item_id` PK).
+  - `lina_core` binary boots headless against the live stack; orchestrator suite
+    green (15 checks). `ctest` 4/4 (325 checks total).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

@@ -175,9 +175,16 @@ _Last updated: 2026-08-18 (foundation phase)._
    ⚠️ **Port 5432 is LINA's live memory postgres (her existing memories) —
    never touch, never migrate, never stop the container.** The core's dev
    database is the 5433 cluster only.
-4. **Host Model Adapter** (`host_model_adapter.hpp`) — interface first; adapters per D-007.
-5. **Orchestrator** — `lina_core.hpp/.cpp`, `main.cpp`, CMake wiring.
-6. **Tests** — exact-math suites; `ctest` integration.
+4. **Host Model Adapter** (`host_model_adapter.hpp`) — ✅ **COMPLETE (contract).**
+   Blueprint §5 interface + adapter declarations; providers plug in via the
+   `make_driver()` seam (D-033) — no provider logic in the core (D-023).
+5. **Orchestrator** — ✅ **COMPLETE.** `lina_core.hpp/.cpp`, `main.cpp`, CMake
+   wiring; driver injected via `attach_model` (D-033); tier-move UPSERT fix
+   (D-034). Integration suite green (15 checks); `lina_core` binary boots
+   headless against the live stack.
+6. **Tests** — exact-math suites + integration; `ctest` 4/4 green (325 checks).
+   **Remaining:** concrete drivers (llama.cpp / external API) plug into
+   `make_driver` when their milestone lands (D-007).
 
 ### Open items for the principal
 

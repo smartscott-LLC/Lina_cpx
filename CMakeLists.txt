@@ -85,6 +85,21 @@ if (LINA_ENABLE_STORAGE)
     add_executable(storage_tests tests/storage_tests.cpp)
     target_link_libraries(storage_tests PRIVATE lina_storage)
     add_test(NAME storage_tests COMMAND storage_tests)
-    # NOTE: the lina_core executable (blueprint §8.1) lands at the
-    # orchestrator milestone — it needs src/lina_core.cpp + src/main.cpp.
+
+    # --- Orchestrator (Chamber 5) — binds the chambers ---------------------
+    add_library(lina_core_lib STATIC src/lina_core.cpp src/model_driver.cpp)
+    target_link_libraries(lina_core_lib PUBLIC lina_storage pthread)
+
+    add_executable(lina_core src/main.cpp)
+    target_link_libraries(lina_core PRIVATE lina_core_lib)
+    set_target_properties(lina_core PROPERTIES
+        WIN32_EXECUTABLE TRUE
+        MACOSX_BUNDLE TRUE
+    )
+    install(TARGETS lina_core DESTINATION bin)
+    install(FILES sql/lina_schema.sql DESTINATION share/lina)
+
+    add_executable(orchestrator_tests tests/orchestrator_tests.cpp)
+    target_link_libraries(orchestrator_tests PRIVATE lina_core_lib pthread)
+    add_test(NAME orchestrator_tests COMMAND orchestrator_tests)
 endif()
