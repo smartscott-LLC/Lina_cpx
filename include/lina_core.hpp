@@ -12,17 +12,22 @@
  * passes through her polytope before it reaches the user (Invariant 5).
  */
 
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "approval_gate.hpp"
 #include "host_model_adapter.hpp"
 #include "memory_module.hpp"
 #include "storage_backend.hpp"
+#include "stream_parser.hpp"
 #include "tool_engine.hpp"
 #include "value_engine.hpp"
 
@@ -46,6 +51,8 @@ struct LinaConfig {
     std::string season{"spring"};
     std::string log_level{"info"};
     std::string workspace_dir{"workspace"}; // her private workspace (D-040)
+    int64_t window_ms{180000}; // [cycle_reset] window (D-041)
+    int context_budget{8192};  // token budget — the rate limiter (D-041)
 };
 
 class LinaCore {
@@ -89,6 +96,26 @@ public:
     // handler is registered. Future tool executor calls this before acting.
     ApprovalDecision request_approval(const ApprovalRequest& request);
 
+    // D-041: the open-window turn driver. begin_turn runs the loop on a worker
+    // thread: stream parser → flagged thoughts / tool calls / EOT → polytope
+    // gate at the door → memory imprint. The window timer fires [cycle_reset]
+    // and opens her floor. stop_turn cancels the current generation.
+    struct TurnCallbacks {
+        std::function<void(const std::string&)> on_thought;      // live thoughts
+        std::function<void(double)> on_rolling_score;            // advisory 0..1
+        std::function<void(const std::string&)> on_tool_call;    // raw JSON
+        std::function<void(const std::string&, bool, const std::string&)>
+            on_tool_result;                                      // name, ok, summary
+        std::function<void(const std::string&)> on_complete;     // delivered response
+        std::function<void(const std::string&)> on_window;       // [cycle_reset] etc.
+        std::function<void(const std::string&)> on_error;
+    };
+    void begin_turn(const std::string& user_message,
+                    TurnCallbacks callbacks);
+    void stop_turn();
+    bool turn_active() const { return turn_active_; }
+    void set_window_ms(int64_t ms);
+
 private:
     LinaConfig config_;
     bool ready_{false};
@@ -107,10 +134,36 @@ private:
     TelemetrySink telemetry_sink_;
     std::mutex sink_mutex_;
 
+    // D-041: turn state.
+    std::atomic<bool> turn_active_{false};
+    std::atomic<bool> turn_stop_{false};
+    std::mutex turn_mutex_; // conversation_history_ + turn callbacks
+    TurnCallbacks turn_callbacks_;
+    std::thread turn_thread_;
+    int64_t window_ms_{180000};
+    std::chrono::steady_clock::time_point next_window_at_;
+    std::mutex window_mutex_;
+    std::condition_variable window_cv_;
+    std::atomic<bool> window_stop_{false};
+    std::thread window_thread_;
+
+    void start_window_thread();
+    void window_loop();
+    void run_turn_loop(const std::string& user_message);
+    void run_voluntary_turn();
+    std::string build_turn_frame(
+        const std::string& user_message,
+        const std::vector<std::pair<std::string, std::string>>& history) const;
+    void finalize_turn(std::string response_text,
+                       const std::string& user_message);
+    // The absolute gate (Invariant 5): evaluate → D-037 reflection → marker.
+    std::pair<std::string, value_engine::EvaluationResult> apply_gate(
+        const std::string& draft, const std::string* context);
+    void emit_turn_event(const std::string& kind, const std::string& payload);
     void emit_telemetry(const std::string& message);
 
     void initialize();
-    std::string build_system_prompt();
+    std::string build_system_prompt() const;
     std::string build_user_prompt(const std::string& message);
     // D-037: builds the violation report fed back to the body for revision.
     std::string build_reflection_prompt(

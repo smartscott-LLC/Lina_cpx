@@ -31,6 +31,9 @@ struct GenerationConfig {
     float top_k{40.0f};
     bool stream{false};
     std::function<void(const std::string&)> stream_callback;
+    // D-041: called each generation step; when it returns true the driver
+    // stops (stop button / turn cancellation). Nullopt = never stop.
+    std::function<bool()> should_stop;
 };
 
 class HostModelAdapter {

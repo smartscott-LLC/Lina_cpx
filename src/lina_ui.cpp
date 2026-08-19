@@ -537,16 +537,65 @@ public:
         updateAttachmentLabel();
 
         setBusy(true);
-        auto* core = &core_;
-        std::thread([this, core, full] {
-            auto reply = core->chat(full.toStdString());
-            if (!destroyed_) {
-                QMetaObject::invokeMethod(this, [this, reply] {
-                    setBusy(false);
-                    appendBubble("LINA", esc(QString::fromStdString(reply)));
-                }, Qt::QueuedConnection);
-            }
-        }).detach();
+        // D-041: the open-window turn driver — she processes on her own thread.
+        core_.begin_turn(full.toStdString(), makeTurnCallbacks());
+    }
+
+    // D-041: the streaming event channel — every callback marshals to the UI
+    // thread (the turn worker is not a QObject).
+    LinaCore::TurnCallbacks makeTurnCallbacks() {
+        LinaCore::TurnCallbacks cb;
+        cb.on_thought = [this](const std::string& text) {
+            QMetaObject::invokeMethod(this, [this, text] {
+                appendThought(QString::fromStdString(text));
+            }, Qt::QueuedConnection);
+        };
+        cb.on_rolling_score = [this](double score) {
+            QMetaObject::invokeMethod(this, [this, score] {
+                score_label_->setText(
+                    "alignment " + QString::number(score, 'f', 2));
+            }, Qt::QueuedConnection);
+        };
+        cb.on_tool_call = [this](const std::string& json) {
+            QMetaObject::invokeMethod(this, [this, json] {
+                appendBubble("system",
+                             "🔧 tool call — "
+                                 + esc(QString::fromStdString(json)));
+            }, Qt::QueuedConnection);
+        };
+        cb.on_tool_result = [this](const std::string& name, bool ok,
+                                   const std::string& summary) {
+            QMetaObject::invokeMethod(this, [this, name, ok, summary] {
+                appendBubble("system",
+                             (ok ? "✔ " : "✖ ")
+                                 + esc(QString::fromStdString(name)) + " — "
+                                 + esc(QString::fromStdString(summary)));
+                LogReel::instance().append(
+                    "tool", ok ? "info" : "warn",
+                    QString::fromStdString(name)
+                        + (ok ? " ok: " : " failed: ")
+                        + QString::fromStdString(summary));
+            }, Qt::QueuedConnection);
+        };
+        cb.on_complete = [this](const std::string& reply) {
+            QMetaObject::invokeMethod(this, [this, reply] {
+                setBusy(false);
+                appendBubble("LINA", esc(QString::fromStdString(reply)));
+            }, Qt::QueuedConnection);
+        };
+        cb.on_window = [this](const std::string& event) {
+            QMetaObject::invokeMethod(this, [this, event] {
+                appendBubble("system", esc(QString::fromStdString(event)));
+            }, Qt::QueuedConnection);
+        };
+        cb.on_error = [this](const std::string& error) {
+            QMetaObject::invokeMethod(this, [this, error] {
+                LogReel::instance().append(
+                    "ui", "error", QString::fromStdString(error));
+                setBusy(false);
+            }, Qt::QueuedConnection);
+        };
+        return cb;
     }
 
     QString conversationText() const {
@@ -780,11 +829,21 @@ private:
         input_->setAcceptRichText(false);
         send_button_ = new QPushButton("Send", panel);
         send_button_->setObjectName("goldButton");
+        stop_button_ = new QPushButton("■ Stop", panel);
+        stop_button_->setEnabled(false);
+        score_label_ = new QLabel("", panel);
+        score_label_->setObjectName("thinkingLabel");
         input_row->addWidget(input_, /*stretch=*/1);
+        input_row->addWidget(score_label_);
         input_row->addWidget(send_button_);
+        input_row->addWidget(stop_button_);
 
         connect(send_button_, &QPushButton::clicked, this, [this] {
             sendMessage(input_->toPlainText());
+        });
+        connect(stop_button_, &QPushButton::clicked, this, [this] {
+            core_.stop_turn(); // D-041: stream cancellation
+            LogReel::instance().append("ui", "info", "stop requested");
         });
         auto* send_shortcut = new QShortcut(
             QKeySequence("Ctrl+Return"), input_);
@@ -942,6 +1001,38 @@ private:
             delete thinking_;
             thinking_ = nullptr;
         }
+        if (thinking_pane_) {
+            delete thinking_pane_;
+            thinking_pane_ = nullptr;
+        }
+    }
+
+    // Live stream of her deliberation (D-041) — a growing translucent pane.
+    void appendThought(const QString& text) {
+        if (!thinking_pane_) {
+            thinking_pane_ = new QTextEdit(messages_container_);
+            thinking_pane_->setReadOnly(true);
+            thinking_pane_->setFrameShape(QFrame::NoFrame);
+            thinking_pane_->setStyleSheet(QString::fromLatin1(kSystemBubbleQss));
+            thinking_pane_->setTextInteractionFlags(
+                Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
+            thinking_pane_->setHtml(
+                "<i>⟦ thinking ⟧</i> ");
+            connect(thinking_pane_->document(), &QTextDocument::contentsChanged,
+                    thinking_pane_, [this] {
+                thinking_pane_->setFixedHeight(static_cast<int>(
+                    thinking_pane_->document()->size().height()) + 16);
+            });
+            thinking_pane_->setSizePolicy(QSizePolicy::Expanding,
+                                          QSizePolicy::Fixed);
+            messages_layout_->insertWidget(messages_layout_->count() - 1,
+                                           thinking_pane_);
+        }
+        QTextCursor cursor = thinking_pane_->textCursor();
+        cursor.movePosition(QTextCursor::End);
+        cursor.insertHtml(esc(text) + " ");
+        thinking_pane_->setTextCursor(cursor);
+        scrollMessagesToBottom();
     }
 
     void scrollMessagesToBottom() {
@@ -962,13 +1053,15 @@ private:
     void setBusy(bool busy) {
         busy_ = busy;
         send_button_->setEnabled(!busy);
+        stop_button_->setEnabled(busy);
         input_->setEnabled(!busy);
         if (busy) {
             showThinking();
-            LogReel::instance().append("ui", "info", "chat started");
+            LogReel::instance().append("ui", "info", "turn started");
         } else {
             hideThinking();
-            LogReel::instance().append("ui", "info", "chat finished");
+            score_label_->clear();
+            LogReel::instance().append("ui", "info", "turn finished");
         }
     }
 
@@ -1131,6 +1224,9 @@ private:
     int thinking_dots_{0};
     QTextEdit* input_ = nullptr;
     QPushButton* send_button_ = nullptr;
+    QPushButton* stop_button_ = nullptr;
+    QLabel* score_label_ = nullptr;
+    QTextEdit* thinking_pane_ = nullptr;
     QStringList attachments_;
     QLabel* attachment_label_ = nullptr;
 

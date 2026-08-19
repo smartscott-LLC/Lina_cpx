@@ -10,15 +10,22 @@
 
 #include "lina_core.hpp"
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <filesystem>
+#include <future>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
 using namespace lina;
+
+namespace fs = std::filesystem;
 
 static int g_checks = 0;
 static int g_failures = 0;
@@ -263,10 +270,11 @@ static void test_reflection_loop_fallback_marker() {
 
 static void test_telemetry_sink_and_approval_gate() {
     auto config = make_config(unique_user());
+    // Declared BEFORE the core: the sink must outlive the core that owns it.
+    std::vector<std::string> events;
     LinaCore core(config);
 
     // D-038 telemetry bus: pipeline events flow to the sink.
-    std::vector<std::string> events;
     core.set_telemetry_sink(
         [&events](const std::string& message) { events.push_back(message); });
     core.attach_model(std::make_unique<CannedAdapter>(
@@ -305,6 +313,225 @@ static void test_telemetry_sink_and_approval_gate() {
     core.end_session();
 }
 
+// -----------------------------------------------------------------------------
+// D-041 — the open-window turn driver
+// -----------------------------------------------------------------------------
+
+class GatedAdapter : public model::HostModelAdapter {
+public:
+    std::string generate_raw(
+        const std::string&, const std::vector<std::pair<std::string, std::string>>&,
+        const model::GenerationConfig&) override
+    {
+        return "partial draft";
+    }
+    void generate_stream(
+        const std::string&,
+        const std::vector<std::pair<std::string, std::string>>&,
+        std::function<void(const std::string&)> on_token,
+        const model::GenerationConfig&) override
+    {
+        on_token("partial draft");
+        started_.store(true);
+        gate_.get_future().wait(); // blocks until the test releases it
+    }
+    bool is_connected() const override { return true; }
+    std::string driver_name() const override { return "gated_test"; }
+    bool is_local() const override { return true; }
+    size_t context_size() const override { return 4096; }
+
+    void release() { gate_.set_value(); }
+    std::atomic<bool> started_{false};
+
+private:
+    std::promise<void> gate_;
+};
+
+static std::string temp_workspace() {
+    auto now = std::chrono::system_clock::now().time_since_epoch().count();
+    return (fs::temp_directory_path() / ("lina_turn_" + std::to_string(now)))
+        .string();
+}
+
+template <typename T>
+static bool wait_for(std::future<T>& future, int timeout_ms) {
+    return future.wait_for(std::chrono::milliseconds(timeout_ms))
+           == std::future_status::ready;
+}
+
+// The worker clears turn_active_ just after on_complete fires — spin for it.
+static bool wait_inactive(LinaCore& core, int timeout_ms) {
+    auto deadline = std::chrono::steady_clock::now()
+                    + std::chrono::milliseconds(timeout_ms);
+    while (core.turn_active()) {
+        if (std::chrono::steady_clock::now() > deadline) return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return true;
+}
+
+static void test_turn_driver_completes() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "I am here with you, and I want to understand and help you grow"));
+
+    std::promise<void> done;
+    std::mutex m;
+    std::string delivered;
+    LinaCore::TurnCallbacks cb;
+    cb.on_complete = [&](const std::string& reply) {
+        {
+            std::lock_guard<std::mutex> lock(m);
+            delivered = reply;
+        }
+        done.set_value();
+    };
+    cb.on_error = [&](const std::string&) { done.set_value(); };
+
+    core.begin_turn("hello", std::move(cb));
+    auto future = done.get_future();
+    CHECK(wait_for(future, 10000));
+    CHECK(wait_inactive(core, 5000));
+    std::string got;
+    {
+        std::lock_guard<std::mutex> lock(m);
+        got = delivered;
+    }
+    CHECK(got.find("I am here with you") != std::string::npos);
+    core.end_session();
+}
+
+static void test_turn_driver_tool_call() {
+    auto config = make_config(unique_user());
+    config.workspace_dir = temp_workspace();
+    LinaCore core(config);
+    core.set_approval_handler([](const ApprovalRequest&) {
+        return ApprovalDecision::Approved;
+    });
+    core.attach_model(std::make_unique<ScriptedAdapter>(
+        std::vector<std::string>{
+            "<tool_call>{\"name\":\"file.write\",\"arguments\":"
+            "{\"path\":\"note.txt\",\"content\":\"from her hand\"}}"
+            "</tool_call>",
+            "I wrote the note for you."}));
+
+    std::promise<void> done;
+    std::mutex m;
+    std::string delivered;
+    bool saw_tool = false;
+    std::string tool_name;
+    LinaCore::TurnCallbacks cb;
+    cb.on_tool_call = [&](const std::string&) { saw_tool = true; };
+    cb.on_tool_result = [&](const std::string& name, bool, const std::string&) {
+        tool_name = name;
+    };
+    cb.on_complete = [&](const std::string& reply) {
+        {
+            std::lock_guard<std::mutex> lock(m);
+            delivered = reply;
+        }
+        done.set_value();
+    };
+    cb.on_error = [&](const std::string&) { done.set_value(); };
+
+    core.begin_turn("write a note for me", std::move(cb));
+    auto future = done.get_future();
+    CHECK(wait_for(future, 10000));
+    CHECK(wait_inactive(core, 5000));
+    CHECK(saw_tool);
+    CHECK(tool_name == "file.write");
+    std::string got;
+    {
+        std::lock_guard<std::mutex> lock(m);
+        got = delivered;
+    }
+    CHECK(got.find("I wrote the note") != std::string::npos);
+    // The side effect landed in her workspace — the door stayed open, then
+    // closed only on her filed answer.
+    CHECK(fs::exists(fs::path(config.workspace_dir) / "note.txt"));
+    core.end_session();
+}
+
+static void test_turn_driver_stop() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+    auto adapter = std::make_unique<GatedAdapter>();
+    auto* gate = adapter.get();
+    core.attach_model(std::move(adapter));
+
+    std::promise<void> done;
+    std::mutex m;
+    std::string delivered;
+    LinaCore::TurnCallbacks cb;
+    cb.on_complete = [&](const std::string& reply) {
+        {
+            std::lock_guard<std::mutex> lock(m);
+            delivered = reply;
+        }
+        done.set_value();
+    };
+    cb.on_error = [&](const std::string&) { done.set_value(); };
+
+    core.begin_turn("think about this", std::move(cb));
+    auto deadline = std::chrono::steady_clock::now()
+                    + std::chrono::seconds(5);
+    while (!gate->started_.load()
+           && std::chrono::steady_clock::now() < deadline) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    CHECK(gate->started_.load());
+    CHECK(core.turn_active());
+
+    core.stop_turn(); // stream cancellation
+    gate->release();
+    auto future = done.get_future();
+    CHECK(wait_for(future, 10000));
+    CHECK(wait_inactive(core, 5000));
+    std::string got;
+    {
+        std::lock_guard<std::mutex> lock(m);
+        got = delivered;
+    }
+    // What she had at the stop is delivered — gated, not dropped.
+    CHECK(got.find("partial draft") != std::string::npos);
+    core.end_session();
+}
+
+static void test_turn_window_reset() {
+    auto config = make_config(unique_user());
+    config.window_ms = 80; // fast [cycle_reset] for the test
+    LinaCore core(config);
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "I am here with you, and I want to understand and help you grow"));
+
+    std::promise<void> turn_done;
+    std::promise<void> window_done;
+    LinaCore::TurnCallbacks cb;
+    cb.on_complete = [&](const std::string&) {
+        try {
+            turn_done.set_value();
+        } catch (...) {
+        }
+    };
+    cb.on_window = [&](const std::string& event) {
+        if (event.find("[cycle_reset]") != std::string::npos) {
+            try {
+                window_done.set_value();
+            } catch (...) {
+            }
+        }
+    };
+
+    core.begin_turn("hello", std::move(cb));
+    auto tf = turn_done.get_future();
+    CHECK(wait_for(tf, 10000));
+    // The window thread fires [cycle_reset] on its own — the pacing rhythm.
+    auto wf = window_done.get_future();
+    CHECK(wait_for(wf, 5000));
+    core.end_session();
+}
+
 int main() {
     try {
         test_boot_and_status();
@@ -314,6 +541,10 @@ int main() {
         test_reflection_loop_revises_violation();
         test_reflection_loop_fallback_marker();
         test_telemetry_sink_and_approval_gate();
+        test_turn_driver_completes();
+        test_turn_driver_tool_call();
+        test_turn_driver_stop();
+        test_turn_window_reset();
     } catch (const std::exception& e) {
         std::cerr << "orchestrator_tests: FATAL: " << e.what() << "\n";
         return 1;

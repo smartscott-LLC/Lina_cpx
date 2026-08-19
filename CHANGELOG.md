@@ -103,6 +103,24 @@ All notable changes to the LINA Core Substrate are recorded here.
   - Tolerant flat-JSON arg extraction (no new dependency); registry block ready
     for the model's protocol frame (D-039-safe).
   - `tool_engine_tests` 37 checks — `ctest` 7/7 (417 checks total).
+- **Turn lifecycle, Phase B (D-041) — the open-window loop**
+  - `stream_parser.hpp/.cpp` — the three-channel classifier (flagged thought /
+    tool call / EOT); `GenerationConfig.should_stop` + adapter stop at a
+    completed `<tool_call>`.
+  - `LinaCore::begin_turn()/stop_turn()` — the turn driver on a worker thread:
+    frame build (identity + registry + protocol + budget cue + timestamp) →
+    streaming generation → tool calls executed through the approval gate with
+    the result fed back (the door stays open) → the absolute gate at EOT
+    (D-037 reflection shared via `apply_gate`) → memory imprint.
+  - Rolling advisory alignment score during generation (informs, never drives);
+    window thread fires `[cycle_reset]` and opens her floor (voluntary speech
+    or silence — a valid choice either way); stop = stream cancellation
+    delivering what she had, gated.
+  - Command center: live thinking pane (her deliberation streams in),
+    action chips for tool calls/results, Stop button, live alignment label.
+  - `stream_parser_tests` 24 checks; `orchestrator_tests` 44 (was 28) — turn
+    complete, tool-call round trip, stop mid-turn, `[cycle_reset]` window.
+    `ctest` 8/8 (457 checks total).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

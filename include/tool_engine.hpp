@@ -62,6 +62,10 @@ std::shared_ptr<Tool> make_terminal_run_tool();
 std::string json_string(const std::string& json, const std::string& key);
 long long json_int(const std::string& json, const std::string& key,
                    long long fallback);
+// Extracts a nested object value ({…}) for the given key (e.g. "arguments").
+// Returns "" when absent. Handles one level of nesting; braces inside string
+// values are tolerated.
+std::string json_object(const std::string& json, const std::string& key);
 
 class ToolEngine {
 public:

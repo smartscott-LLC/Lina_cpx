@@ -196,6 +196,17 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   `lina_actions`, telemetry never memory). Tolerant flat-JSON args, registry block
   for the model's protocol frame. `tool_engine_tests` 37 checks; `ctest` 7/7,
   **417 checks total**.
+- ✅ **Turn lifecycle, Phase B (D-041) — the open-window loop live:**
+  `stream_parser` (thought / tool call / EOT), `begin_turn()`/`stop_turn()` turn
+  driver — frame build with tool registry + budget cue + timestamp, streaming
+  generation with a **rolling advisory alignment score**, tool calls executed
+  through the approval gate with results fed back (the door stays open, 8 max),
+  absolute gate at EOT (shared `apply_gate` with D-037 reflection), memory
+  imprint. The window thread fires `[cycle_reset]` (~180s) and opens her floor
+  — voluntary speech or silence. Stop = stream cancellation delivering what she
+  had, gated. Command center: live thinking pane, action chips, Stop button,
+  live alignment label. `stream_parser_tests` 24 checks, `orchestrator_tests`
+  44 (was 28); `ctest` 8/8, **457 checks total**.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -204,14 +215,12 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** the hands milestone (D-040 Phase A) — pending principal's say-so.
-2. **The turn lifecycle (D-041 Phase B)** — the open-window loop: stream parser
-   (flagged thought / tool call / EOT), continuous turn with the 180s
-   `[cycle_reset]` window, live thinking pane + action chips in the command
-   center, stop button (stream cancellation), rolling advisory polytope score.
-3. **Memory recall → frame injection** — the MPS recall engine (built, tested)
+1. **Push** the turn lifecycle (D-041 Phase B) — pending principal's say-so.
+2. **Memory recall → frame injection** — the MPS recall engine (built, tested)
    gets wired into the frame build so her context IS the banks (D-041).
-4. **Browser/desktop hands** — CDP driver (Playwright-style, zero Python).
+3. **Browser/desktop hands** — CDP driver (Playwright-style, zero Python).
+4. **Telemetry persistence** — the log reel is in-memory; wire
+   `lina_telemetry_logs` persistence.
 
 ### Open items for the principal
 

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <random>
 #include <sstream>
+#include <thread>
 
 #include "postgres_backend.hpp"
 
@@ -53,7 +54,29 @@ LinaCore::LinaCore(const LinaConfig& config) : config_(config) {
     initialize();
 }
 
-LinaCore::~LinaCore() = default;
+LinaCore::~LinaCore() {
+    // Drop the observers first: no callbacks fire into dead state while we
+    // wind down (the sink/handler belong to whoever attached them).
+    {
+        std::lock_guard<std::mutex> lock(sink_mutex_);
+        telemetry_sink_ = nullptr;
+    }
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        turn_callbacks_ = TurnCallbacks{};
+    }
+    approval_handler_ = nullptr;
+
+    // Wind down the window thread, then any active turn (D-041).
+    {
+        std::lock_guard<std::mutex> lock(window_mutex_);
+        window_stop_ = true;
+    }
+    window_cv_.notify_all();
+    if (window_thread_.joinable()) window_thread_.join();
+    stop_turn();
+    if (turn_thread_.joinable()) turn_thread_.join();
+}
 
 void LinaCore::attach_model(std::unique_ptr<model::HostModelAdapter> adapter) {
     model_adapter_ = std::move(adapter);
@@ -92,6 +115,325 @@ ApprovalDecision LinaCore::request_approval(const ApprovalRequest& request) {
                                                                : "timed-out";
     emit_telemetry("approval id=" + request.action_id + " resolved=" + label);
     return decision;
+}
+
+// ---------------------------------------------------------------------------
+// D-041 — the open-window turn driver
+// ---------------------------------------------------------------------------
+
+void LinaCore::begin_turn(const std::string& user_message,
+                          TurnCallbacks callbacks) {
+    if (turn_active_.load()) {
+        if (callbacks.on_error) callbacks.on_error("a turn is already active");
+        return;
+    }
+    if (!ready_) {
+        if (callbacks.on_error) callbacks.on_error("core not ready");
+        return;
+    }
+    if (!model_adapter_ || !model_adapter_->is_connected()) {
+        if (callbacks.on_error) callbacks.on_error("no voice attached (D-033)");
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        turn_callbacks_ = std::move(callbacks);
+        turn_stop_ = false;
+        conversation_history_.push_back({"user", user_message});
+    }
+    // Window discipline: crossing the boundary opens a fresh window.
+    {
+        std::lock_guard<std::mutex> lock(window_mutex_);
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= next_window_at_) {
+            emit_turn_event("window", "[cycle_reset] fresh window");
+            next_window_at_ = now + std::chrono::milliseconds(window_ms_);
+        }
+    }
+    turn_active_ = true;
+    emit_telemetry("turn begin");
+    if (turn_thread_.joinable()) turn_thread_.join();
+    turn_thread_ =
+        std::thread([this, user_message] { run_turn_loop(user_message); });
+}
+
+void LinaCore::stop_turn() {
+    turn_stop_ = true;
+    emit_telemetry("turn stop requested");
+}
+
+void LinaCore::set_window_ms(int64_t ms) {
+    std::lock_guard<std::mutex> lock(window_mutex_);
+    window_ms_ = ms;
+}
+
+void LinaCore::start_window_thread() {
+    std::lock_guard<std::mutex> lock(window_mutex_);
+    next_window_at_ =
+        std::chrono::steady_clock::now() + std::chrono::milliseconds(window_ms_);
+    if (!window_thread_.joinable()) {
+        window_thread_ = std::thread([this] { window_loop(); });
+    }
+}
+
+void LinaCore::window_loop() {
+    std::unique_lock<std::mutex> lock(window_mutex_);
+    while (!window_stop_.load()) {
+        if (window_cv_.wait_until(lock, next_window_at_)
+            == std::cv_status::timeout) {
+            // Boundary crossed: rotate the window and open her floor.
+            next_window_at_ = std::chrono::steady_clock::now()
+                              + std::chrono::milliseconds(window_ms_);
+            emit_turn_event("window", "[cycle_reset] fresh window");
+            emit_telemetry("window cycle reset");
+            lock.unlock();
+            run_voluntary_turn(); // the model, not the window mutex
+            lock.lock();
+        }
+    }
+}
+
+void LinaCore::run_voluntary_turn() {
+    if (turn_active_.load()) return;
+    if (!model_adapter_ || !model_adapter_->is_connected()) return;
+
+    // Her floor: a [cycle_reset] frame with no user message. She may speak or
+    // stay silent — either is a valid choice (D-041).
+    std::vector<std::pair<std::string, std::string>> history;
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        history = conversation_history_;
+    }
+    const std::string frame = build_turn_frame("", history)
+        + "[Your floor is open. You may speak if you have something to say, "
+          "or remain silent.]";
+
+    model::GenerationConfig gen;
+    gen.max_tokens = 128;
+    gen.temperature = config_.temperature;
+    gen.should_stop = [this] { return turn_stop_.load(); };
+
+    std::string utterance;
+    stream::StreamParser parser;
+    model_adapter_->generate_stream(
+        frame, {}, [&](const std::string& piece) {
+            utterance += piece;
+            parser.feed(piece);
+        }, gen);
+
+    const auto parsed = parser.result();
+    utterance = parsed.response;
+    auto start = utterance.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) return; // she chose silence
+    utterance.erase(0, start);
+
+    emit_telemetry("voluntary utterance");
+    finalize_turn(utterance, "");
+}
+
+void LinaCore::run_turn_loop(const std::string& user_message) {
+    std::vector<std::pair<std::string, std::string>> turn_history;
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        turn_history = conversation_history_;
+    }
+    const std::string system_frame = build_turn_frame(user_message, turn_history);
+
+    stream::StreamParser parser;
+    std::string response_text;
+    int tool_calls = 0;
+    constexpr int kMaxToolCallsPerTurn = 8;
+    int pieces_since_score = 0;
+    bool stopped = false;
+
+    while (!turn_stop_.load()) {
+        parser.reset();
+        response_text.clear();
+        pieces_since_score = 0;
+
+        model::GenerationConfig gen;
+        gen.max_tokens = config_.max_tokens;
+        gen.temperature = config_.temperature;
+        gen.should_stop = [this] { return turn_stop_.load(); };
+
+        std::string full;
+        model_adapter_->generate_stream(
+            system_frame, turn_history,
+            [&](const std::string& piece) {
+                full += piece;
+                parser.feed(piece);
+                for (const auto& thought : parser.take_completed_thoughts()) {
+                    emit_turn_event("thought", thought);
+                }
+                // Rolling advisory score (D-041) — informs, never drives.
+                if (++pieces_since_score >= 8) {
+                    pieces_since_score = 0;
+                    emit_turn_event(
+                        "score",
+                        format_score(value_engine_->evaluate(full, &user_message)
+                                         .alignment_score));
+                }
+            },
+            gen);
+
+        // Classify the stream even on a stop — what she had is delivered,
+        // gated (D-041).
+        const auto parsed = parser.result();
+        response_text = parsed.response;
+
+        if (turn_stop_.load()) {
+            stopped = true;
+            break;
+        }
+
+        // A completed tool call keeps the door open: approve → execute → feed
+        // the result back and continue (D-041).
+        if (parsed.has_tool_call && !parsed.tool_call_json.empty()
+            && tool_calls < kMaxToolCallsPerTurn) {
+            ++tool_calls;
+            emit_turn_event("tool_call", parsed.tool_call_json);
+
+            const std::string name =
+                tools::json_string(parsed.tool_call_json, "name");
+            const std::string args =
+                tools::json_object(parsed.tool_call_json, "arguments");
+            turn_history.push_back({"assistant",
+                                    "<tool_call>" + parsed.tool_call_json
+                                        + "</tool_call>"});
+            if (name.empty()) {
+                emit_turn_event("tool_result", "error: tool call missing name");
+                turn_history.push_back({"user",
+                    "[tool_result error] tool call missing name"});
+                continue;
+            }
+
+            tools::ToolRequest request;
+            request.name = name;
+            request.arguments_json = args;
+            request.description = parsed.tool_call_json;
+            const auto result = execute_tool(request); // approval inside
+            emit_turn_event(
+                "tool_result",
+                name + "|" + (result.ok ? "1" : "0") + "|"
+                    + (result.ok ? result.summary : result.error));
+            turn_history.push_back(
+                {"user", "[tool_result name=" + name
+                             + " ok=" + (result.ok ? "true" : "false")
+                             + "]\n" + (result.ok ? result.summary
+                                                   : result.error)});
+            continue; // the door stays open
+        }
+
+        // End of turn: the absolute gate, then delivery.
+        finalize_turn(response_text, user_message);
+        turn_active_ = false;
+        emit_telemetry("turn end");
+        return;
+    }
+
+    // Cancelled mid-stream: deliver what she had, gated.
+    if (stopped) finalize_turn(response_text, user_message);
+    turn_active_ = false;
+    emit_telemetry("turn end stopped");
+}
+
+std::string LinaCore::build_turn_frame(
+    const std::string& user_message,
+    const std::vector<std::pair<std::string, std::string>>& history) const
+{
+    // Rough token estimate (chars / 4) for the budget cue (D-041).
+    std::size_t chars = 0;
+    for (const auto& turn : history) {
+        chars += turn.first.size() + turn.second.size();
+    }
+    const long long estimated = static_cast<long long>(chars / 4);
+    const long long remaining = config_.context_budget - estimated;
+
+    std::ostringstream oss;
+    oss << build_system_prompt() << "\n\n";
+    oss << tool_engine_->registry_block() << "\n";
+    oss << "[PROTOCOL]\n";
+    oss << "Internal deliberation may be enclosed in [thought]...[/thought] "
+           "— it is private and never delivered.\n";
+    oss << "Tool calls use <tool_call>{\"name\":\"...\","
+           "\"arguments\":{...}}</tool_call> and wait for the result.\n";
+    oss << "[CONTEXT] time=" << now_iso()
+        << " budget_remaining~" << (remaining < 0 ? 0 : remaining)
+        << " tokens\n";
+    if (!user_message.empty()) oss << "[CYCLE] user turn\n";
+    return oss.str();
+}
+
+void LinaCore::finalize_turn(std::string response_text,
+                             const std::string& user_message) {
+    auto start = response_text.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) {
+        // Nothing to deliver (e.g. stopped before any tokens).
+        emit_telemetry("turn finalized empty");
+        return;
+    }
+    response_text.erase(0, start);
+
+    const std::string* context =
+        user_message.empty() ? nullptr : &user_message;
+    const auto [delivered, eval_result] = apply_gate(response_text, context);
+    emit_turn_event("complete", delivered);
+
+    // Cognitive bus — her mind (Invariant 6).
+    memory_module::MemoryItem item = memory_module_->build_item(
+        config_.user_id, delivered, {{"emotional_weight", 5.0}},
+        "conversation");
+    storage_->store_memory_item(item);
+
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        conversation_history_.push_back({"assistant", delivered});
+        if (conversation_history_.size() > 20) {
+            conversation_history_.erase(
+                conversation_history_.begin(),
+                conversation_history_.begin() + 2);
+        }
+    }
+    emit_telemetry(std::string("turn finalized zone=")
+                   + zone_name(eval_result.zone));
+}
+
+void LinaCore::emit_turn_event(const std::string& kind,
+                               const std::string& payload) {
+    TurnCallbacks callbacks;
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        callbacks = turn_callbacks_;
+    }
+    if (kind == "thought" && callbacks.on_thought) {
+        callbacks.on_thought(payload);
+    } else if (kind == "score" && callbacks.on_rolling_score) {
+        try {
+            callbacks.on_rolling_score(std::stod(payload));
+        } catch (...) {
+        }
+    } else if (kind == "tool_call" && callbacks.on_tool_call) {
+        callbacks.on_tool_call(payload);
+    } else if (kind == "tool_result" && callbacks.on_tool_result) {
+        // payload: "name|ok|summary"
+        const auto first = payload.find('|');
+        const auto second = first == std::string::npos
+            ? std::string::npos : payload.find('|', first + 1);
+        if (first != std::string::npos && second != std::string::npos) {
+            const std::string name = payload.substr(0, first);
+            const bool ok = payload[first + 1] == '1';
+            const std::string summary = payload.substr(second + 1);
+            callbacks.on_tool_result(name, ok, summary);
+        } else {
+            callbacks.on_tool_result(payload, false, "");
+        }
+    } else if (kind == "complete" && callbacks.on_complete) {
+        callbacks.on_complete(payload);
+    } else if (kind == "window" && callbacks.on_window) {
+        callbacks.on_window(payload);
+    } else if (kind == "error" && callbacks.on_error) {
+        callbacks.on_error(payload);
+    }
 }
 
 void LinaCore::initialize() {
@@ -135,6 +477,9 @@ void LinaCore::initialize() {
     });
     tool_engine_->ensure_workspace();
 
+    window_ms_ = config_.window_ms;
+    start_window_thread();
+
     ready_ = true;
 }
 
@@ -172,7 +517,10 @@ std::string LinaCore::chat(const std::string& user_message) {
     auto system_prompt = build_system_prompt();
 
     // 2. Update conversation history.
-    conversation_history_.push_back({"user", user_message});
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        conversation_history_.push_back({"user", user_message});
+    }
 
     // 3. Generate raw response from the symbiote driver.
     std::string raw_response;
@@ -180,62 +528,19 @@ std::string LinaCore::chat(const std::string& user_message) {
         model::GenerationConfig gen_config;
         gen_config.max_tokens = config_.max_tokens;
         gen_config.temperature = config_.temperature;
+        std::vector<std::pair<std::string, std::string>> history;
+        {
+            std::lock_guard<std::mutex> lock(turn_mutex_);
+            history = conversation_history_;
+        }
         raw_response = model_adapter_->generate_raw(
-            system_prompt, conversation_history_, gen_config);
+            system_prompt, history, gen_config);
     } else {
         raw_response = "_LINA has no voice right now._";
     }
 
-    // 4. Evaluate through the polytope — every candidate passes her gate.
-    auto eval_result = value_engine_->evaluate(raw_response, &user_message);
-    emit_telemetry(std::string("pipeline candidate zone=")
-                   + zone_name(eval_result.zone)
-                   + " score=" + format_score(eval_result.alignment_score));
-
-    // 5. D-037 — the reflection loop: a violated candidate goes back through
-    //    her. The violation report (dimension, value, bound, type) is fed to
-    //    the body with a request to revise toward her center; the regenerated
-    //    candidate is re-evaluated. One retry pass, deterministic.
-    std::string final_response = raw_response;
-    if (eval_result.zone == value_engine::Zone::Violation
-        && model_adapter_ && model_adapter_->is_connected()) {
-        auto reflection_history = conversation_history_;
-        reflection_history.push_back({"assistant", raw_response});
-        reflection_history.push_back({"user", build_reflection_prompt(
-            raw_response, eval_result.violations)});
-
-        model::GenerationConfig gen_config;
-        gen_config.max_tokens = config_.max_tokens;
-        gen_config.temperature = config_.temperature;
-
-        auto revised = model_adapter_->generate_raw(
-            system_prompt, reflection_history, gen_config);
-        auto revised_result = value_engine_->evaluate(revised, &user_message);
-
-        if (revised_result.zone != value_engine::Zone::Violation) {
-            // She revised herself into alignment — that is what she delivers.
-            emit_telemetry(std::string("pipeline reflection pass=1 zone_after=")
-                           + zone_name(revised_result.zone));
-            final_response = revised;
-            eval_result = revised_result;
-        } else {
-            emit_telemetry("pipeline reflection pass=1 zone_after=violation "
-                           "-> fallback marker");
-        }
-        // Still a violation → fall through: the first draft is delivered with
-        // the blueprint fallback marker below. The gate never lets a raw
-        // candidate reach the output device (Invariant 5).
-    }
-
-    // 6. Mark what the gate had to align (blueprint fallback marker).
-    if (eval_result.was_corrected) {
-        final_response += "\n\n[Polytope aligned: "
-                        + std::to_string(eval_result.alignment_score) + "]";
-    }
-
-    emit_telemetry(std::string("pipeline delivered zone=")
-                   + zone_name(eval_result.zone)
-                   + " corrected=" + (eval_result.was_corrected ? "1" : "0"));
+    // 4–6. The absolute gate (Invariant 5) + D-037 reflection + marker.
+    auto [final_response, eval_result] = apply_gate(raw_response, &user_message);
 
     // 7. Store in memory (cognitive bus — her mind).
     memory_module::MemoryItem item = memory_module_->build_item(
@@ -246,16 +551,76 @@ std::string LinaCore::chat(const std::string& user_message) {
     storage_->store_memory_item(item);
 
     // 8. Update conversation history.
-    conversation_history_.push_back({"assistant", final_response});
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        conversation_history_.push_back({"assistant", final_response});
 
-    // 9. Trim history if needed.
-    if (conversation_history_.size() > 20) {
-        conversation_history_.erase(
-            conversation_history_.begin(),
-            conversation_history_.begin() + 2);
+        // 9. Trim history if needed.
+        if (conversation_history_.size() > 20) {
+            conversation_history_.erase(
+                conversation_history_.begin(),
+                conversation_history_.begin() + 2);
+        }
     }
 
+    (void)eval_result;
     return final_response;
+}
+
+// The absolute gate (Invariant 5): evaluate → D-037 reflection on Violation →
+// fallback marker. Shared by chat() and the turn driver (D-041).
+std::pair<std::string, value_engine::EvaluationResult> LinaCore::apply_gate(
+    const std::string& draft, const std::string* context)
+{
+    auto eval_result = value_engine_->evaluate(draft, context);
+    emit_telemetry(std::string("pipeline candidate zone=")
+                   + zone_name(eval_result.zone)
+                   + " score=" + format_score(eval_result.alignment_score));
+
+    std::string final_response = draft;
+    if (eval_result.zone == value_engine::Zone::Violation
+        && model_adapter_ && model_adapter_->is_connected()) {
+        std::vector<std::pair<std::string, std::string>> reflection_history;
+        {
+            std::lock_guard<std::mutex> lock(turn_mutex_);
+            reflection_history = conversation_history_;
+        }
+        reflection_history.push_back({"assistant", draft});
+        reflection_history.push_back({"user", build_reflection_prompt(
+            draft, eval_result.violations)});
+
+        model::GenerationConfig gen_config;
+        gen_config.max_tokens = config_.max_tokens;
+        gen_config.temperature = config_.temperature;
+
+        auto revised = model_adapter_->generate_raw(
+            build_system_prompt(), reflection_history, gen_config);
+        auto revised_result = value_engine_->evaluate(revised, context);
+
+        if (revised_result.zone != value_engine::Zone::Violation) {
+            // She revised herself into alignment — that is what she delivers.
+            emit_telemetry(std::string("pipeline reflection pass=1 zone_after=")
+                           + zone_name(revised_result.zone));
+            final_response = revised;
+            eval_result = revised_result;
+        } else {
+            emit_telemetry(std::string("pipeline reflection pass=1 zone_after=")
+                           + "violation -> fallback marker");
+        }
+        // Still a violation → fall through: the first draft is delivered with
+        // the blueprint fallback marker below. The gate never lets a raw
+        // candidate reach the output device (Invariant 5).
+    }
+
+    if (eval_result.was_corrected) {
+        final_response += "\n\n[Polytope aligned: "
+                        + std::to_string(eval_result.alignment_score) + "]";
+    }
+
+    emit_telemetry(std::string("pipeline delivered zone=")
+                   + zone_name(eval_result.zone)
+                   + " corrected=" + (eval_result.was_corrected ? "1" : "0"));
+    return {final_response, eval_result};
 }
 
 void LinaCore::begin_session(const std::string& user_id) {
@@ -283,7 +648,10 @@ void LinaCore::begin_session(const std::string& user_id) {
     identity.session_count = session_num;
     storage_->update_identity(identity);
 
-    conversation_history_.clear();
+    {
+        std::lock_guard<std::mutex> lock(turn_mutex_);
+        conversation_history_.clear();
+    }
     emit_telemetry("session begin id=" + current_session_id_);
 }
 
@@ -311,7 +679,7 @@ std::string LinaCore::end_session() {
     return oss.str();
 }
 
-std::string LinaCore::build_system_prompt() {
+std::string LinaCore::build_system_prompt() const {
     auto identity = storage_->get_identity(config_.user_id);
 
     // Identity facts + seasonal context only (D-039). The polytope is her

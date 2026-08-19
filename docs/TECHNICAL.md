@@ -449,13 +449,30 @@ frame (names + descriptions — protocol, not persona, per D-039).
 
 ### 6.6 The Turn Lifecycle (D-041) — the open-window loop
 
-_Pending Phase B._ Design adopted: stateless body, Lina owns context; frame build
-(identity + recalled memory + recent context + tool registry + budget cue +
-timestamp) → stream parser (flagged thought → thinking pane; tool call → approve
-+ execute + feed back, door stays open; EOT → finalize) → polytope gate at the
-door + rolling advisory score during generation → window timer fires
-`[cycle_reset]` (fresh context). Budget exhaustion is the only hard cut; the
-window is a bedtime, not a kill switch (see `docs/DECISIONS.md` D-041).
+`LinaCore::begin_turn()` runs the loop on a worker thread (the command center
+switched from `chat()` to this path):
+
+1. **Frame build** — system prompt + tool registry block + protocol note
+   (thought markers, tool-call syntax — D-039-safe) + budget cue + timestamp.
+2. **Streaming generation** — `generate_stream` feeds the `StreamParser`;
+   completed `[thought]` blocks stream live to the thinking pane; every 8
+   pieces the evaluator emits a **rolling advisory score** (informs, never
+   drives the loop).
+3. **Tool calls** — a completed `<tool_call>{…}</tool_call>` stops the pass;
+   the driver parses it, runs it through `request_approval()` + `execute_tool`,
+   emits an action chip, and feeds the result back — **the door stays open**
+   (max 8 calls per turn).
+4. **EOT** — the final response passes the absolute gate (`apply_gate`: evaluate
+   → D-037 reflection on Violation → fallback marker), is delivered, imprinted
+   to memory (cognitive bus), and appended to the transcript.
+5. **The window** — a timer thread fires `[cycle_reset]` (default 180s),
+   rotating to a fresh context and opening her floor: she may speak unprompted
+   or stay silent (both valid). `stop_turn()` cancels the generation and
+   delivers what she had, gated. Budget exhaustion is the only hard cut.
+
+The stateless body never carries state between passes — the KV cache is cleared
+per pass and the driver re-sends the accumulated context (Hermes-style tool
+calling).
 
 ### 6.4 The Built-in Command Center (D-036 rebuilt per D-038)
 

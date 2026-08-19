@@ -123,6 +123,9 @@ struct Generator {
         std::string output;
         char piece[256];
         for (int i = 0; i < config.max_tokens; ++i) {
+            // D-041: turn cancellation (stop button) — checked every step.
+            if (config.should_stop && config.should_stop()) break;
+
             const llama_token id = llama_sampler_sample(sampler, ctx, -1);
             llama_sampler_accept(sampler, id);
 
@@ -135,6 +138,15 @@ struct Generator {
 
             output.append(piece, static_cast<size_t>(n));
             if (on_token) on_token(std::string(piece, static_cast<size_t>(n)));
+
+            // D-041: a complete <tool_call>…</tool_call> block ends this pass
+            // — the door stays open while the driver executes it.
+            constexpr std::size_t kToolCallCloseLen = 12; // "</tool_call>"
+            if (output.size() >= kToolCallCloseLen
+                && output.compare(output.size() - kToolCallCloseLen,
+                                  kToolCallCloseLen, "</tool_call>") == 0) {
+                break;
+            }
 
             const llama_batch next = llama_batch_get_one(
                 const_cast<llama_token*>(&id), 1);

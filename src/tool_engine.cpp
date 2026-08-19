@@ -390,6 +390,39 @@ long long json_int(const std::string& json, const std::string& key,
     }
 }
 
+std::string json_object(const std::string& json, const std::string& key) {
+    const auto value = find_key(json, key);
+    if (value == std::string::npos || value >= json.size()) return "";
+    if (json[value] != '{') return "";
+    int depth = 0;
+    bool in_string = false;
+    bool escaped = false;
+    for (auto i = value; i < json.size(); ++i) {
+        const char c = json[i];
+        if (in_string) {
+            if (c == '\\' && !escaped) {
+                escaped = true;
+            } else if (c == '"' && !escaped) {
+                in_string = false;
+            } else {
+                escaped = false;
+            }
+            continue;
+        }
+        if (c == '"') {
+            in_string = true;
+        } else if (c == '{') {
+            ++depth;
+        } else if (c == '}') {
+            --depth;
+            if (depth == 0) {
+                return json.substr(value, i - value + 1);
+            }
+        }
+    }
+    return "";
+}
+
 // ---------------------------------------------------------------------------
 // Hand factories
 // ---------------------------------------------------------------------------
