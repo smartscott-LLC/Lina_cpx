@@ -456,6 +456,18 @@ socket. Hands: `browser.open`, `browser.navigate`, `browser.eval`, `browser.text
 `browser.close`. Browser resolution: `$LINA_BROWSER_PATH`, then google-chrome /
 brave-browser / chromium, then Playwright's cached Chromium builds.
 
+### 6.7 Telemetry Persistence (D-043)
+
+Every technical event persists to `lina_telemetry_logs` through the core's
+telemetry writer — a background thread draining a bounded queue (5k, drop-oldest)
+so the pipeline never blocks on a database write. Core events (pipeline zones,
+reflection, deliveries, sessions, driver attach, tool calls/results, window
+cycles) persist automatically; the command center feeds its own categories
+(`ui`, `harness`) through `LinaCore::append_telemetry_log()`. The live log reel
+is the window onto this ledger — Invariant 6 holds: technical logs never touch
+the cognitive bus. `PostgresBackend` serializes its single connection with a
+mutex (the writer shares the backend with the turn worker and the UI thread).
+
 ### 6.6 The Turn Lifecycle (D-041) — the open-window loop
 
 `LinaCore::begin_turn()` runs the loop on a worker thread (the command center

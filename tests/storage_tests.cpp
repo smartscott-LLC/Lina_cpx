@@ -308,6 +308,31 @@ static void test_sessions(PostgresBackend& db, const std::string& user) {
     CHECK(!db.get_session("missing_session").has_value());
 }
 
+static void test_telemetry_logs(PostgresBackend& db) {
+    // The technical bus, persistent (D-043): append + fetch round trip.
+    db.append_telemetry_log("core", "info", "pipeline candidate zone=aligned");
+    db.append_telemetry_log("tool", "warn", "terminal.run exit=3", 1.5);
+
+    auto logs = db.fetch_telemetry_logs(10);
+    bool saw_core = false;
+    bool saw_tool = false;
+    for (const auto& log : logs) {
+        if (log.subsystem == "core"
+            && log.message.find("pipeline candidate") != std::string::npos
+            && log.severity == "info") {
+            saw_core = true;
+        }
+        if (log.subsystem == "tool"
+            && log.message.find("exit=3") != std::string::npos
+            && log.severity == "warn" && log.has_latency
+            && log.latency_ms > 0.0) {
+            saw_tool = true;
+        }
+    }
+    CHECK(saw_core);
+    CHECK(saw_tool);
+}
+
 static void test_actions(PostgresBackend& db, const std::string& user) {
     ActionRecord action;
     action.id = mid(user, "act");
@@ -392,6 +417,7 @@ int main() {
         test_vector_search(*db, user);
         test_transcripts(*db, user);
         test_sessions(*db, user);
+        test_telemetry_logs(*db);
         test_actions(*db, user);
         test_promotion_log(*db, user);
         test_memory_module_integration(db, user);

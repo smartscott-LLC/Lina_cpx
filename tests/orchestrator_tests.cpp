@@ -563,6 +563,40 @@ static void test_turn_window_reset() {
     core.end_session();
 }
 
+static void test_telemetry_persistence() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "I am here with you, and I want to understand and help you grow"));
+
+    // The public technical-bus API (D-043) — what the UI reel feeds.
+    core.append_telemetry_log("ui", "info", "command center test line");
+
+    // Pipeline events ride the same bus.
+    core.begin_session();
+    core.chat("hello");
+
+    // The writer is a background thread — poll until the rows land.
+    auto deadline = std::chrono::steady_clock::now()
+                    + std::chrono::seconds(10);
+    bool saw_pipeline = false;
+    bool saw_ui = false;
+    while (std::chrono::steady_clock::now() < deadline) {
+        auto logs = core.storage().fetch_telemetry_logs(200);
+        for (const auto& log : logs) {
+            if (log.message.find("pipeline candidate zone=") != std::string::npos)
+                saw_pipeline = true;
+            if (log.message.find("command center test line") != std::string::npos)
+                saw_ui = true;
+        }
+        if (saw_pipeline && saw_ui) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    }
+    CHECK(saw_pipeline);
+    CHECK(saw_ui);
+    core.end_session();
+}
+
 int main() {
     try {
         test_boot_and_status();
@@ -577,6 +611,7 @@ int main() {
         test_turn_driver_stop();
         test_memory_recall_in_frame();
         test_turn_window_reset();
+        test_telemetry_persistence();
     } catch (const std::exception& e) {
         std::cerr << "orchestrator_tests: FATAL: " << e.what() << "\n";
         return 1;

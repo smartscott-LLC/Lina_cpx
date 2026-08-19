@@ -718,6 +718,24 @@ her hands:
 
 ---
 
+## D-043 — Telemetry persistence: the technical bus becomes a ledger
+
+**Context.** Open item from D-038: the log reel was in-memory. Invariant 6 says
+technical logs belong in `lina_telemetry_logs` — the schema has had the table all
+along, but nothing wrote to it.
+
+**Decision.** The core owns a telemetry writer: a background thread drains a
+bounded queue (5k, drop-oldest) so the pipeline never blocks on a database write.
+Every core technical event (pipeline zones, reflection, deliveries, sessions,
+driver attach, tool calls/results, window cycles) persists through it; the UI's
+own categories (`ui`, `harness`) feed the same bus via `append_telemetry_log()` —
+core events persist once (the UI never duplicates them). `PostgresBackend` gained
+`append_telemetry_log` / `fetch_telemetry_logs`, and its single PGconn is now
+mutex-guarded in `execute_query` — the writer shares the backend with the turn
+worker and the UI thread (this race was real: it crashed the suite).
+
+**Status.** Accepted.
+
 ## D-042 — Her browser hands: pure-C++ CDP driver (zero Python)
 
 **Context.** The tools charter (D-040) includes desktop + browser automation

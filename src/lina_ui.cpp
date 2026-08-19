@@ -173,6 +173,8 @@ class LogReel {
 public:
     using LineObserver = std::function<void(const QString&)>;
     using ClearObserver = std::function<void()>;
+    using EntryObserver =
+        std::function<void(const QString&, const QString&, const QString&)>;
 
     static LogReel& instance() {
         static LogReel reel;
@@ -188,13 +190,18 @@ public:
         QString line = QTime::currentTime().toString("HH:mm:ss")
                        + " [" + category + "/" + level + "] " + message;
         std::vector<LineObserver> observers;
+        std::vector<EntryObserver> entry_observers;
         {
             std::lock_guard<std::mutex> lock(mutex_);
             lines_.append(line);
             while (lines_.size() > max_lines_) lines_.removeFirst();
             observers = line_observers_;
+            entry_observers = entry_observers_;
         }
         for (const auto& observer : observers) observer(line);
+        for (const auto& observer : entry_observers) {
+            observer(category, level, message);
+        }
     }
 
     void setLevelFilter(int lvl) { level_filter_ = lvl; }
@@ -229,12 +236,18 @@ public:
         clear_observers_.push_back(std::move(observer));
     }
 
+    void addEntryObserver(EntryObserver observer) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        entry_observers_.push_back(std::move(observer));
+    }
+
 private:
     LogReel() = default;
     mutable std::mutex mutex_;
     QVector<QString> lines_;
     std::vector<LineObserver> line_observers_;
     std::vector<ClearObserver> clear_observers_;
+    std::vector<EntryObserver> entry_observers_;
     int level_filter_{1};   // 0=debug 1=info 2=warn 3=error
     int max_lines_{2000};
 };
@@ -894,6 +907,17 @@ private:
                 log_view_->clear();
             }, Qt::QueuedConnection);
         });
+        // D-043: UI-owned technical logs persist on the telemetry bus; core
+        // events are already persisted by the core itself (no duplicates).
+        LogReel::instance().addEntryObserver(
+            [this](const QString& category, const QString& level,
+                   const QString& message) {
+                if (category == "ui" || category == "harness") {
+                    core_.append_telemetry_log(
+                        category.toStdString(), level.toStdString(),
+                        message.toStdString());
+                }
+            });
 
         auto* panel_lay = qobject_cast<QVBoxLayout*>(panel->layout());
         panel_lay->addLayout(controls);

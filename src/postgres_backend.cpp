@@ -15,6 +15,7 @@
 #include "postgres_backend.hpp"
 
 #include <cmath>
+#include <cstdlib>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -116,6 +117,10 @@ void PostgresBackend::initialize_schema() {
 PGresult* PostgresBackend::execute_query(
     const std::string& query, const std::vector<std::string>& params)
 {
+    // The single PGconn is shared across threads (turn worker, telemetry
+    // writer, UI) — serialize the query path (D-043).
+    std::lock_guard<std::mutex> lock(conn_mutex_);
+
     // Parameter arrays sized to the call — the blueprint's fixed-10 array
     // overflows 18-parameter inserts (D-030).
     std::vector<const char*> param_values(params.size(), nullptr);
@@ -760,6 +765,57 @@ std::vector<ActionRecord> PostgresBackend::get_pending_actions() {
     }
     PQclear(res);
     return actions;
+}
+
+// ---------------------------------------------------------------------------
+// Telemetry (D-043) — the technical bus, persistent (Invariant 6)
+// ---------------------------------------------------------------------------
+
+void PostgresBackend::append_telemetry_log(
+    const std::string& subsystem, const std::string& severity,
+    const std::string& message, std::optional<double> latency_ms)
+{
+    const std::string sev = severity.empty() ? "INFO" : severity;
+    if (latency_ms.has_value()) {
+        execute_query(
+            "INSERT INTO lina_telemetry_logs "
+            "(subsystem, message, severity, latency_ms) "
+            "VALUES ($1, $2, $3, $4)",
+            {subsystem, message, sev, std::to_string(*latency_ms)});
+    } else {
+        execute_query(
+            "INSERT INTO lina_telemetry_logs "
+            "(subsystem, message, severity) "
+            "VALUES ($1, $2, $3)",
+            {subsystem, message, sev});
+    }
+}
+
+std::vector<TelemetryLogRecord> PostgresBackend::fetch_telemetry_logs(
+    int limit)
+{
+    auto res = execute_query(
+        "SELECT id, timestamp, subsystem, message, severity, latency_ms "
+        "FROM lina_telemetry_logs ORDER BY id DESC LIMIT $1",
+        {std::to_string(limit)});
+
+    std::vector<TelemetryLogRecord> records;
+    const int n = PQntuples(res);
+    for (int i = 0; i < n; ++i) {
+        TelemetryLogRecord record;
+        record.id = std::atoll(PQgetvalue(res, i, 0));
+        record.timestamp = PQgetvalue(res, i, 1);
+        record.subsystem = PQgetvalue(res, i, 2);
+        record.message = PQgetvalue(res, i, 3);
+        record.severity = PQgetvalue(res, i, 4);
+        record.has_latency = !PQgetisnull(res, i, 5);
+        if (record.has_latency) {
+            record.latency_ms = std::atof(PQgetvalue(res, i, 5));
+        }
+        records.push_back(record);
+    }
+    PQclear(res);
+    return records;
 }
 
 // =============================================================================

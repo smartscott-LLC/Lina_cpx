@@ -15,11 +15,16 @@
  * introduced per D-004. Fixes over the blueprint's sketch (D-030):
  * dynamic parameter arrays (the fixed-10 array overflows 18-param inserts)
  * and explicit column lists in row mapping.
+ *
+ * Thread-safety (D-043): a single PGconn, guarded by a mutex locked in
+ * execute_query — the telemetry writer shares the backend with the turn
+ * worker and the UI thread.
  */
 
 #include <libpq-fe.h>
 
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -83,6 +88,14 @@ public:
         const std::string& action_id, const std::string& state) override;
     std::vector<ActionRecord> get_pending_actions() override;
 
+    // --- StorageBackend: Telemetry (D-043) ---
+    void append_telemetry_log(
+        const std::string& subsystem, const std::string& severity,
+        const std::string& message,
+        std::optional<double> latency_ms = std::nullopt) override;
+    std::vector<TelemetryLogRecord> fetch_telemetry_logs(
+        int limit = 100) override;
+
     // --- MemoryStore: tier-scoped operations (D-031) ---
     void store_tier(const std::string& tier,
                     const memory_module::MemoryItem& item) override;
@@ -112,6 +125,10 @@ public:
 private:
     std::string conn_string_;
     PGconn* conn_ = nullptr;
+    // Serialize access to the single PGconn (D-043) — the telemetry writer
+    // shares the backend with the turn worker and the UI thread. Locked in
+    // execute_query, the single choke point.
+    mutable std::mutex conn_mutex_;
 
     void connect();
     void initialize_schema();

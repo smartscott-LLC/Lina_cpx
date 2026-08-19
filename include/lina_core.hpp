@@ -15,6 +15,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -92,6 +93,12 @@ public:
     // D-038: approval gate + telemetry bus.
     void set_approval_handler(ApprovalHandler handler);
     void set_telemetry_sink(TelemetrySink sink);
+    // D-043: append a technical log line — persisted to lina_telemetry_logs
+    // (the telemetry bus; Invariant 6). The UI's log reel feeds its own
+    // categories through this.
+    void append_telemetry_log(const std::string& subsystem,
+                              const std::string& severity,
+                              const std::string& message);
     // Blocks (up to request.timeout_ms) for a human decision. Denied when no
     // handler is registered. Future tool executor calls this before acting.
     ApprovalDecision request_approval(const ApprovalRequest& request);
@@ -161,6 +168,24 @@ private:
         const std::string& draft, const std::string* context);
     void emit_turn_event(const std::string& kind, const std::string& payload);
     void emit_telemetry(const std::string& message);
+
+    // D-043: the telemetry writer — a background thread drains the queue so
+    // the pipeline never blocks on a database write.
+    struct TelemetryEntry {
+        std::string subsystem;
+        std::string severity;
+        std::string message;
+    };
+    std::mutex telemetry_mutex_;
+    std::condition_variable telemetry_cv_;
+    std::deque<TelemetryEntry> telemetry_queue_;
+    std::thread telemetry_writer_;
+    std::atomic<bool> telemetry_stop_{false};
+    void telemetry_writer_loop();
+    void start_telemetry_writer();
+    void persist_telemetry(const std::string& subsystem,
+                           const std::string& severity,
+                           const std::string& message);
 
     void initialize();
     std::string build_system_prompt() const;

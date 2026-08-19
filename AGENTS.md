@@ -219,6 +219,13 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   click/type/screenshot/close — approval-gated like every hand. `$LINA_BROWSER_PATH`
   override. `browser_driver_tests` 18 checks (real headless Chrome, `data:` URLs,
   skips without a browser); `ctest` 9/9, **477 checks total**.
+- ✅ **Telemetry persistence (D-043):** the technical bus is now a ledger — a
+  background writer drains a bounded queue into `lina_telemetry_logs` (pipeline
+  zones, sessions, driver attach, tool events, window cycles); the UI feeds its
+  own categories via `append_telemetry_log()`. `PostgresBackend` serializes its
+  single PGconn in `execute_query` (the writer shares it with the turn worker —
+  a real race that crashed the suite). `storage_tests` 61 (was 59),
+  `orchestrator_tests` 48 (was 46); `ctest` 9/9, **481 checks total**.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -227,10 +234,8 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** the browser hands (D-042) — pending principal's say-so.
-2. **Telemetry persistence** — the log reel is in-memory; wire
-   `lina_telemetry_logs` persistence.
-3. **The last thing** — the principal's RAM-unlock ("saving that until last").
+1. **Push** telemetry persistence (D-043) — pending principal's say-so.
+2. **The last thing** — the principal's RAM-unlock ("saving that until last").
 
 ### Open items for the principal
 

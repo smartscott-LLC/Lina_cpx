@@ -68,15 +68,22 @@ LinaCore::~LinaCore() {
     }
     approval_handler_ = nullptr;
 
-    // Wind down the window thread, then any active turn (D-041).
+    // Wind down the active turn first (it may still emit telemetry), then the
+    // window thread, then the telemetry writer, then storage dies.
+    stop_turn();
+    if (turn_thread_.joinable()) turn_thread_.join();
     {
         std::lock_guard<std::mutex> lock(window_mutex_);
         window_stop_ = true;
     }
     window_cv_.notify_all();
     if (window_thread_.joinable()) window_thread_.join();
-    stop_turn();
-    if (turn_thread_.joinable()) turn_thread_.join();
+    {
+        std::lock_guard<std::mutex> lock(telemetry_mutex_);
+        telemetry_stop_ = true;
+    }
+    telemetry_cv_.notify_all();
+    if (telemetry_writer_.joinable()) telemetry_writer_.join();
 }
 
 void LinaCore::attach_model(std::unique_ptr<model::HostModelAdapter> adapter) {
@@ -98,8 +105,56 @@ void LinaCore::set_telemetry_sink(TelemetrySink sink) {
 }
 
 void LinaCore::emit_telemetry(const std::string& message) {
+    persist_telemetry("core", "info", message);
     std::lock_guard<std::mutex> lock(sink_mutex_);
     if (telemetry_sink_) telemetry_sink_(message);
+}
+
+void LinaCore::append_telemetry_log(const std::string& subsystem,
+                                    const std::string& severity,
+                                    const std::string& message) {
+    persist_telemetry(subsystem, severity, message);
+}
+
+void LinaCore::start_telemetry_writer() {
+    if (!telemetry_writer_.joinable()) {
+        telemetry_writer_ = std::thread([this] { telemetry_writer_loop(); });
+    }
+}
+
+void LinaCore::telemetry_writer_loop() {
+    std::unique_lock<std::mutex> lock(telemetry_mutex_);
+    for (;;) {
+        telemetry_cv_.wait(lock, [this] {
+            return telemetry_stop_.load() || !telemetry_queue_.empty();
+        });
+        if (telemetry_stop_.load() && telemetry_queue_.empty()) return;
+
+        std::deque<TelemetryEntry> batch;
+        batch.swap(telemetry_queue_);
+        lock.unlock();
+        for (const auto& entry : batch) {
+            try {
+                storage_->append_telemetry_log(entry.subsystem,
+                                               entry.severity,
+                                               entry.message);
+            } catch (...) {
+                // A storage blip must never kill her technical bus.
+            }
+        }
+        lock.lock();
+    }
+}
+
+void LinaCore::persist_telemetry(const std::string& subsystem,
+                                 const std::string& severity,
+                                 const std::string& message) {
+    {
+        std::lock_guard<std::mutex> lock(telemetry_mutex_);
+        if (telemetry_queue_.size() >= 5000) telemetry_queue_.pop_front();
+        telemetry_queue_.push_back({subsystem, severity, message});
+    }
+    telemetry_cv_.notify_one();
 }
 
 ApprovalDecision LinaCore::request_approval(const ApprovalRequest& request) {
@@ -433,6 +488,18 @@ void LinaCore::finalize_turn(std::string response_text,
 
 void LinaCore::emit_turn_event(const std::string& kind,
                                const std::string& payload) {
+    // Technical turn events ride the persistent telemetry bus (D-043,
+    // Invariant 6) — tool activity, window rotation, errors. Thoughts, scores,
+    // and deliveries are process/reply data, not technical logs.
+    if (kind == "tool_call" || kind == "tool_result") {
+        persist_telemetry("tool", kind == "tool_call" ? "info" : "warn",
+                          payload);
+    } else if (kind == "window") {
+        persist_telemetry("core", "info", payload);
+    } else if (kind == "error") {
+        persist_telemetry("core", "error", payload);
+    }
+
     TurnCallbacks callbacks;
     {
         std::lock_guard<std::mutex> lock(turn_mutex_);
@@ -523,6 +590,7 @@ void LinaCore::initialize() {
 
     window_ms_ = config_.window_ms;
     start_window_thread();
+    start_telemetry_writer();
 
     ready_ = true;
 }

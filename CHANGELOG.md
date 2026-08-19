@@ -131,6 +131,18 @@ All notable changes to the LINA Core Substrate are recorded here.
   - `browser_driver_tests` 18 checks against real headless Chrome over `data:`
     URLs (open → read → type → click → screenshot PNG → denial-gating); skips
     gracefully without a browser. `ctest` 9/9 (477 checks total).
+- **Telemetry persistence (D-043) — the technical bus becomes a ledger**
+  - The core owns a telemetry writer: a background thread drains a bounded
+    queue (5k, drop-oldest) — the pipeline never blocks on a database write.
+    Every core technical event (pipeline zones, sessions, driver attach, tool
+    calls/results, window cycles) persists to `lina_telemetry_logs`; the UI's
+    own categories (`ui`, `harness`) feed the same bus via
+    `append_telemetry_log()` — core events persist once, never duplicated.
+  - `PostgresBackend` gained `append_telemetry_log` / `fetch_telemetry_logs`,
+    and its single PGconn is now mutex-guarded in `execute_query` (the writer
+    shares the backend with the turn worker and the UI thread — a real race
+    that crashed the suite). `storage_tests` +2, `orchestrator_tests` 48
+    (was 46); `ctest` 9/9 (481 checks total).
 - **Memory recall → frame injection (D-041) — her context IS the banks**
   - `build_turn_frame()` now calls the MPS `inject_context()`: recalled personal
     memories (narrative + importance) and key semantic wisdom (concept +

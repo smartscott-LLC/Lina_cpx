@@ -55,6 +55,17 @@ struct ActionRecord {
     std::string updated_at;
 };
 
+// D-043: one technical log line (the telemetry bus — Invariant 6).
+struct TelemetryLogRecord {
+    int64_t id{0};
+    std::string timestamp;
+    std::string subsystem;
+    std::string message;
+    std::string severity;
+    bool has_latency{false};
+    double latency_ms{0.0};
+};
+
 struct IdentityRecord {
     std::string user_id;
     std::string current_season;
@@ -115,6 +126,14 @@ public:
     virtual void update_action_state(
         const std::string& action_id, const std::string& state) = 0;
     virtual std::vector<ActionRecord> get_pending_actions() = 0;
+
+    // --- Telemetry (D-043) — the technical bus, persistent (Invariant 6) ---
+    virtual void append_telemetry_log(
+        const std::string& subsystem, const std::string& severity,
+        const std::string& message,
+        std::optional<double> latency_ms = std::nullopt) = 0;
+    virtual std::vector<TelemetryLogRecord> fetch_telemetry_logs(
+        int limit = 100) = 0;
 };
 
 } // namespace lina::storage
