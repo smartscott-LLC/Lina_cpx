@@ -718,6 +718,29 @@ her hands:
 
 ---
 
+## D-042 — Her browser hands: pure-C++ CDP driver (zero Python)
+
+**Context.** The tools charter (D-040) includes desktop + browser automation
+"like Playwright". The principal has Chrome, Brave, and Playwright's Chromium
+builds on the machine. Playwright itself is a Python/Node wrapper — barred by the
+zero-Python invariant — but every Chromium family browser speaks the same Chrome
+DevTools Protocol.
+
+**Decision.** `src/browser_driver.cpp` is a self-contained CDP driver with **no new
+dependencies**: a minimal RFC 6455 WebSocket client (own SHA-1 + base64 for the
+handshake), the browser process spawned headless with `--remote-debugging-port=0`
+(isolated `/tmp` profile), and CDP JSON-RPC over the socket. Hands registered in the
+tool engine like any other (approval-gated, D-040): `browser.open`, `browser.navigate`,
+`browser.eval`, `browser.text`, `browser.content`, `browser.click`, `browser.type`,
+`browser.screenshot`, `browser.close`. Browser resolution: `$LINA_BROWSER_PATH`, then
+google-chrome / brave-browser / chromium, then Playwright's cache. Tests skip
+gracefully without a browser; with one, they drive real headless Chrome over `data:`
+URLs — open, read, type, click, screenshot (PNG verified), denial-gating.
+
+**Status.** Accepted.
+
+---
+
 ## D-041 — The turn lifecycle: the open-window loop
 
 **Context.** Principal design (2026-08-18, `open_chat_chart.mmd` + tech doc):

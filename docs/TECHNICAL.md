@@ -447,6 +447,15 @@ tolerant flat JSON (`json_string`/`json_int` — no external dependency).
 `ToolEngine::registry_block()` renders the tool list for the model's protocol
 frame (names + descriptions — protocol, not persona, per D-039).
 
+**Browser hands (D-042).** `browser_driver.hpp/.cpp` — a self-contained Chrome
+DevTools Protocol driver, zero Python, zero new dependencies: a minimal RFC 6455
+WebSocket client (own SHA-1 + base64), the browser spawned headless with
+`--remote-debugging-port=0` (isolated `/tmp` profile), and CDP JSON-RPC over the
+socket. Hands: `browser.open`, `browser.navigate`, `browser.eval`, `browser.text`,
+`browser.content`, `browser.click`, `browser.type`, `browser.screenshot`,
+`browser.close`. Browser resolution: `$LINA_BROWSER_PATH`, then google-chrome /
+brave-browser / chromium, then Playwright's cached Chromium builds.
+
 ### 6.6 The Turn Lifecycle (D-041) — the open-window loop
 
 `LinaCore::begin_turn()` runs the loop on a worker thread (the command center

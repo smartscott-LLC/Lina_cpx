@@ -212,6 +212,13 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   into every frame under `[MEMORY]` (long narratives summarized for the window;
   the banks keep the full record). Her context IS the banks. `orchestrator_tests`
   46 (was 44); `ctest` 8/8, **459 checks total**.
+- ✅ **Her browser hands (D-042):** `browser_driver.hpp/.cpp` — pure-C++ CDP
+  driver, zero Python, zero new deps (own WebSocket client: SHA-1 + base64 +
+  RFC 6455; own JSON via the tool helpers). Launches Chrome/Brave/Playwright-
+  Chromium headless (isolated profile), drives open/navigate/eval/text/content/
+  click/type/screenshot/close — approval-gated like every hand. `$LINA_BROWSER_PATH`
+  override. `browser_driver_tests` 18 checks (real headless Chrome, `data:` URLs,
+  skips without a browser); `ctest` 9/9, **477 checks total**.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -220,10 +227,10 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** memory recall + turn lifecycle (D-041) — pending principal's say-so.
-2. **Browser/desktop hands** — CDP driver (Playwright-style, zero Python).
-3. **Telemetry persistence** — the log reel is in-memory; wire
+1. **Push** the browser hands (D-042) — pending principal's say-so.
+2. **Telemetry persistence** — the log reel is in-memory; wire
    `lina_telemetry_logs` persistence.
+3. **The last thing** — the principal's RAM-unlock ("saving that until last").
 
 ### Open items for the principal
 

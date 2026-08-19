@@ -88,7 +88,7 @@ All notable changes to the LINA Core Substrate are recorded here.
   - `make_driver("llama", …)` returns the real voice with `LINA_ENABLE_LLAMA=ON`
     (`LINA_LLAMA_DIR` CMake cache var); the graceful no-voice path remains with it
     OFF. Pinned model `models/Qwen2-VL-2B-Instruct-Q6_K.gguf` (gitignored).
-  `llama_adapter_tests` (8 checks): loads the real model, generates, streams, and
+  - `llama_adapter_tests` (8 checks): loads the real model, generates, streams, and
     runs a `chat()` round trip through her polytope gate. Skips gracefully when the
     weights are absent. `ctest` 6/6 (380 checks total).
 - **Her tools, Phase A (D-040) — the hands + the approval gate**
@@ -121,6 +121,16 @@ All notable changes to the LINA Core Substrate are recorded here.
   - `stream_parser_tests` 24 checks; `orchestrator_tests` 44 (was 28) — turn
     complete, tool-call round trip, stop mid-turn, `[cycle_reset]` window.
     `ctest` 8/8 (457 checks total).
+- **Her browser hands (D-042) — pure-C++ CDP driver, zero Python**
+  - `browser_driver.hpp/.cpp`: minimal RFC 6455 WebSocket client (own SHA-1 +
+    base64) + Chrome DevTools Protocol — no new dependencies. Launches
+    Chrome/Brave/Playwright-Chromium headless with an isolated profile.
+  - Hands: `browser.open/navigate/eval/text/content/click/type/screenshot/close`
+    — approval-gated like every other hand (D-040); screenshots land in the
+    workspace. Browser resolution honors `$LINA_BROWSER_PATH`.
+  - `browser_driver_tests` 18 checks against real headless Chrome over `data:`
+    URLs (open → read → type → click → screenshot PNG → denial-gating); skips
+    gracefully without a browser. `ctest` 9/9 (477 checks total).
 - **Memory recall → frame injection (D-041) — her context IS the banks**
   - `build_turn_frame()` now calls the MPS `inject_context()`: recalled personal
     memories (narrative + importance) and key semantic wisdom (concept +

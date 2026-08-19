@@ -18,6 +18,7 @@
 #include <thread>
 
 #include "postgres_backend.hpp"
+#include "browser_driver.hpp"
 
 #if defined(LINA_ENABLE_UI)
 #include "lina_ui.hpp"
@@ -504,6 +505,17 @@ void LinaCore::initialize() {
     tool_engine_->register_tool(
         tools::make_file_list_tool(config_.workspace_dir));
     tool_engine_->register_tool(tools::make_terminal_run_tool());
+    // Her browser hands (D-042) — CDP, zero Python.
+    tool_engine_->register_tool(tools::make_browser_open_tool());
+    tool_engine_->register_tool(tools::make_browser_navigate_tool());
+    tool_engine_->register_tool(tools::make_browser_eval_tool());
+    tool_engine_->register_tool(tools::make_browser_text_tool());
+    tool_engine_->register_tool(tools::make_browser_content_tool());
+    tool_engine_->register_tool(tools::make_browser_click_tool());
+    tool_engine_->register_tool(tools::make_browser_type_tool());
+    tool_engine_->register_tool(
+        tools::make_browser_screenshot_tool(config_.workspace_dir));
+    tool_engine_->register_tool(tools::make_browser_close_tool());
     tool_engine_->set_approver([this](const ApprovalRequest& request) {
         return request_approval(request);
     });

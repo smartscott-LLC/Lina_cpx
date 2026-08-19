@@ -88,7 +88,8 @@ if (LINA_ENABLE_STORAGE)
 
     # --- Orchestrator (Chamber 5) — binds the chambers ---------------------
     set(LINA_CORE_SOURCES src/lina_core.cpp src/model_driver.cpp
-                          src/tool_engine.cpp src/stream_parser.cpp)
+                          src/tool_engine.cpp src/stream_parser.cpp
+                          src/browser_driver.cpp)
     if (LINA_ENABLE_LLAMA)
         # The voice (D-035) — pinned llama.cpp tree, linked via its C API.
         set(LINA_LLAMA_DIR "/home/server/llama.cpp" CACHE PATH
@@ -151,4 +152,10 @@ if (LINA_ENABLE_STORAGE)
     add_executable(stream_parser_tests tests/stream_parser_tests.cpp)
     target_link_libraries(stream_parser_tests PRIVATE lina_core_lib pthread)
     add_test(NAME stream_parser_tests COMMAND stream_parser_tests)
+
+    # Her browser hands (D-042) — CDP over the real browser. Skipped (exit 0)
+    # when no browser binary is present.
+    add_executable(browser_driver_tests tests/browser_driver_tests.cpp)
+    target_link_libraries(browser_driver_tests PRIVATE lina_core_lib pthread)
+    add_test(NAME browser_driver_tests COMMAND browser_driver_tests)
 endif()
