@@ -11,6 +11,28 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The poles and the ContextPacket (D-047, front c — the substrate
+  complete: the polytope now steers)**
+  - **Her home regions are real.** `RegionPoleEngine` clusters her memory
+    coordinates into poles — identity is a region of the polytope (book
+    Principle 4). Deterministic k-means (farthest-point seeding, no RNG —
+    same memories, same poles), Lloyd + empty-cluster re-seeding, and every
+    centroid is projected into the lattice: a home region is inside by
+    construction. Live at boot: **3 home regions from her 12 active
+    memories**.
+  - **The ContextPacket rides every frame.** `GeometricState` — position,
+    trajectory, near walls, home region — lands in `build_turn_frame` as a
+    `[GEOMETRY]` block (facts, never directives). Position is her last
+    delivered position from the ledger (encoded vector when aligned, the
+    projection when corrected — never the origin); trajectory is the delta;
+    near walls come from `EthicalPolytope::near_walls` (critical facets
+    within 0.05, exact rationals); home is her nearest pole.
+  - **Correction steers home.** The reflection prompt now carries her home
+    region alongside the exact projection — the projection is the nearest
+    interior point, the region is the direction.
+  - `value_engine_tests` 297 (was 233) incl. pole discovery and near-wall
+    tests; `orchestrator_tests` 70 (was 50) incl. the `[GEOMETRY]` frame
+    test. `ctest` 10/10 (**670 checks total**).
 - **The real encoder (D-047, front b) — the sense lexicon**
   - The regex lexicon is dead. `DecisionEncoder::encode()` now places text by
     the **weighted sum of each word's ethical sense**: ~250-entry `SENSE_LEXICON`

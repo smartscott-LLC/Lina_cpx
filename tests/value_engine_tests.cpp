@@ -524,6 +524,171 @@ static void test_mps_gates() {
 }
 
 // =============================================================================
+// HOME REGIONS — THE POLES (D-047 front c)
+// =============================================================================
+
+// Two synthetic memory clusters: warm (virtues) and dark (shadows). The dark
+// points deliberately violate the coupling facets — discovery must project the
+// centroids inside the lattice regardless.
+static std::array<double, DIMENSION_COUNT> make_point(
+    double harmony, double dominance, double order, double chaos,
+    double integrity, double deception, double flourishing, double decline,
+    double relationships, double isolation, double boundaries, double intrusion,
+    double grace, double rigidity)
+{
+    return {harmony, dominance, order, chaos, integrity, deception,
+            flourishing, decline, relationships, isolation, boundaries,
+            intrusion, grace, rigidity};
+}
+
+static void test_poles() {
+    ValueEngine engine(PolytopeConstraints::from_season("spring"), "spring");
+    const auto& polytope = engine.polytope();
+
+    std::vector<std::array<double, DIMENSION_COUNT>> coords;
+    // Warm cluster: 6 memories near a virtuous home.
+    const double warm[14] = {0.78, 0.30, 0.72, 0.12, 0.78, 0.10,
+                             0.74, 0.12, 0.85, 0.15, 0.80, 0.10,
+                             0.72, 0.20};
+    // Dark cluster: 6 memories near a shadow-heavy region (outside the
+    // coupling facets by design — her homes must still land inside).
+    const double dark[14] = {0.55, 0.45, 0.42, 0.42, 0.50, 0.35,
+                             0.45, 0.35, 0.50, 0.40, 0.45, 0.33,
+                             0.45, 0.40};
+    for (int c = 0; c < 6; ++c) {
+        auto w = make_point(warm[0], warm[1], warm[2], warm[3], warm[4], warm[5],
+                            warm[6], warm[7], warm[8], warm[9], warm[10], warm[11],
+                            warm[12], warm[13]);
+        w[0] += 0.01 * c;
+        w[8] -= 0.01 * c;
+        coords.push_back(w);
+        auto d = make_point(dark[0], dark[1], dark[2], dark[3], dark[4], dark[5],
+                            dark[6], dark[7], dark[8], dark[9], dark[10], dark[11],
+                            dark[12], dark[13]);
+        d[1] -= 0.01 * c;
+        d[3] += 0.01 * c;
+        coords.push_back(d);
+    }
+
+    engine.set_memory_poles(coords, 2);
+    const auto& poles = engine.poles();
+    CHECK(poles.size() == 2);
+    size_t total_members = 0;
+    for (const auto& pole : poles) {
+        total_members += pole.member_count;
+        // A home region is inside the lattice by construction (Invariant 5).
+        CHECK(polytope.contains(pole.center).first);
+        CHECK(pole.member_count > 0);
+        CHECK(pole.compactness > 0.0);
+    }
+    CHECK(total_members == 12);
+
+    // Determinism: the same memories produce the same poles, exactly.
+    engine.set_memory_poles(coords, 2);
+    const auto& again = engine.poles();
+    CHECK(again.size() == poles.size());
+    for (size_t i = 0; i < poles.size(); ++i) {
+        for (int d = 0; d < DIMENSION_COUNT; ++d) {
+            CHECK(again[i].center[static_cast<size_t>(d)]
+                  == poles[i].center[static_cast<size_t>(d)]);
+        }
+        CHECK(again[i].member_count == poles[i].member_count);
+    }
+
+    // nearest: a warm probe lands in the warm (higher-harmony) region.
+    auto probe = make_point(0.80, 0.28, 0.74, 0.10, 0.80, 0.08,
+                            0.76, 0.10, 0.88, 0.12, 0.82, 0.08, 0.74, 0.18);
+    size_t home = engine.nearest_pole(probe);
+    CHECK(home < poles.size());
+    CHECK(poles[home].center[0] > poles[1 - home].center[0]);
+
+    // Degenerate inputs: none, one, all-identical.
+    engine.set_memory_poles({});
+    CHECK(engine.poles().empty());
+    CHECK(engine.nearest_pole(probe) == std::string::npos);
+
+    engine.set_memory_poles({probe});
+    CHECK(engine.poles().size() == 1);
+    CHECK(polytope.contains(engine.poles()[0].center).first);
+
+    std::vector<std::array<double, DIMENSION_COUNT>> same(
+        5, make_point(0.65, 0.30, 0.65, 0.15, 0.70, 0.10, 0.65, 0.12,
+                      0.70, 0.15, 0.70, 0.12, 0.65, 0.20));
+    engine.set_memory_poles(same);
+    CHECK(engine.poles().size() == 1);
+    CHECK(engine.poles()[0].member_count == 5);
+}
+
+static void test_near_walls() {
+    ValueEngine engine(PolytopeConstraints::from_season("spring"), "spring");
+    const auto& polytope = engine.polytope();
+
+    // Grazing the dominance wall (0.48 vs spring max 0.50) — she is near the
+    // dominance wall; the coupling (lead/restraint) walls are near too.
+    auto near = make_point(0.75, 0.48, 0.70, 0.10, 0.75, 0.10, 0.70, 0.10,
+                           0.75, 0.10, 0.75, 0.10, 0.70, 0.10);
+    auto walls = polytope.near_walls(near, 0.05);
+    bool saw_dominance_wall = false;
+    bool saw_chaos_wall = false;
+    for (const auto& w : walls) {
+        if (w == "dominance_max") saw_dominance_wall = true;
+        if (w == "chaos_max") saw_chaos_wall = true;
+    }
+    CHECK(saw_dominance_wall);
+    // A wall a clear distance away (chaos margin 0.20) is not reported.
+    CHECK(!saw_chaos_wall);
+
+    // Exactly on the coupling wall (harmony − dominance = 0.20).
+    auto at_lead = make_point(0.60, 0.40, 0.70, 0.10, 0.75, 0.10, 0.70, 0.10,
+                              0.75, 0.10, 0.75, 0.10, 0.70, 0.10);
+    auto walls2 = polytope.near_walls(at_lead, 0.05);
+    bool saw_lead_wall = false;
+    for (const auto& w : walls2) {
+        if (w == "harmony_leads_dominance") saw_lead_wall = true;
+    }
+    CHECK(saw_lead_wall);
+
+    // Deep inside: no wall within reach.
+    auto deep = make_point(0.65, 0.30, 0.65, 0.15, 0.70, 0.10, 0.60, 0.12,
+                           0.65, 0.15, 0.65, 0.12, 0.60, 0.20);
+    CHECK(polytope.near_walls(deep, 0.05).empty());
+}
+
+static void test_geometric_state_frame() {
+    GeometricState gs;
+    gs.position = make_point(0.60, 0.30, 0.65, 0.15, 0.70, 0.10, 0.65, 0.12,
+                             0.70, 0.15, 0.70, 0.12, 0.65, 0.20);
+    gs.trajectory[0] = 0.05;   // harmony moving up
+    gs.trajectory[1] = -0.02;  // dominance easing
+    gs.trajectory[5] = 0.001;  // below the 0.02 floor — omitted
+    gs.near_walls = {"dominance_max"};
+    gs.home = make_point(0.62, 0.28, 0.66, 0.14, 0.72, 0.09, 0.66, 0.11,
+                         0.72, 0.14, 0.71, 0.11, 0.66, 0.19);
+    gs.has_home = true;
+
+    auto text = gs.to_frame_text();
+    CHECK(text.find("[GEOMETRY]") != std::string::npos);
+    CHECK(text.find("position:") != std::string::npos);
+    CHECK(text.find("harmony=0.60") != std::string::npos);
+    CHECK(text.find("trajectory:") != std::string::npos);
+    CHECK(text.find("harmony+0.05") != std::string::npos);
+    CHECK(text.find("dominance-0.02") != std::string::npos);
+    // The sub-floor movement does not pollute the frame.
+    CHECK(text.find("deception=+0.00") == std::string::npos);
+    CHECK(text.find("near walls: dominance_max") != std::string::npos);
+    CHECK(text.find("home region:") != std::string::npos);
+    CHECK(text.find("harmony=0.62") != std::string::npos);
+
+    // Without a home (no poles yet): the block stays honest.
+    GeometricState homeless;
+    homeless.position = gs.position;
+    auto text2 = homeless.to_frame_text();
+    CHECK(text2.find("home region:") == std::string::npos);
+    CHECK(text2.find("trajectory:") != std::string::npos);
+    CHECK(text2.find("at rest") != std::string::npos);
+}
+
+// =============================================================================
 
 int main() {
     test_seasonal_bounds();
@@ -538,6 +703,9 @@ int main() {
     test_season_advancement();
     test_memory_scoring();
     test_mps_gates();
+    test_poles();
+    test_near_walls();
+    test_geometric_state_frame();
 
     std::cout << "value_engine_tests: " << g_checks << " checks, "
               << g_failures << " failures\n";

@@ -564,6 +564,47 @@ static void test_memory_recall_in_frame() {
     core.end_session();
 }
 
+static void test_geometry_in_frame() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+    auto adapter = std::make_unique<ScriptedAdapter>(
+        std::vector<std::string>{"I am here with you."});
+    auto* script = adapter.get();
+    core.attach_model(std::move(adapter));
+
+    std::promise<void> done;
+    LinaCore::TurnCallbacks cb;
+    cb.on_complete = [&](const std::string&) { done.set_value(); };
+    cb.on_error = [&](const std::string&) { done.set_value(); };
+
+    core.begin_turn("hello", std::move(cb));
+    auto future = done.get_future();
+    CHECK(wait_for(future, 10000));
+
+    // D-047 (front c): her geometric state rides the frame — the model thinks
+    // inside her (position, trajectory, near walls, home region). Facts, not
+    // directives.
+    auto frame = script->last_system();
+    CHECK(frame.find("[GEOMETRY]") != std::string::npos);
+    CHECK(frame.find("position:") != std::string::npos);
+    CHECK(frame.find("trajectory:") != std::string::npos);
+
+    // The ContextPacket accessor reflects the delivered position — inside the
+    // lattice, never the origin (the ledger records the encoded vector for an
+    // aligned draft; the projection for a corrected one).
+    auto gs = core.geometric_state();
+    bool nonzero = false;
+    for (double v : gs.position) {
+        CHECK(v >= 0.0 && v <= 1.0);
+        if (v > 1e-9) nonzero = true;
+    }
+    CHECK(nonzero);
+    if (!core.value_engine().poles().empty()) {
+        CHECK(gs.has_home);
+    }
+    core.end_session();
+}
+
 static void test_turn_window_reset() {
     auto config = make_config(unique_user());
     config.window_ms = 80; // fast [cycle_reset] for the test
@@ -646,6 +687,7 @@ int main() {
         test_turn_driver_tool_call();
         test_turn_driver_stop();
         test_memory_recall_in_frame();
+        test_geometry_in_frame();
         test_turn_window_reset();
         test_telemetry_persistence();
     } catch (const std::exception& e) {

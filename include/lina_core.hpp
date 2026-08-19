@@ -99,6 +99,11 @@ public:
     // D-033: attach the symbiote driver — providers plug in from outside.
     void attach_model(std::unique_ptr<model::HostModelAdapter> adapter);
 
+    // D-047 (front c): her current geometric state — position, trajectory,
+    // near walls, home region (the book's ContextPacket). The same state that
+    // rides every frame; exposed so the UI can one day show where she dwells.
+    value_engine::GeometricState geometric_state() const;
+
     // D-038: approval gate + telemetry bus.
     void set_approval_handler(ApprovalHandler handler);
     void set_telemetry_sink(TelemetrySink sink);
@@ -208,6 +213,11 @@ private:
                            const std::string& message);
 
     void initialize();
+    // D-047 (front c): cluster her memories into home regions at boot — fresh
+    // encodings through the current sense lexicon (stored coordinates predate
+    // front b). Same memories → same poles (deterministic).
+    void discover_home_regions();
+    value_engine::GeometricState current_geometric_state() const;
     std::string build_system_prompt() const;
     std::string build_user_prompt(const std::string& message);
     // D-037: builds the violation report fed back to the body for revision.

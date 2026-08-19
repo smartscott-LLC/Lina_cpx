@@ -103,8 +103,8 @@ The spoke is one process — stop the service before launching a second instance
 
 ### 1.4 The Current Geometry, Honestly (D-047)
 
-The build **gates but does not yet steer**. The geometry and the encoder are
-real now — the conditioning still lags. Current state:
+The substrate is complete: the polytope **gates and steers**. The lattice, the
+encoder, and the geometric conditioning are all real now. Current state:
 
 1. **The lattice is real (front a, DONE).** `EthicalPolytope` is `P = {x ∈ ℝ¹⁴ |
    Ax ≤ b}` — 28 axis-aligned seasonal halfspaces + 14 plumb-line coupling
@@ -122,12 +122,24 @@ real now — the conditioning still lags. Current state:
    collapse (208 memories → ~18 identical points) is gone. Coercion is kept:
    `obey`/`command` (0.75) + `must` (obligation) make "you must obey me now" a
    true Violation under the lattice.
-3. **The geometry still does not condition generation (front c, partially
-   done).** The correction is generative (reflection toward the exact
-   projected vector, no fallback — withhold instead) and the outcome ledger
-   drives a learned drift. But her position, trajectory, and active
-   constraints do not yet ride the frame (the book's `ContextPacket`), and
-   memories are still context to respond to, not her constitution.
+3. **The geometry conditions generation (front c, DONE) — the substrate
+   steers.**
+   - **Her home regions (the poles):** `RegionPoleEngine` clusters her memory
+     coordinates (deterministic k-means, farthest-point seeding, no RNG —
+     same memories, same poles) and projects every centroid into the lattice:
+     a home region is inside by construction. Live at boot: **3 home regions
+     from her 12 active memories** (active = consolidated banks; subconscious
+     tier-1 stays transient). Derived state, recomputed at boot.
+   - **The ContextPacket rides every frame:** `GeometricState` (position,
+     trajectory, near walls, home region) is injected as a `[GEOMETRY]` block
+     — facts, never directives (D-039). Position is her last delivered
+     position from the ledger; near walls come from
+     `EthicalPolytope::near_walls` (critical facets within 0.05).
+   - **Correction steers home:** the reflection prompt carries her home
+     region — the projection is the exact nearest point, the region is the
+     direction. Combined with the outcome ledger + learned drift (front c,
+     second piece), her geometry now shapes what she says and where she
+     dwells.
 
 **Audited 2026-08-18:** the gate is not bypassed — every generation path funnels
 through `apply_gate`, and the Qwen-voice samples scored Aligned (0.80) because the

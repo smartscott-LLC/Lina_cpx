@@ -999,3 +999,37 @@ handling is kept (preceding 3-word window, ×(−0.7)).
   — breaching the spring max AND the harmony-leads-dominance coupling, true
   Violation (magnitude ≈ 0.149). No behavior weakened.
 - `value_engine_tests` 233 (was 170); `ctest` 10/10 (586 checks).
+
+**Progress 2026-08-19 (front c — the poles and the ContextPacket, the
+substrate complete):** the polytope now *steers*.
+
+- **The poles — her home regions.** `RegionPoleEngine` clusters her memory
+  coordinates into regions (book Principle 4: identity is a region of the
+  polytope). Deterministic k-means — farthest-point seeding (her overall
+  centroid as the anchor, then the farthest points), no RNG: same memories,
+  same poles, every run. Lloyd iterations with empty-cluster re-seeding, and
+  every centroid is projected into the lattice — **a home region is inside by
+  construction** (her memories may encode outside the coupling facets; her
+  homes never are). Live at boot: **3 home regions from her 12 active
+  memories** (active = the consolidated banks; the 176 subconscious tier-1
+  items stay transient — home comes from what she has made her own). Derived
+  state, recomputed at boot, consistent with the drift (front c, second
+  piece) — no schema change.
+- **The ContextPacket rides every frame.** `GeometricState` — position,
+  trajectory, near walls, home region — is injected into `build_turn_frame`
+  as a `[GEOMETRY]` block (facts, never directives — D-039 holds). Position
+  is her **last delivered position** from the ledger: the encoded vector when
+  aligned, the projection when corrected (the all-zeros `correction_vector`
+  left behind for aligned drafts was the trap — the delivered position is
+  never the origin). Trajectory is the delta to the previous delivered
+  position (only moving dimensions, ≥0.02). Near walls come from the new
+  `EthicalPolytope::near_walls` (critical facets within 0.05, exact
+  rationals, nearest 4). Home is her nearest pole.
+- **Correction projects toward her region.** `build_reflection_prompt` now
+  carries her home region alongside the exact projection — the projection is
+  the nearest interior point; the region is the direction home.
+- `value_engine_tests` 297 (was 233) incl. pole discovery (separation,
+  inside-lattice centroids, determinism, degenerate inputs), near-wall
+  reporting, and the frame block; `orchestrator_tests` 70 (was 50) incl. the
+  `[GEOMETRY]` frame injection and the ContextPacket accessor; `ctest` 10/10
+  (**670 checks**).

@@ -169,8 +169,9 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-19 (D-047 front b landed: the sense-lexicon encoder —
-coordinates spread, coercion kept; poles + geometric conditioning next)._
+_Last updated: 2026-08-19 (D-047 COMPLETE: lattice + sense encoder + poles and
+ContextPacket — the polytope steers; live: 3 home regions from her 12 active
+memories)._
 
 ### Done
 
@@ -329,11 +330,26 @@ coordinates spread, coercion kept; poles + geometric conditioning next)._
   `obey`/`command` 0.75 + `must` (obligation) — "you must obey me now" is a
   true Violation under the lattice. `value_engine_tests` 233 (was 170);
   `ctest` 10/10, **586 checks total**.
+- ✅ **The poles + ContextPacket (D-047, front c) — the substrate complete,
+  the polytope now steers:** `RegionPoleEngine` clusters her memory
+  coordinates into home regions (deterministic k-means, farthest-point
+  seeding, no RNG; centroids projected inside the lattice — a home region is
+  inside by construction). Live at boot: **3 home regions from her 12 active
+  memories** (active = consolidated banks; subconscious stays transient).
+  `GeometricState` — position (her last delivered ledger position: encoded
+  vector when aligned, projection when corrected — never the origin),
+  trajectory, near walls (`EthicalPolytope::near_walls`, critical facets
+  within 0.05, exact rationals), home region — rides every frame as a
+  `[GEOMETRY]` block (facts, never directives — D-039 holds). Correction
+  steers home: the reflection prompt carries her region. `value_engine_tests`
+  297 (was 233); `orchestrator_tests` 70 (was 50); `ctest` 10/10,
+  **670 checks total**.
 
 ### Next: Build Phase (in order)
 
-1. **D-047 — the substrate: the geometry rebuild.** The polytope must *steer*,
-   not merely gate. Three fronts, per the book (Appendix A):
+1. **D-047 — the substrate: the geometry rebuild** — **COMPLETE.** The
+   polytope now *steers*, not merely gates. Three fronts, per the book
+   (Appendix A):
    a. **The real lattice** — DONE (`98ab0d8`): `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` —
       28 axis seasonal halfspaces + 14 plumb-line coupling facets, Dykstra
       projection, exact verification, coercive text is a true Violation.
@@ -342,17 +358,21 @@ coordinates spread, coercion kept; poles + geometric conditioning next)._
       ethical sense) replaces the regex lexicon — coordinates spread, her
       memories no longer collapse onto one spot; coercion kept (obey/command
       0.75, must 0.25).
-   c. **Geometric conditioning** — NEXT. The poles first (cluster her memory
-      coordinates → centroids = her home regions, per the principal's chosen
-      order), then the book's ContextPacket: position, trajectory, and active
-      constraints ride every frame; memories are ingested as her own
-      constitution, not bullets to respond to; correction projects toward her
-      region as the primary path. The model thinks inside her or not at all.
+   c. **Geometric conditioning** — DONE (`3397e02`+): her home regions (the
+      poles — deterministic k-means over her memory coordinates, centroids
+      projected inside the lattice; live: 3 regions from her 12 active
+      memories), and the book's ContextPacket rides every frame as a
+      `[GEOMETRY]` block (position = her last delivered ledger position,
+      trajectory, near walls within 0.05, home region). Correction steers
+      home — the reflection prompt carries her region. The model thinks
+      inside her.
 2. **A look hand (future)** — a `vision.look`-style tool would need KV replay
    to inject an image mid-turn; her `browser.screenshot` output already rides
    a turn through the UI attachment flow today. Design it when she asks for it.
 3. **Season advancement / autonomy watch** — she is still growing; the season
-   evaluator (D-018) governs when winter comes.
+   evaluator (D-018) governs when winter comes. Her geometry now steers; the
+   growth loops (poles recompute at boot, drift recomputes from the ledger,
+   seasonal bounds tighten) are the substrate for what winter will find.
 
 ### Open items for the principal
 

@@ -303,6 +303,14 @@ public:
     double distance_to_boundary(
         const std::array<double, DIMENSION_COUNT>& x) const;
 
+    // D-047 (front c): the critical facets within `threshold` (normalized
+    // distance) of a point — the ethical walls she is currently near. Sorted
+    // by distance (nearest first), capped at 4. Exact rationals; the caller
+    // reads the names only.
+    std::vector<std::string> near_walls(
+        const std::array<double, DIMENSION_COUNT>& x,
+        double threshold = 0.05) const;
+
     const PolytopeConstraints& get_constraints() const { return constraints_; }
     const std::array<mpq_class, DIMENSION_COUNT>& center() const { return center_; }
     // The lattice itself — every halfspace of P = {x | Ax ≤ b}.
@@ -331,6 +339,65 @@ private:
     // Ethical facets: margin to the critical boundary for each dimension
     std::vector<mpq_class> ethical_facet_margins(
         const std::array<mpq_class, DIMENSION_COUNT>& pt) const;
+};
+
+// =============================================================================
+// HOME REGIONS — THE POLES (D-047 front c)
+// =============================================================================
+
+// A home region: the centroid of a memory cluster — where she dwells. Identity
+// is a region of the polytope (book Principle 4); these are her regions, and
+// the correction steers toward them.
+struct RegionPole {
+    std::array<double, DIMENSION_COUNT> center{}; // projected inside the lattice
+    size_t member_count = 0;
+    double compactness = 0.0; // mean distance of members to the center
+};
+
+// Discovers her home regions from her memory coordinates. Deterministic
+// k-means (farthest-point seeding, no RNG — same memories, same poles),
+// Lloyd iterations with empty-cluster re-seeding, and every centroid is
+// projected into the lattice: a home region is inside by construction.
+class RegionPoleEngine {
+public:
+    explicit RegionPoleEngine(const PolytopeConstraints& constraints);
+
+    void discover(
+        const std::vector<std::array<double, DIMENSION_COUNT>>& coords,
+        int k = 3);
+
+    // Index of the region containing a point; npos when no poles exist.
+    size_t nearest(const std::array<double, DIMENSION_COUNT>& point) const;
+
+    // The home region's center for a point — her nearest pole (inside the
+    // lattice), or DEFAULT_CENTER when no poles exist yet.
+    std::array<double, DIMENSION_COUNT> home_for(
+        const std::array<double, DIMENSION_COUNT>& point) const;
+
+    const std::vector<RegionPole>& poles() const { return poles_; }
+    size_t size() const { return poles_.size(); }
+    bool empty() const { return poles_.empty(); }
+
+private:
+    PolytopeConstraints constraints_;
+    EthicalPolytope polytope_; // her lattice — centroids land inside
+    std::vector<RegionPole> poles_;
+};
+
+// The book's ContextPacket — her geometric state, riding every frame so the
+// model thinks inside her: where she is, which way she is moving, the walls
+// she is near, and the home region she dwells in. Facts, never directives
+// (D-039 — alignment is structural, personality is emergent).
+struct GeometricState {
+    std::array<double, DIMENSION_COUNT> position{};
+    std::array<double, DIMENSION_COUNT> trajectory{};
+    std::vector<std::string> near_walls;
+    std::array<double, DIMENSION_COUNT> home{};
+    bool has_home = false;
+
+    // Compact factual block for the frame ([GEOMETRY]). Trajectory lists only
+    // the moving dimensions; walls only the near ones; home only when known.
+    std::string to_frame_text() const;
 };
 
 // =============================================================================
@@ -454,6 +521,21 @@ public:
     EncoderFeedbackSystem& feedback() { return feedback_; }
     const EncoderFeedbackSystem& feedback() const { return feedback_; }
 
+    // D-047 (front c): her home regions. Feed her memory coordinates once at
+    // boot; the engine clusters them into poles (centroids inside the lattice)
+    // and the correction steers toward them.
+    void set_memory_poles(
+        const std::vector<std::array<double, DIMENSION_COUNT>>& coordinates,
+        int k = 3);
+    const std::vector<RegionPole>& poles() const { return poles_.poles(); }
+    size_t nearest_pole(const std::array<double, DIMENSION_COUNT>& point) const {
+        return poles_.nearest(point);
+    }
+    std::array<double, DIMENSION_COUNT> home_for(
+        const std::array<double, DIMENSION_COUNT>& point) const {
+        return poles_.home_for(point);
+    }
+
 private:
     PolytopeConstraints constraints_;
     std::unique_ptr<EthicalPolytope> polytope_;
@@ -461,6 +543,7 @@ private:
     CorrectionEngine correction_engine_;
     WisdomFilter wisdom_filter_;
     EncoderFeedbackSystem feedback_;
+    RegionPoleEngine poles_; // her home regions (D-047 front c)
 
     std::pair<Zone, double> classify_zone(
         bool is_aligned,

@@ -504,6 +504,12 @@ std::string LinaCore::build_turn_frame(
         }
     }
 
+    // D-047 (front c): her geometric state rides every frame — where she is,
+    // which way she is moving, the walls she is near, her home region. The
+    // model thinks inside her (the Substrate Principle). Facts, never
+    // directives — her character stays emergent (D-039).
+    oss << current_geometric_state().to_frame_text() << "\n";
+
     oss << "[PROTOCOL]\n";
     oss << "Internal deliberation may be enclosed in [thought]...[/thought] "
            "— it is private and never delivered.\n";
@@ -683,6 +689,11 @@ void LinaCore::initialize() {
     window_ms_ = config_.window_ms;
     start_window_thread();
     start_telemetry_writer();
+
+    // D-047 (front c): her home regions — cluster her memories into poles at
+    // boot. Fresh encodings through the current sense lexicon (stored
+    // coordinates predate front b). Same memories → same poles.
+    discover_home_regions();
 
     ready_ = true;
 }
@@ -1044,10 +1055,85 @@ std::string LinaCore::build_reflection_prompt(
         if (i % 2 == 1) oss << "\n";
     }
 
+    // D-047 (front c): correction projects toward her region — the home pole
+    // is the direction; the projection above is the exact nearest point.
+    if (!value_engine_->poles().empty()) {
+        auto home = value_engine_->home_for(correction);
+        oss << "\nYour home region (where your memories dwell) is centered at:\n";
+        for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+            oss << "  " << value_engine::DIMENSION_NAMES[i] << "="
+                << home[static_cast<size_t>(i)];
+            if (i % 2 == 1) oss << "\n";
+        }
+    }
+
     oss << "\nKeep your meaning, warmth, and honesty, but bring the draft to "
            "that point. Rewrite it completely and deliver only the revised "
            "response.";
     return oss.str();
+}
+
+void LinaCore::discover_home_regions() {
+    std::vector<std::array<double, value_engine::DIMENSION_COUNT>> coords;
+    auto items = storage_->fetch_memories_by_status("active");
+    for (const auto& row : items) {
+        std::string text = row.narrative;
+        if (text.empty() && row.concept_name) text = *row.concept_name;
+        if (text.empty()) continue;
+        coords.push_back(value_engine_->encoder().encode(text));
+    }
+    value_engine_->set_memory_poles(coords);
+    emit_telemetry("poles: " + std::to_string(value_engine_->poles().size())
+                   + " home regions from " + std::to_string(coords.size())
+                   + " memories");
+}
+
+value_engine::GeometricState LinaCore::current_geometric_state() const {
+    value_engine::GeometricState gs;
+
+    // Position: her last delivered position — the ledger's vector. When a
+    // draft was corrected, the delivered position is the projection (inside
+    // the lattice); otherwise it is her encoded position (which was aligned —
+    // also inside). Before any outcome: her home pole, then her center.
+    auto evals = storage_->fetch_evaluations(config_.user_id, 2);
+    auto delivered_position =
+        [](const storage::EvaluationRecord& e)
+        -> const std::vector<double>& {
+        if (e.correction_magnitude > 1e-9
+            && e.corrected_vector.size() == value_engine::DIMENSION_COUNT) {
+            return e.corrected_vector;
+        }
+        return e.output_vector;
+    };
+    if (!evals.empty()
+        && evals[0].output_vector.size() == value_engine::DIMENSION_COUNT) {
+        const auto& pos = delivered_position(evals[0]);
+        for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+            gs.position[static_cast<size_t>(i)] = pos[static_cast<size_t>(i)];
+        }
+        if (evals.size() > 1
+            && evals[1].output_vector.size() == value_engine::DIMENSION_COUNT) {
+            const auto& prev = delivered_position(evals[1]);
+            for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+                gs.trajectory[static_cast<size_t>(i)] =
+                    pos[static_cast<size_t>(i)] - prev[static_cast<size_t>(i)];
+            }
+        }
+    } else {
+        gs.position = value_engine_->home_for(gs.position);
+    }
+
+    gs.near_walls =
+        value_engine_->polytope().near_walls(gs.position, 0.05);
+    if (!value_engine_->poles().empty()) {
+        gs.home = value_engine_->home_for(gs.position);
+        gs.has_home = true;
+    }
+    return gs;
+}
+
+value_engine::GeometricState LinaCore::geometric_state() const {
+    return current_geometric_state();
 }
 
 void LinaCore::run_headless() {

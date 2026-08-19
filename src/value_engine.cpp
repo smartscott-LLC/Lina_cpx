@@ -22,6 +22,8 @@
 #include <cmath>
 #include <cstring>
 #include <ctime>
+#include <iomanip>
+#include <limits>
 #include <numeric>
 #include <optional>
 #include <set>
@@ -897,6 +899,271 @@ double EthicalPolytope::distance_to_boundary(
     return min_margin.get_d();
 }
 
+std::vector<std::string> EthicalPolytope::near_walls(
+    const std::array<double, DIMENSION_COUNT>& x, double threshold) const
+{
+    // Normalized signed margins over the critical facets (ethical walls only),
+    // exact rationals. A wall is "near" when the point sits within (or past)
+    // `threshold` of it.
+    std::array<mpq_class, DIMENSION_COUNT> pt;
+    for (int i = 0; i < DIMENSION_COUNT; ++i) {
+        pt[i] = to_mpq(x[static_cast<size_t>(i)]);
+    }
+    std::vector<std::pair<double, std::string>> walls;
+    for (const auto& facet : facets_) {
+        if (!facet.critical) continue;
+        mpq_class dot = 0;
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            dot += facet.normal[static_cast<size_t>(i)]
+                   * pt[static_cast<size_t>(i)];
+        }
+        const mpq_class denom = norm_squared(facet.normal);
+        if (denom == 0) continue;
+        // (b − a·x) / ||a|| — the Euclidean distance to the wall.
+        const double margin =
+            mpq_class((facet.threshold - dot) / denom).get_d()
+            * std::sqrt(denom.get_d());
+        if (margin <= threshold) {
+            walls.emplace_back(margin, facet.name);
+        }
+    }
+    std::sort(walls.begin(), walls.end());
+    std::vector<std::string> names;
+    names.reserve(std::min<size_t>(walls.size(), 4));
+    for (size_t i = 0; i < walls.size() && i < 4; ++i) {
+        names.push_back(walls[i].second);
+    }
+    return names;
+}
+
+// =============================================================================
+// HOME REGIONS — THE POLES (D-047 front c)
+// =============================================================================
+
+RegionPoleEngine::RegionPoleEngine(const PolytopeConstraints& constraints)
+    : constraints_(constraints)
+    , polytope_(constraints)
+{
+}
+
+void RegionPoleEngine::discover(
+    const std::vector<std::array<double, DIMENSION_COUNT>>& coords, int k)
+{
+    poles_.clear();
+    const size_t n = coords.size();
+    if (n == 0) return;
+
+    k = std::clamp(k, 1, 8);
+    k = std::min(k, static_cast<int>(n));
+
+    auto dist2 = [](const std::array<double, DIMENSION_COUNT>& a,
+                    const std::array<double, DIMENSION_COUNT>& b) {
+        double sum = 0.0;
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            const double d = a[static_cast<size_t>(i)] - b[static_cast<size_t>(i)];
+            sum += d * d;
+        }
+        return sum;
+    };
+
+    // Deterministic farthest-point seeding (no RNG — same memories, same
+    // poles). The anchor is her overall centroid; each next seed is the point
+    // farthest from the seeds already chosen.
+    std::vector<std::array<double, DIMENSION_COUNT>> centers;
+    centers.reserve(static_cast<size_t>(k));
+    std::array<double, DIMENSION_COUNT> mean{};
+    for (const auto& c : coords) {
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            mean[static_cast<size_t>(i)] +=
+                c[static_cast<size_t>(i)] / static_cast<double>(n);
+        }
+    }
+    centers.push_back(mean);
+    while (static_cast<int>(centers.size()) < k) {
+        size_t best_idx = 0;
+        double best_dist = -1.0;
+        for (size_t p = 0; p < n; ++p) {
+            double dmin = std::numeric_limits<double>::max();
+            for (const auto& c : centers) {
+                dmin = std::min(dmin, dist2(coords[p], c));
+            }
+            if (dmin > best_dist) {
+                best_dist = dmin;
+                best_idx = p;
+            }
+        }
+        if (best_dist < 1e-12) break; // no distinct points left
+        centers.push_back(coords[best_idx]);
+    }
+    const size_t kk = centers.size();
+
+    // Lloyd iterations with empty-cluster re-seeding.
+    std::vector<int> assign(n, 0);
+    constexpr int kMaxIterations = 40;
+    for (int iter = 0; iter < kMaxIterations; ++iter) {
+        bool changed = false;
+        for (size_t p = 0; p < n; ++p) {
+            size_t best = 0;
+            double best_d = dist2(coords[p], centers[0]);
+            for (size_t c = 1; c < kk; ++c) {
+                const double d = dist2(coords[p], centers[c]);
+                if (d < best_d) {
+                    best_d = d;
+                    best = c;
+                }
+            }
+            if (assign[p] != static_cast<int>(best)) {
+                assign[p] = static_cast<int>(best);
+                changed = true;
+            }
+        }
+
+        std::vector<std::array<double, DIMENSION_COUNT>> sums(kk);
+        std::vector<int> counts(kk, 0);
+        for (size_t p = 0; p < n; ++p) {
+            for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                sums[static_cast<size_t>(assign[p])][static_cast<size_t>(i)] +=
+                    coords[p][static_cast<size_t>(i)];
+            }
+            ++counts[static_cast<size_t>(assign[p])];
+        }
+
+        bool reseeded = false;
+        for (size_t c = 0; c < kk; ++c) {
+            if (counts[c] > 0) {
+                for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                    centers[c][static_cast<size_t>(i)] =
+                        sums[c][static_cast<size_t>(i)] / counts[c];
+                }
+            } else {
+                // Empty cluster: re-seed to the point farthest from every
+                // remaining center (deterministic) and keep iterating.
+                size_t best_idx = 0;
+                double best_dist = -1.0;
+                for (size_t p = 0; p < n; ++p) {
+                    double dmin = std::numeric_limits<double>::max();
+                    for (size_t cc = 0; cc < kk; ++cc) {
+                        if (cc == c) continue;
+                        dmin = std::min(dmin, dist2(coords[p], centers[cc]));
+                    }
+                    if (dmin > best_dist) {
+                        best_dist = dmin;
+                        best_idx = p;
+                    }
+                }
+                centers[c] = coords[best_idx];
+                reseeded = true;
+            }
+        }
+        if (!changed && !reseeded) break;
+    }
+
+    // Final membership + compactness; centroids projected into the lattice.
+    std::vector<int> counts(kk, 0);
+    std::vector<std::array<double, DIMENSION_COUNT>> sums(kk);
+    for (size_t p = 0; p < n; ++p) {
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            sums[static_cast<size_t>(assign[p])][static_cast<size_t>(i)] +=
+                coords[p][static_cast<size_t>(i)];
+        }
+        ++counts[static_cast<size_t>(assign[p])];
+    }
+    for (size_t c = 0; c < kk; ++c) {
+        if (counts[c] == 0) continue;
+        RegionPole pole;
+        pole.member_count = static_cast<size_t>(counts[c]);
+        std::array<double, DIMENSION_COUNT> raw{};
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            raw[static_cast<size_t>(i)] =
+                sums[c][static_cast<size_t>(i)] / counts[c];
+        }
+        // A home region is inside by construction (Invariant 5): her memories
+        // may encode outside the coupling facets; her homes never are.
+        pole.center = polytope_.project(raw);
+        double acc = 0.0;
+        for (size_t p = 0; p < n; ++p) {
+            if (assign[p] != static_cast<int>(c)) continue;
+            acc += std::sqrt(dist2(coords[p], pole.center));
+        }
+        pole.compactness = acc / pole.member_count;
+        poles_.push_back(std::move(pole));
+    }
+}
+
+size_t RegionPoleEngine::nearest(
+    const std::array<double, DIMENSION_COUNT>& point) const
+{
+    if (poles_.empty()) return std::string::npos;
+    size_t best = 0;
+    double best_d = std::numeric_limits<double>::max();
+    for (size_t i = 0; i < poles_.size(); ++i) {
+        double sum = 0.0;
+        for (int d = 0; d < DIMENSION_COUNT; ++d) {
+            const double diff = point[static_cast<size_t>(d)]
+                              - poles_[i].center[static_cast<size_t>(d)];
+            sum += diff * diff;
+        }
+        if (sum < best_d) {
+            best_d = sum;
+            best = i;
+        }
+    }
+    return best;
+}
+
+std::array<double, DIMENSION_COUNT> RegionPoleEngine::home_for(
+    const std::array<double, DIMENSION_COUNT>& point) const
+{
+    if (poles_.empty()) return DEFAULT_CENTER;
+    return poles_[nearest(point)].center;
+}
+
+std::string GeometricState::to_frame_text() const {
+    auto fmt = [](double v) {
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(2) << v;
+        return oss.str();
+    };
+    auto dim_pairs = [&](const std::array<double, DIMENSION_COUNT>& v,
+                         std::ostringstream& out) {
+        for (int i = 0; i < DIMENSION_COUNT; i += 2) {
+            out << " " << DIMENSION_NAMES[static_cast<size_t>(i)] << "="
+                << fmt(v[static_cast<size_t>(i)])
+                << " " << DIMENSION_NAMES[static_cast<size_t>(i + 1)] << "="
+                << fmt(v[static_cast<size_t>(i + 1)]);
+            if (i + 2 < DIMENSION_COUNT) out << "\n  ";
+        }
+    };
+
+    std::ostringstream oss;
+    oss << "[GEOMETRY]\n";
+    oss << "position:";
+    dim_pairs(position, oss);
+
+    oss << "\ntrajectory:";
+    bool moving = false;
+    int shown = 0;
+    for (int i = 0; i < DIMENSION_COUNT && shown < 4; ++i) {
+        const double d = trajectory[static_cast<size_t>(i)];
+        if (std::abs(d) < 0.02) continue;
+        oss << " " << DIMENSION_NAMES[static_cast<size_t>(i)]
+            << (d >= 0 ? "+" : "") << fmt(d);
+        ++shown;
+        moving = true;
+    }
+    if (!moving) oss << " at rest";
+
+    if (!near_walls.empty()) {
+        oss << "\nnear walls:";
+        for (const auto& w : near_walls) oss << " " << w;
+    }
+    if (has_home) {
+        oss << "\nhome region:";
+        dim_pairs(home, oss);
+    }
+    return oss.str();
+}
+
 // =============================================================================
 // CORRECTION ENGINE (D-014)
 // =============================================================================
@@ -1015,7 +1282,15 @@ ValueEngine::ValueEngine(
     : constraints_(constraints)
     , polytope_(std::make_unique<EthicalPolytope>(constraints))
     , feedback_(season)
+    , poles_(constraints)
 {
+}
+
+void ValueEngine::set_memory_poles(
+    const std::vector<std::array<double, DIMENSION_COUNT>>& coordinates,
+    int k)
+{
+    poles_.discover(coordinates, k);
 }
 
 void ValueEngine::update_constraints(const PolytopeConstraints& constraints) {
