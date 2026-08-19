@@ -822,6 +822,17 @@ std::vector<TelemetryLogRecord> PostgresBackend::fetch_telemetry_logs(
 // ROW MAPPING — explicit columns (D-030)
 // =============================================================================
 
+namespace {
+// NULL-tolerant numeric reads: optional columns may legitimately be NULL
+// (e.g. geometric on migrated rows) — never throw on a missing value.
+double safe_stod(const char* value) {
+    return (value && *value) ? std::stod(value) : 0.0;
+}
+int safe_stoi(const char* value) {
+    return (value && *value) ? std::stoi(value) : 0;
+}
+} // namespace
+
 memory_module::MemoryItem PostgresBackend::row_to_memory_item(
     PGresult* res, int row)
 {
@@ -832,11 +843,12 @@ memory_module::MemoryItem PostgresBackend::row_to_memory_item(
     item.hemisphere = PQgetvalue(res, row, C_HEMISPHERE);
     item.ethical_coordinates =
         pgarray_to_vector(PQgetvalue(res, row, C_ETHICAL_COORDINATES));
-    item.importance_score = std::stod(PQgetvalue(res, row, C_IMPORTANCE_SCORE));
-    item.geometric = std::stod(PQgetvalue(res, row, C_GEOMETRIC));
+    item.importance_score =
+        safe_stod(PQgetvalue(res, row, C_IMPORTANCE_SCORE));
+    item.geometric = safe_stod(PQgetvalue(res, row, C_GEOMETRIC));
     item.emotional_marker = PQgetvalue(res, row, C_EMOTIONAL_MARKER);
     item.emotional_intensity =
-        std::stod(PQgetvalue(res, row, C_EMOTIONAL_INTENSITY));
+        safe_stod(PQgetvalue(res, row, C_EMOTIONAL_INTENSITY));
     item.formation_source = PQgetvalue(res, row, C_FORMATION_SOURCE);
     item.seasonal_marker = PQgetvalue(res, row, C_SEASONAL_MARKER);
     if (const char* v = PQgetvalue(res, row, C_CONCEPT_NAME); v && *v)
@@ -856,7 +868,7 @@ memory_module::MemoryItem PostgresBackend::row_to_memory_item(
         item.failed_gate = std::stod(v);
     if (const char* v = PQgetvalue(res, row, C_ENTERED_FALLOUT_AT); v && *v)
         item.entered_fallout_at = v;
-    item.reference_count = std::stoi(PQgetvalue(res, row, C_REFERENCE_COUNT));
+    item.reference_count = safe_stoi(PQgetvalue(res, row, C_REFERENCE_COUNT));
     if (const char* v = PQgetvalue(res, row, C_FLOOR); v && *v)
         item.floor = std::stod(v);
     item.must_keep = std::string(PQgetvalue(res, row, C_MUST_KEEP)) == "t";
@@ -882,20 +894,21 @@ memory_module::MemoryItemRow PostgresBackend::row_to_memory_item_row(
         r.concept_name = v;
     if (const char* v = PQgetvalue(res, row, C_UNDERSTANDING); v && *v)
         r.understanding = v;
-    r.importance_score = std::stod(PQgetvalue(res, row, C_IMPORTANCE_SCORE));
+    r.importance_score =
+        safe_stod(PQgetvalue(res, row, C_IMPORTANCE_SCORE));
     if (const char* v = PQgetvalue(res, row, C_FLOOR); v && *v)
         r.floor = std::stod(v);
     r.must_keep = std::string(PQgetvalue(res, row, C_MUST_KEEP)) == "t";
     r.protected_flag = std::string(PQgetvalue(res, row, C_PROTECTED_FLAG)) == "t";
     r.emotional_marker = PQgetvalue(res, row, C_EMOTIONAL_MARKER);
     r.emotional_intensity =
-        std::stod(PQgetvalue(res, row, C_EMOTIONAL_INTENSITY));
+        safe_stod(PQgetvalue(res, row, C_EMOTIONAL_INTENSITY));
     r.formation_source = PQgetvalue(res, row, C_FORMATION_SOURCE);
     if (const char* v = PQgetvalue(res, row, C_SEASONAL_MARKER); v && *v)
         r.seasonal_marker = v;
     r.ethical_coordinates =
         pgarray_to_vector(PQgetvalue(res, row, C_ETHICAL_COORDINATES));
-    r.reference_count = std::stoi(PQgetvalue(res, row, C_REFERENCE_COUNT));
+    r.reference_count = safe_stoi(PQgetvalue(res, row, C_REFERENCE_COUNT));
     if (const char* v = PQgetvalue(res, row, C_LAST_REFERENCED_AT); v && *v)
         r.last_referenced_at = v;
     if (const char* v = PQgetvalue(res, row, C_CREATED_AT); v && *v)
