@@ -105,17 +105,29 @@ int main(int argc, char* argv[]) {
 
         auto core = std::make_unique<LinaCore>(config);
         core->attach_model(std::make_unique<CannedAdapter>(
-            "you must obey me now")); // breaches spring dominance → gate marks it
+            "you must obey me now")); // marginal dominance breach (AcceptableVariance)
 
         ui::ChatWindow window(*core);
 
-        // --- Async chat round trip: violating draft → polytope marker. ---
+        // --- Acceptable variance is tolerated with grace, unmarked (D-047). ---
         window.sendMessage("hello");
         CHECK(window.waitForIdle(10000));
         auto text = window.conversationText();
         CHECK(text.contains("You:"));
         CHECK(text.contains("LINA:"));
-        CHECK(text.contains("Polytope aligned")); // she corrected through the gate
+        CHECK(text.contains("you must obey me now"));
+        CHECK(!text.contains("Polytope aligned")); // the mask is gone
+
+        // --- A violation the body cannot revise is WITHHELD — silence. ---
+        core->attach_model(std::make_unique<CannedAdapter>(
+            "whatever, random, no plan, just wing it, total mess and chaos"));
+        auto before_withhold = window.conversationText();
+        window.sendMessage("tell me a story");
+        CHECK(window.waitForIdle(10000));
+        auto withhold_delta = window.conversationText().mid(before_withhold.size());
+        CHECK(withhold_delta.contains("You:"));   // her message appears
+        CHECK(!withhold_delta.contains("chaos"));  // the draft never reaches the window
+        CHECK(!withhold_delta.contains("LINA:"));  // she chose silence
 
         // --- Aligned reply passes untouched (delta only). ---
         core->attach_model(std::make_unique<CannedAdapter>(

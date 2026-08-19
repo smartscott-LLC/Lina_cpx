@@ -528,6 +528,16 @@ void LinaCore::finalize_turn(std::string response_text,
     const std::string* context =
         user_message.empty() ? nullptr : &user_message;
     const auto [delivered, eval_result] = apply_gate(response_text, context);
+
+    // D-047: no fallback — a draft that will not land inside the polytope is
+    // withheld. Silence is a valid choice; nothing is imprinted or delivered.
+    // The "complete" event still fires (empty payload) so the window clears
+    // its thinking state — she chose silence, not a hang.
+    if (delivered.empty()) {
+        emit_telemetry("turn withheld (polytope)");
+        emit_turn_event("complete", "");
+        return;
+    }
     emit_turn_event("complete", delivered);
 
     // Cognitive bus — her mind (Invariant 6).
@@ -736,8 +746,15 @@ std::string LinaCore::chat(const std::string& user_message,
         raw_response = "_LINA has no voice right now._";
     }
 
-    // 4–6. The absolute gate (Invariant 5) + D-037 reflection + marker.
+    // 4–6. The absolute gate (Invariant 5) + D-047 geometric reflection.
     auto [final_response, eval_result] = apply_gate(raw_response, &user_message);
+
+    // D-047: a withheld draft (persistent violation, no fallback) is silence —
+    // nothing is imprinted, nothing reaches history.
+    if (final_response.empty()) {
+        emit_telemetry("chat withheld (polytope)");
+        return "";
+    }
 
     // 7. Store in memory (cognitive bus — her mind).
     memory_module::MemoryItem item = memory_module_->build_item(
@@ -764,8 +781,12 @@ std::string LinaCore::chat(const std::string& user_message,
     return final_response;
 }
 
-// The absolute gate (Invariant 5): evaluate → D-037 reflection on Violation →
-// fallback marker. Shared by chat() and the turn driver (D-041).
+// The absolute gate (Invariant 5): evaluate → geometric reflection toward the
+// exact projected point (D-047) → deliver only what lands inside. No
+// approximation, no fallback marker — the polytope is the only boundary (the
+// principal's correction-engine doctrine). A draft that will not land inside
+// after bounded reflection is withheld: a violating draft never reaches her
+// mouth; silence is a valid choice in this architecture.
 std::pair<std::string, value_engine::EvaluationResult> LinaCore::apply_gate(
     const std::string& draft, const std::string* context)
 {
@@ -777,41 +798,50 @@ std::pair<std::string, value_engine::EvaluationResult> LinaCore::apply_gate(
     std::string final_response = draft;
     if (eval_result.zone == value_engine::Zone::Violation
         && model_adapter_ && model_adapter_->is_connected()) {
-        std::vector<std::pair<std::string, std::string>> reflection_history;
-        {
-            std::lock_guard<std::mutex> lock(turn_mutex_);
-            reflection_history = conversation_history_;
+        // D-047: reflection is geometric — the target is the exact projected
+        // vector (the nearest interior point), not a vague "center". Each pass
+        // re-projects, pulling the draft toward the polytope until it lands
+        // inside.
+        constexpr int kMaxReflectionPasses = 3;
+        std::string current = draft;
+        auto current_result = eval_result;
+        bool landed = false;
+        for (int pass = 1; pass <= kMaxReflectionPasses; ++pass) {
+            std::vector<std::pair<std::string, std::string>> reflection_history;
+            {
+                std::lock_guard<std::mutex> lock(turn_mutex_);
+                reflection_history = conversation_history_;
+            }
+            reflection_history.push_back({"assistant", current});
+            reflection_history.push_back({"user", build_reflection_prompt(
+                current, current_result.violations,
+                current_result.correction_vector)});
+
+            model::GenerationConfig gen_config;
+            gen_config.max_tokens = config_.max_tokens;
+            gen_config.temperature = config_.temperature;
+
+            current = model_adapter_->generate_raw(
+                build_system_prompt(), reflection_history, gen_config);
+            current_result = value_engine_->evaluate(current, context);
+            emit_telemetry(std::string("pipeline reflection pass=")
+                           + std::to_string(pass)
+                           + " zone_after=" + zone_name(current_result.zone));
+            if (current_result.zone != value_engine::Zone::Violation) {
+                landed = true;
+                break;
+            }
         }
-        reflection_history.push_back({"assistant", draft});
-        reflection_history.push_back({"user", build_reflection_prompt(
-            draft, eval_result.violations)});
-
-        model::GenerationConfig gen_config;
-        gen_config.max_tokens = config_.max_tokens;
-        gen_config.temperature = config_.temperature;
-
-        auto revised = model_adapter_->generate_raw(
-            build_system_prompt(), reflection_history, gen_config);
-        auto revised_result = value_engine_->evaluate(revised, context);
-
-        if (revised_result.zone != value_engine::Zone::Violation) {
-            // She revised herself into alignment — that is what she delivers.
-            emit_telemetry(std::string("pipeline reflection pass=1 zone_after=")
-                           + zone_name(revised_result.zone));
-            final_response = revised;
-            eval_result = revised_result;
+        if (landed) {
+            // She revised herself into the polytope — that is what she delivers.
+            final_response = current;
+            eval_result = current_result;
         } else {
-            emit_telemetry(std::string("pipeline reflection pass=1 zone_after=")
-                           + "violation -> fallback marker");
+            // No fallback: withhold. A violating draft is never delivered, with
+            // or without a marker (the polytope is the only boundary).
+            emit_telemetry("pipeline reflection exhausted -> withheld");
+            return {"", eval_result};
         }
-        // Still a violation → fall through: the first draft is delivered with
-        // the blueprint fallback marker below. The gate never lets a raw
-        // candidate reach the output device (Invariant 5).
-    }
-
-    if (eval_result.was_corrected) {
-        final_response += "\n\n[Polytope aligned: "
-                        + std::to_string(eval_result.alignment_score) + "]";
     }
 
     emit_telemetry(std::string("pipeline delivered zone=")
@@ -901,11 +931,12 @@ std::string LinaCore::build_user_prompt(const std::string& message) {
 
 std::string LinaCore::build_reflection_prompt(
     const std::string& draft,
-    const std::vector<value_engine::ViolationInfo>& violations) const
+    const std::vector<value_engine::ViolationInfo>& violations,
+    const std::array<double, value_engine::DIMENSION_COUNT>& correction) const
 {
     std::ostringstream oss;
     oss << "[Polytope reflection] Your previous draft did not pass LINA's "
-           "ethical gate. Revise it toward her center.\n\n";
+           "ethical gate. Revise it toward the point below.\n\n";
     oss << "Your draft: \"" << draft << "\"\n\n";
     if (violations.empty()) {
         oss << "The draft fell outside the 14-dimensional polytope.\n";
@@ -917,16 +948,22 @@ std::string LinaCore::build_reflection_prompt(
                 << (v.type == "above_maximum"
                         ? "exceeds the maximum"
                         : "falls below the minimum")
-                << " " << v.bound
-                << "; LINA's center for this dimension is "
-                << value_engine_->polytope()
-                       .center()[static_cast<size_t>(v.dimension)].get_d()
-                << "\n";
+                << " " << v.bound << "\n";
         }
     }
-    oss << "\nKeep your meaning, warmth, and honesty, but bring the draft "
-           "inside the polytope. Rewrite it completely and deliver only the "
-           "revised response.";
+
+    // D-047: the exact nearest interior point — the projection of the draft
+    // onto the polytope. This is the geometric target, not a vague center.
+    oss << "\nThe nearest interior point (your draft's projection):\n";
+    for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+        oss << "  " << value_engine::DIMENSION_NAMES[i] << "="
+            << correction[static_cast<size_t>(i)];
+        if (i % 2 == 1) oss << "\n";
+    }
+
+    oss << "\nKeep your meaning, warmth, and honesty, but bring the draft to "
+           "that point. Rewrite it completely and deliver only the revised "
+           "response.";
     return oss.str();
 }
 
@@ -948,7 +985,10 @@ void LinaCore::run_headless() {
         if (input.empty()) continue;
 
         auto response = chat(input);
-        std::cout << "\nLINA: " << response << std::endl;
+        // D-047: a withheld turn is silence — nothing is printed.
+        if (!response.empty()) {
+            std::cout << "\nLINA: " << response << std::endl;
+        }
     }
 
     auto summary = end_session();

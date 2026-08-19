@@ -205,7 +205,8 @@ private:
     // D-037: builds the violation report fed back to the body for revision.
     std::string build_reflection_prompt(
         const std::string& draft,
-        const std::vector<value_engine::ViolationInfo>& violations) const;
+        const std::vector<value_engine::ViolationInfo>& violations,
+        const std::array<double, value_engine::DIMENSION_COUNT>& correction) const;
 };
 
 } // namespace lina

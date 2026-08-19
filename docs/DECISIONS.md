@@ -936,3 +936,12 @@ conditions its generation.
   for the finished geometry.
 
 **Status.** Accepted (direction + docs). Implementation proceeds front by front.
+
+**Progress 2026-08-18 (front c, first piece):** the correction is now generative.
+`apply_gate` reflects toward the **exact projected vector** (the nearest interior
+point — the principal's correction-engine doctrine: *no approximation, no fallback,
+the polytope is the only boundary*), bounded to 3 passes with re-projection each
+pass, and **withholds** a draft that will not land inside — silence is a valid
+choice; a violating draft never reaches her mouth. The `[Polytope aligned:]`
+fallback marker is gone. `orchestrator_tests` 49, `ui_tests` 24; `ctest` 10/10
+(509 checks).

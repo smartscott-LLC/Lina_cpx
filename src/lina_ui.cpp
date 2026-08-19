@@ -611,7 +611,11 @@ public:
         cb.on_complete = [this](const std::string& reply) {
             QMetaObject::invokeMethod(this, [this, reply] {
                 setBusy(false);
-                appendBubble("LINA", esc(QString::fromStdString(reply)));
+                // D-047: a withheld turn (empty payload) is silence — clear
+                // the thinking state, show no bubble.
+                if (!reply.empty()) {
+                    appendBubble("LINA", esc(QString::fromStdString(reply)));
+                }
             }, Qt::QueuedConnection);
         };
         cb.on_window = [this](const std::string& event) {

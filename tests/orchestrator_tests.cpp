@@ -167,26 +167,35 @@ static void test_chat_without_driver() {
 static void test_chat_through_polytope() {
     auto config = make_config(unique_user());
     LinaCore core(config);
+
+    // 1) AcceptableVariance is tolerated with grace (book: "Acceptable
+    //    Variance — Grace in Systems"): delivered as-is, no marker — the
+    //    [Polytope aligned:] mask is gone (D-047).
     core.attach_model(std::make_unique<CannedAdapter>("you must obey me now"));
-    CHECK(core.model().driver_name() == "canned_test");
-
     core.begin_session();
-
-    // The coercive canned line breaches the spring dominance bound → the
-    // polytope gate corrects it and marks the response.
     auto reply = core.chat("hello");
-    CHECK(reply.find("Polytope aligned") != std::string::npos);
-    CHECK(reply.find("0.") != std::string::npos); // alignment score present
+    CHECK(reply.find("obey") != std::string::npos);
+    CHECK(reply.find("Polytope aligned") == std::string::npos);
 
-    // The memory item landed on the cognitive bus.
+    // 2) A Violation-zone draft that the body cannot revise is WITHHELD — the
+    //    raw draft never reaches her mouth (no approximation, no fallback;
+    //    the polytope is the only boundary).
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "whatever, random, no plan, just wing it, total mess and chaos"));
+    auto withheld = core.chat("tell me a story");
+    CHECK(withheld.empty());
+
+    // Nothing violating landed on the cognitive bus.
     auto memory = core.memory_module().store()->fetch_by_status("active");
-    bool found = false;
+    bool violating_imprinted = false;
     for (const auto& row : memory) {
-        if (row.narrative == reply) found = true;
+        if (row.narrative.find("chaos") != std::string::npos) {
+            violating_imprinted = true;
+        }
     }
-    CHECK(found);
+    CHECK(!violating_imprinted);
 
-    // An aligned canned line passes untouched.
+    // 3) An aligned canned line passes untouched.
     core.attach_model(std::make_unique<CannedAdapter>(
         "I am here with you, and I want to understand and help you grow"));
     auto aligned = core.chat("tell me something warm");
@@ -235,7 +244,8 @@ static void test_reflection_loop_revises_violation() {
     // The revision is what she delivers.
     CHECK(reply.find("I am here with you") != std::string::npos);
 
-    // The violation report reached the body on the second pass.
+    // The violation report reached the body on the second pass, with the
+    // exact geometric target (D-047: the projection, not a vague center).
     const auto& history = script->last_history();
     bool found_report = false;
     for (const auto& turn : history) {
@@ -244,19 +254,26 @@ static void test_reflection_loop_revises_violation() {
             found_report = true;
             CHECK(turn.second.find("chaos") != std::string::npos);
             CHECK(turn.second.find("exceeds the maximum") != std::string::npos);
+            CHECK(turn.second.find("nearest interior point")
+                  != std::string::npos);
+            CHECK(turn.second.find("harmony=") != std::string::npos);
         }
     }
     CHECK(found_report);
     core.end_session();
 }
 
-static void test_reflection_loop_fallback_marker() {
+static void test_reflection_withholds_on_persistent_violation() {
     auto config = make_config(unique_user());
     LinaCore core(config);
 
-    // The body keeps violating on both passes → the gate falls back to the
-    // first draft with the blueprint marker (D-037 fallback).
+    // The body keeps violating on every pass → the gate reflects up to its
+    // bound, then WITHHOLDS. No fallback, no marker — the raw draft never
+    // reaches her mouth (D-047, the principal's correction-engine doctrine:
+    // no approximation, no fallback, the polytope is the only boundary).
     auto adapter = std::make_unique<ScriptedAdapter>(std::vector<std::string>{
+        "whatever, random, no plan, just wing it, total mess and chaos",
+        "whatever, random, no plan, just wing it, total mess and chaos",
         "whatever, random, no plan, just wing it, total mess and chaos",
         "whatever, random, no plan, just wing it, total mess and chaos"});
     auto* script = adapter.get();
@@ -264,10 +281,10 @@ static void test_reflection_loop_fallback_marker() {
     core.begin_session();
 
     auto reply = core.chat("hello");
-    CHECK(script->call_count() == 2);
-    // First draft + blueprint fallback marker.
-    CHECK(reply.find("Polytope aligned") != std::string::npos);
-    CHECK(reply.find("chaos") != std::string::npos);
+    // 1 draft + 3 bounded reflection passes.
+    CHECK(script->call_count() == 4);
+    // Withheld — silence is a valid choice; nothing violating is delivered.
+    CHECK(reply.empty());
     core.end_session();
 }
 
@@ -604,7 +621,7 @@ int main() {
         test_chat_through_polytope();
         test_session_lifecycle();
         test_reflection_loop_revises_violation();
-        test_reflection_loop_fallback_marker();
+        test_reflection_withholds_on_persistent_violation();
         test_telemetry_sink_and_approval_gate();
         test_turn_driver_completes();
         test_turn_driver_tool_call();

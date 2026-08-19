@@ -11,6 +11,24 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The correction becomes generative (D-047, front c — first piece)**
+  - The principal's correction-engine doctrine, now enforced in `apply_gate`:
+    **no approximation, no fallback — the polytope is the only boundary.**
+  - Reflection is now **geometric**: the target is the exact projected vector
+    (the nearest interior point from the correction engine), not a vague
+    "center" — the reflection prompt carries her draft's projection as
+    coordinates.
+  - **Bounded reflection passes** (up to 3): each pass re-evaluates and
+    re-projects, pulling the draft toward the polytope until it lands inside.
+  - **Withhold, never fallback**: a draft that will not land inside after
+    bounded reflection is **withheld** — silence is a valid choice; a
+    violating draft never reaches her mouth (marker or not). The window
+    clears its thinking state on the empty `complete` event.
+  - **The `[Polytope aligned:]` mask is dead** — the gate is structural and
+    silent.
+  - `orchestrator_tests` 49 checks (was 48): the fallback-marker test became
+    the withhold test; `ui_tests` 24 (was 19): grace for AcceptableVariance,
+    silence for persistent Violation. `ctest` 10/10 (509 checks total).
 - **The substrate direction (D-047) — documents aligned to the builder's
   understanding**
   - Source-of-truth hierarchy amended: Scott's book (the excerpt at
