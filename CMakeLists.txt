@@ -87,7 +87,7 @@ if (LINA_ENABLE_STORAGE)
     add_test(NAME storage_tests COMMAND storage_tests)
 
     # --- Orchestrator (Chamber 5) — binds the chambers ---------------------
-    set(LINA_CORE_SOURCES src/lina_core.cpp src/model_driver.cpp)
+    set(LINA_CORE_SOURCES src/lina_core.cpp src/model_driver.cpp src/tool_engine.cpp)
     if (LINA_ENABLE_LLAMA)
         # The voice (D-035) — pinned llama.cpp tree, linked via its C API.
         set(LINA_LLAMA_DIR "/home/server/llama.cpp" CACHE PATH
@@ -140,4 +140,9 @@ if (LINA_ENABLE_STORAGE)
         target_link_libraries(llama_adapter_tests PRIVATE lina_core_lib pthread)
         add_test(NAME llama_adapter_tests COMMAND llama_adapter_tests)
     endif()
+
+    # Her hands (D-040) — the tool engine, approval-gated.
+    add_executable(tool_engine_tests tests/tool_engine_tests.cpp)
+    target_link_libraries(tool_engine_tests PRIVATE lina_core_lib pthread)
+    add_test(NAME tool_engine_tests COMMAND tool_engine_tests)
 endif()

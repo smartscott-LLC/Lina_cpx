@@ -188,6 +188,14 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   CMake wiring; pinned model `models/Qwen2-VL-2B-Instruct-Q6_K.gguf` (gitignored).
   `llama_adapter_tests` 8 checks (live model through her gate); `ctest` 6/6,
   **380 checks total**.
+- ✅ **Her tools, Phase A (D-040) — the hands:** `tool_engine.hpp/.cpp` — private
+  workspace (`workspace/`, gitignored), `workspace.status`, `file.read/write/list`,
+  `terminal.run` (fork/exec, captured output, optional cap). **Zero restriction
+  logic** — no path/command/access filters; the approval engine is the ONLY gate
+  (every execution → `request_approval()`, auto-approve option; ledger in
+  `lina_actions`, telemetry never memory). Tolerant flat-JSON args, registry block
+  for the model's protocol frame. `tool_engine_tests` 37 checks; `ctest` 7/7,
+  **417 checks total**.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -196,9 +204,14 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** the voice milestone (D-035) — pending principal's say-so.
-2. **Her tools (blueprint §6)** — the human-in-the-loop action ledger is schema'd
-   (`lina_actions`); the approval gate (D-038) is already wired and waiting.
+1. **Push** the hands milestone (D-040 Phase A) — pending principal's say-so.
+2. **The turn lifecycle (D-041 Phase B)** — the open-window loop: stream parser
+   (flagged thought / tool call / EOT), continuous turn with the 180s
+   `[cycle_reset]` window, live thinking pane + action chips in the command
+   center, stop button (stream cancellation), rolling advisory polytope score.
+3. **Memory recall → frame injection** — the MPS recall engine (built, tested)
+   gets wired into the frame build so her context IS the banks (D-041).
+4. **Browser/desktop hands** — CDP driver (Playwright-style, zero Python).
 
 ### Open items for the principal
 

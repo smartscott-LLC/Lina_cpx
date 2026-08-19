@@ -19,27 +19,14 @@
 #include <string>
 #include <vector>
 
+#include "approval_gate.hpp"
 #include "host_model_adapter.hpp"
 #include "memory_module.hpp"
 #include "storage_backend.hpp"
+#include "tool_engine.hpp"
 #include "value_engine.hpp"
 
 namespace lina {
-
-// D-038: the human-in-the-loop approval gate (her tools, blueprint §6). The
-// UI renders an approval card for these; a future tool executor calls
-// request_approval() before acting.
-struct ApprovalRequest {
-    std::string action_id;
-    std::string tool_name;
-    std::string description;
-    int64_t timeout_ms{30000};
-};
-
-enum class ApprovalDecision { Approved, Denied, TimedOut };
-
-using ApprovalHandler =
-    std::function<ApprovalDecision(const ApprovalRequest&)>;
 
 // D-038: technical-event sink — the telemetry bus (Invariant 6: process
 // events never touch the cognitive bus). The UI routes these to the log reel.
@@ -58,6 +45,7 @@ struct LinaConfig {
     float temperature{0.7f};
     std::string season{"spring"};
     std::string log_level{"info"};
+    std::string workspace_dir{"workspace"}; // her private workspace (D-040)
 };
 
 class LinaCore {
@@ -77,6 +65,11 @@ public:
     memory_module::MemoryModule& memory_module() { return *memory_module_; }
     storage::StorageBackend& storage() { return *storage_; }
     model::HostModelAdapter& model() { return *model_adapter_; }
+    tools::ToolEngine& tool_engine() { return *tool_engine_; }
+
+    // D-040: execute a tool through the approval gate, recording the action
+    // in the ledger (lina_actions — telemetry, never memory).
+    tools::ToolResult execute_tool(const tools::ToolRequest& request);
 
     // Run modes
     void run_headless();
@@ -105,6 +98,7 @@ private:
     std::shared_ptr<value_engine::ValueEngine> value_engine_;
     std::unique_ptr<memory_module::MemoryModule> memory_module_;
     std::unique_ptr<model::HostModelAdapter> model_adapter_;
+    std::unique_ptr<tools::ToolEngine> tool_engine_; // her hands (D-040)
 
     std::string current_session_id_;
     std::vector<std::pair<std::string, std::string>> conversation_history_;

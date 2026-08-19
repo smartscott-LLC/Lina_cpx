@@ -433,6 +433,30 @@ clears history. `end_session` runs the memory sweep + maintenance, finalizes the
 session, and reports counts. System prompt opens with LiNa's identity — a single,
 unified entity, conceived April 10, 2026.
 
+### 6.5 Her Tools (D-040) — the hands
+
+`LinaCore::execute_tool()` runs any registered tool through the approval engine:
+`ToolEngine::execute` → `request_approval()` (human card or auto-approve) → tool
+`run()` → action ledger (`lina_actions`, telemetry — never memory). v1 hands:
+`workspace.status`, `file.read`, `file.write`, `file.list`, `terminal.run`.
+
+**No gate checks except the approval engine** (D-040): no path allowlists, no
+command blocklists. Paths are absolute or workspace-relative; the workspace is
+`LinaConfig.workspace_dir` (default `./workspace`, gitignored). Tool args are
+tolerant flat JSON (`json_string`/`json_int` — no external dependency).
+`ToolEngine::registry_block()` renders the tool list for the model's protocol
+frame (names + descriptions — protocol, not persona, per D-039).
+
+### 6.6 The Turn Lifecycle (D-041) — the open-window loop
+
+_Pending Phase B._ Design adopted: stateless body, Lina owns context; frame build
+(identity + recalled memory + recent context + tool registry + budget cue +
+timestamp) → stream parser (flagged thought → thinking pane; tool call → approve
++ execute + feed back, door stays open; EOT → finalize) → polytope gate at the
+door + rolling advisory score during generation → window timer fires
+`[cycle_reset]` (fresh context). Budget exhaustion is the only hard cut; the
+window is a bedtime, not a kill switch (see `docs/DECISIONS.md` D-041).
+
 ### 6.4 The Built-in Command Center (D-036 rebuilt per D-038)
 
 `run_ui()` opens the Qt6 command center compiled into `lina_core` (`LINA_ENABLE_UI`,
@@ -465,22 +489,26 @@ The window is deliberately moc-free Qt (plain QObject/QWidget + lambda connectio
 ## 7. Build & Run Reference
 
 Toolchain: CMake ≥ 3.20 · C++20 · GNU MP (gmpxx) · libpq · PostgreSQL + pgvector ·
-pkg-config. (Machine state as of 2026-08-18: cmake 3.28.3, GCC 13.3.0, GMP present;
-PostgreSQL/libpq/pgvector/pkg-config still to install — see `ONBOARDING.md` §3.)
+pkg-config · Qt6 (UI) · llama.cpp (voice, D-035). Machine state as of 2026-08-18:
+cmake 3.28.3, GCC 13.3.0, PostgreSQL 16 + pgvector + libpq + Qt6 installed; the
+llama.cpp tree is pinned at `/home/server/llama.cpp` (commit `9b05454`).
 
 ```bash
 # Database
 sudo -u postgres createdb lina
 sudo -u postgres psql -d lina -f sql/lina_schema.sql
 
-# Build
+# Build (full stack: window + voice)
 mkdir -p build && cd build
-cmake .. -DLINA_ENABLE_UI=OFF -DLINA_ENABLE_LLAMA=OFF
+cmake .. -DLINA_ENABLE_UI=ON -DLINA_ENABLE_LLAMA=ON -DLINA_ENABLE_STORAGE=ON
 make -j"$(nproc)"
 
-# Run (headless)
+# Test
+ctest --output-on-failure
+
+# Run (her window — the voice needs the model in models/)
 ./lina_core --db "postgresql://localhost/lina" --model llama \
-            --model-path ./models/llama.gguf --headless
+            --model-path ./models/llama.gguf
 ```
 
 Compiler flags (spec §8.1): `-O3 -march=native -Wall -Wextra -Werror

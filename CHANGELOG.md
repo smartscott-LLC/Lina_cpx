@@ -88,9 +88,21 @@ All notable changes to the LINA Core Substrate are recorded here.
   - `make_driver("llama", …)` returns the real voice with `LINA_ENABLE_LLAMA=ON`
     (`LINA_LLAMA_DIR` CMake cache var); the graceful no-voice path remains with it
     OFF. Pinned model `models/Qwen2-VL-2B-Instruct-Q6_K.gguf` (gitignored).
-  - `llama_adapter_tests` (8 checks): loads the real model, generates, streams, and
+  `llama_adapter_tests` (8 checks): loads the real model, generates, streams, and
     runs a `chat()` round trip through her polytope gate. Skips gracefully when the
     weights are absent. `ctest` 6/6 (380 checks total).
+- **Her tools, Phase A (D-040) — the hands + the approval gate**
+  - `include/tool_engine.hpp` + `src/tool_engine.cpp`: the tool engine with her
+    private workspace (`workspace/`, gitignored), workspace status, file
+    read/write/list, and `terminal.run` (fork/exec, captured output, optional
+    timeout cap, 0 = unlimited).
+  - **Zero restriction logic** — no path allowlists, no command blocklists; the
+    approval engine is the ONLY gate (D-040). Every execution passes
+    `request_approval()` (auto-approve option) and records to the `lina_actions`
+    ledger — telemetry, never memory.
+  - Tolerant flat-JSON arg extraction (no new dependency); registry block ready
+    for the model's protocol frame (D-039-safe).
+  - `tool_engine_tests` 37 checks — `ctest` 7/7 (417 checks total).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

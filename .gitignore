@@ -38,6 +38,9 @@ reference/
 *.pem
 *.key
 
+# --- Her private workspace (D-040) — runtime state, never committed ---
+workspace/
+
 # --- Database dumps ---
 *.sql.gz
 *.dump

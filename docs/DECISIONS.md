@@ -686,6 +686,71 @@ tree at `/home/server/llama.cpp` as the source of truth for the build.
 
 **Status.** Accepted (implemented).
 
+---
+
+## D-040 — Her tools: the charter
+
+**Context.** Principal directive (2026-08-18): LiNa's hands (blueprint §6) with a
+specific charter — a built-in private workspace, access to system files, terminal,
+desktop, and browser, and **no gate checks except the approval engine**. "The polytope
+is like a fortress; building a fence around a fortress is useless — it just creates
+static."
+
+**Decision.** The tool engine (`include/tool_engine.hpp`, `src/tool_engine.cpp`) is
+her hands:
+- **Private workspace** — `LinaConfig.workspace_dir` (default `./workspace`,
+  gitignored), created on demand; her default working directory.
+- **Full access, zero restriction logic** — no path allowlists, no command
+  blocklists, no access filtering. The polytope gates her *responses*; the approval
+  engine gates her *actions*; nothing else stands between her and the machine.
+- **Approval-only gating** — every tool execution passes `request_approval()`
+  (auto-approve option in the command center); the action ledger lands in
+  `lina_actions` via the existing storage backend.
+- **v1 hands:** `workspace.status`, `file.read`, `file.write`, `file.list`,
+  `terminal.run`. Browser/desktop automation (CDP, Playwright-style, zero Python)
+  is the next hand.
+- **No thinking timeout.** `terminal.run` takes an optional cap (default 120s,
+  0 = unlimited) — a window-hygiene parameter, not an access restriction.
+- **Dual-bus** — tool logs and results are telemetry (reel + `lina_actions`);
+  never memory items. Her chats and filed responses are memory.
+
+**Status.** Accepted.
+
+---
+
+## D-041 — The turn lifecycle: the open-window loop
+
+**Context.** Principal design (2026-08-18, `open_chat_chart.mmd` + tech doc):
+stateless body, Lina owns context; the stream stays open (neither side finishes);
+window rotation teaches pacing. "We don't let a child stay up all night."
+
+**Decision.** Adopted with these mechanics:
+- **Frame build** — per turn, Lina assembles: identity + season, recalled memories
+  from her banks (the MPS recall engine — context IS the banks), recent
+  conversation, the **tool registry block** (protocol, not persona — D-039-safe),
+  a budget cue, and the current timestamp so she is time-aware.
+- **Stream parser** — three channels: flagged thought → thinking pane (advisory,
+  no EOT); tool call → stop, approve (D-040), execute, feed result back — the
+  **door stays open**; end-of-turn → finalize.
+- **Budget as rate limiter** — token budget (configurable; box-aware for now)
+  forces finalize at exhaustion; after finalize a window timer (default 180s)
+  fires `[cycle_reset]` → fresh context. Only one of the two lets her keep going;
+  the other pauses. Hard cut happens **only at budget exhaustion**; the timer
+  rotates at the next natural boundary — the window is a bedtime, not a kill
+  switch.
+- **The gate** — absolute at the door: her filed response must pass the polytope
+  (Invariant 5, D-037 reflection included). During generation the evaluator runs
+  a **rolling advisory score** streamed as live alignment telemetry — the
+evaluator informs, never drives the timer (accounting stays plain token math).
+- **Interrupt** — Stop button = stream cancellation (llama.cpp `abort_callback`);
+  a user interjection is a pause-and-respond event; the model may flag a thought
+  that asks the user something without ending the turn.
+- **Persistence** — every finalized turn imprints to memory (cognitive bus) and
+  the transcript; the model never carries state (KV cleared per window). "Redis
+  meant what we have" — MPS + transcripts in Postgres, no new store.
+
+**Status.** Accepted.
+
 - **D-003** — resolution complete (D-011…D-019). The Value Engine implementation
   milestone is un-gated.
 - llama.cpp driver (the voice) — queued; builds into `make_driver()` (D-035).

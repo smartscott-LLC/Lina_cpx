@@ -118,7 +118,51 @@ void LinaCore::initialize() {
     // 5. The symbiote driver is attached from outside (D-033).
     model_adapter_ = nullptr;
 
+    // 6. Her hands (D-040): the tool engine with the approval engine wired in
+    //    — the only gate on her actions.
+    tool_engine_ = std::make_unique<tools::ToolEngine>(config_.workspace_dir);
+    tool_engine_->register_tool(
+        tools::make_workspace_status_tool(config_.workspace_dir));
+    tool_engine_->register_tool(
+        tools::make_file_read_tool(config_.workspace_dir));
+    tool_engine_->register_tool(
+        tools::make_file_write_tool(config_.workspace_dir));
+    tool_engine_->register_tool(
+        tools::make_file_list_tool(config_.workspace_dir));
+    tool_engine_->register_tool(tools::make_terminal_run_tool());
+    tool_engine_->set_approver([this](const ApprovalRequest& request) {
+        return request_approval(request);
+    });
+    tool_engine_->ensure_workspace();
+
     ready_ = true;
+}
+
+tools::ToolResult LinaCore::execute_tool(const tools::ToolRequest& request) {
+    tools::ToolRequest with_id = request;
+    if (with_id.action_id.empty()) {
+        with_id.action_id =
+            "act_" + std::to_string(
+                std::chrono::system_clock::now().time_since_epoch().count());
+    }
+
+    auto result = tool_engine_->execute(with_id);
+
+    // The action ledger — telemetry, never memory (D-040 dual-bus).
+    storage::ActionRecord action;
+    action.id = with_id.action_id;
+    action.tool_name = with_id.name;
+    action.params_json = with_id.arguments_json;
+    action.state = result.ok ? "executed" : "denied";
+    action.result = result.ok ? result.summary : "";
+    action.error = result.error;
+    action.created_at = now_iso();
+    action.updated_at = action.created_at;
+    storage_->store_action(action);
+
+    emit_telemetry("tool id=" + with_id.action_id + " name=" + with_id.name
+                   + " state=" + action.state);
+    return result;
 }
 
 std::string LinaCore::chat(const std::string& user_message) {
