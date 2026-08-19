@@ -352,6 +352,38 @@ std::string LinaCore::build_turn_frame(
     std::ostringstream oss;
     oss << build_system_prompt() << "\n\n";
     oss << tool_engine_->registry_block() << "\n";
+
+    // D-041: her context IS the banks — recalled memories injected into the
+    // frame (MPS recall engine, built and tested in Chamber 2).
+    const auto injected =
+        memory_module_->inject_context(config_.user_id, user_message);
+    const auto episodic = injected.find("recent_episodic");
+    const auto semantic = injected.find("key_semantic");
+    oss << "[MEMORY]\n";
+    if (episodic != injected.end()) {
+        for (const auto& entry : episodic->second) {
+            const auto narrative = entry.find("narrative");
+            if (narrative == entry.end() || narrative->second.empty()) continue;
+            // Frame hygiene: long narratives are summarized for the window;
+            // the banks keep the full record.
+            std::string text = narrative->second;
+            if (text.size() > 240) text = text.substr(0, 240) + "…";
+            oss << "- " << text << "\n";
+        }
+    }
+    if (semantic != injected.end()) {
+        for (const auto& entry : semantic->second) {
+            const auto cpt = entry.find("concept");
+            const auto understanding = entry.find("understanding");
+            if (cpt == entry.end()) continue;
+            oss << "- " << cpt->second;
+            if (understanding != entry.end() && !understanding->second.empty()) {
+                oss << ": " << understanding->second.substr(0, 160);
+            }
+            oss << "\n";
+        }
+    }
+
     oss << "[PROTOCOL]\n";
     oss << "Internal deliberation may be enclosed in [thought]...[/thought] "
            "— it is private and never delivered.\n";

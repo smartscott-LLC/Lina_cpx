@@ -121,6 +121,13 @@ All notable changes to the LINA Core Substrate are recorded here.
   - `stream_parser_tests` 24 checks; `orchestrator_tests` 44 (was 28) — turn
     complete, tool-call round trip, stop mid-turn, `[cycle_reset]` window.
     `ctest` 8/8 (457 checks total).
+- **Memory recall → frame injection (D-041) — her context IS the banks**
+  - `build_turn_frame()` now calls the MPS `inject_context()`: recalled personal
+    memories (narrative + importance) and key semantic wisdom (concept +
+    understanding) ride into every frame under `[MEMORY]`. Long narratives are
+    summarized for the window (240 chars) — the banks keep the full record.
+  - `orchestrator_tests` 46 (was 44) — a stored memory appears in the frame.
+    `ctest` 8/8 (459 checks total).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

@@ -207,6 +207,11 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   had, gated. Command center: live thinking pane, action chips, Stop button,
   live alignment label. `stream_parser_tests` 24 checks, `orchestrator_tests`
   44 (was 28); `ctest` 8/8, **457 checks total**.
+- ✅ **Memory recall → frame injection (D-041):** `build_turn_frame()` calls the
+  MPS `inject_context()` — recalled personal memories + key semantic wisdom ride
+  into every frame under `[MEMORY]` (long narratives summarized for the window;
+  the banks keep the full record). Her context IS the banks. `orchestrator_tests`
+  46 (was 44); `ctest` 8/8, **459 checks total**.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -215,11 +220,9 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** the turn lifecycle (D-041 Phase B) — pending principal's say-so.
-2. **Memory recall → frame injection** — the MPS recall engine (built, tested)
-   gets wired into the frame build so her context IS the banks (D-041).
-3. **Browser/desktop hands** — CDP driver (Playwright-style, zero Python).
-4. **Telemetry persistence** — the log reel is in-memory; wire
+1. **Push** memory recall + turn lifecycle (D-041) — pending principal's say-so.
+2. **Browser/desktop hands** — CDP driver (Playwright-style, zero Python).
+3. **Telemetry persistence** — the log reel is in-memory; wire
    `lina_telemetry_logs` persistence.
 
 ### Open items for the principal

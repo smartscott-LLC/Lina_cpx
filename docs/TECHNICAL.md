@@ -452,7 +452,9 @@ frame (names + descriptions — protocol, not persona, per D-039).
 `LinaCore::begin_turn()` runs the loop on a worker thread (the command center
 switched from `chat()` to this path):
 
-1. **Frame build** — system prompt + tool registry block + protocol note
+1. **Frame build** — system prompt + tool registry block + **recalled memories**
+   (`inject_context`: `[MEMORY]` — personal narratives + semantic wisdom, the
+   banks distilled for the window) + protocol note
    (thought markers, tool-call syntax — D-039-safe) + budget cue + timestamp.
 2. **Streaming generation** — `generate_stream` feeds the `StreamParser`;
    completed `[thought]` blocks stream live to the thinking pane; every 8

@@ -94,11 +94,12 @@ public:
         : lines_(std::move(lines)) {}
 
     std::string generate_raw(
-        const std::string&,
+        const std::string& system_prompt,
         const std::vector<std::pair<std::string, std::string>>& history,
         const model::GenerationConfig&) override
     {
         ++call_count_;
+        last_system_ = system_prompt;
         last_history_ = history;
         std::string line = lines_.empty() ? "" : lines_.front();
         if (!lines_.empty()) lines_.erase(lines_.begin());
@@ -123,11 +124,13 @@ public:
     const std::vector<std::pair<std::string, std::string>>& last_history() const {
         return last_history_;
     }
+    const std::string& last_system() const { return last_system_; }
 
 private:
     std::vector<std::string> lines_;
     size_t call_count_{0};
     std::vector<std::pair<std::string, std::string>> last_history_;
+    std::string last_system_;
 };
 
 // -----------------------------------------------------------------------------
@@ -498,6 +501,34 @@ static void test_turn_driver_stop() {
     core.end_session();
 }
 
+static void test_memory_recall_in_frame() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+    auto adapter = std::make_unique<ScriptedAdapter>(
+        std::vector<std::string>{"I remember now."});
+    auto* script = adapter.get();
+    core.attach_model(std::move(adapter));
+
+    // Imprint a distinctive memory on the cognitive bus.
+    auto item = core.memory_module().build_item(
+        config.user_id,
+        "The golden key rests beneath the old oak in the garden",
+        {{"emotional_weight", 8.0}}, "conversation");
+    core.storage().store_memory_item(item);
+
+    std::promise<void> done;
+    LinaCore::TurnCallbacks cb;
+    cb.on_complete = [&](const std::string&) { done.set_value(); };
+    cb.on_error = [&](const std::string&) { done.set_value(); };
+
+    core.begin_turn("tell me something", std::move(cb));
+    auto future = done.get_future();
+    CHECK(wait_for(future, 10000));
+    // Her context IS the banks — the recalled memory rode into the frame.
+    CHECK(script->last_system().find("golden key") != std::string::npos);
+    core.end_session();
+}
+
 static void test_turn_window_reset() {
     auto config = make_config(unique_user());
     config.window_ms = 80; // fast [cycle_reset] for the test
@@ -544,6 +575,7 @@ int main() {
         test_turn_driver_completes();
         test_turn_driver_tool_call();
         test_turn_driver_stop();
+        test_memory_recall_in_frame();
         test_turn_window_reset();
     } catch (const std::exception& e) {
         std::cerr << "orchestrator_tests: FATAL: " << e.what() << "\n";
