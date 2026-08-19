@@ -88,6 +88,17 @@ if (LINA_ENABLE_STORAGE)
 
     # --- Orchestrator (Chamber 5) — binds the chambers ---------------------
     set(LINA_CORE_SOURCES src/lina_core.cpp src/model_driver.cpp)
+    if (LINA_ENABLE_LLAMA)
+        # The voice (D-035) — pinned llama.cpp tree, linked via its C API.
+        set(LINA_LLAMA_DIR "/home/server/llama.cpp" CACHE PATH
+            "llama.cpp source tree (pinned commit 9b05354, D-035)")
+        find_library(LLAMA_LIBRARY NAMES llama
+            PATHS "${LINA_LLAMA_DIR}/build/bin")
+        if (NOT LLAMA_LIBRARY)
+            message(FATAL_ERROR "libllama.so not found in ${LINA_LLAMA_DIR}/build/bin")
+        endif()
+        list(APPEND LINA_CORE_SOURCES src/llama_adapter.cpp)
+    endif()
     if (LINA_ENABLE_UI)
         list(APPEND LINA_CORE_SOURCES src/lina_ui.cpp)
     endif()
@@ -96,6 +107,11 @@ if (LINA_ENABLE_STORAGE)
     if (LINA_ENABLE_UI)
         target_compile_definitions(lina_core_lib PUBLIC LINA_ENABLE_UI=1)
         target_link_libraries(lina_core_lib PUBLIC Qt6::Widgets Qt6::Core Qt6::Gui Qt6::Network)
+    endif()
+    if (LINA_ENABLE_LLAMA)
+        target_compile_definitions(lina_core_lib PUBLIC LINA_ENABLE_LLAMA=1)
+        target_include_directories(lina_core_lib PUBLIC "${LINA_LLAMA_DIR}/include" "${LINA_LLAMA_DIR}/ggml/include")
+        target_link_libraries(lina_core_lib PUBLIC ${LLAMA_LIBRARY})
     endif()
 
     add_executable(lina_core src/main.cpp)
@@ -115,5 +131,13 @@ if (LINA_ENABLE_STORAGE)
         add_executable(ui_tests tests/ui_tests.cpp)
         target_link_libraries(ui_tests PRIVATE lina_core_lib pthread)
         add_test(NAME ui_tests COMMAND ui_tests)
+    endif()
+
+    if (LINA_ENABLE_LLAMA)
+        # Voice smoke test: loads the real model and runs a generation through
+        # the polytope. Skipped (exit 0) if the model file is missing.
+        add_executable(llama_adapter_tests tests/llama_adapter_tests.cpp)
+        target_link_libraries(llama_adapter_tests PRIVATE lina_core_lib pthread)
+        add_test(NAME llama_adapter_tests COMMAND llama_adapter_tests)
     endif()
 endif()

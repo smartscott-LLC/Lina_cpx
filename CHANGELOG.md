@@ -80,6 +80,17 @@ All notable changes to the LINA Core Substrate are recorded here.
     the polytope-framing paragraph and behavioral directives are gone (blueprint
     §7.2 prompt text amended by principal directive). She drafts freely; the gate
     decides (Invariant 5 holds structurally, not verbally).
+- **The voice (D-035) — llama.cpp driver, live**
+  - `src/llama_adapter.cpp` implements the full symbiote contract against the
+    pinned llama.cpp tree (commit `9b05454` at `/home/server/llama.cpp`): model
+    load, chat-template formatting, top-k/top-p/temperature sampler chain, raw +
+    streaming generation, KV-cache lifecycle, thread-safe context.
+  - `make_driver("llama", …)` returns the real voice with `LINA_ENABLE_LLAMA=ON`
+    (`LINA_LLAMA_DIR` CMake cache var); the graceful no-voice path remains with it
+    OFF. Pinned model `models/Qwen2-VL-2B-Instruct-Q6_K.gguf` (gitignored).
+  - `llama_adapter_tests` (8 checks): loads the real model, generates, streams, and
+    runs a `chat()` round trip through her polytope gate. Skips gracefully when the
+    weights are absent. `ctest` 6/6 (380 checks total).
 - **Project foundation**
   - `README.md` — project identity, pillars, invariants, quick links.
   - `ONBOARDING.md` — official onboarding guide (reading order, prerequisites, DB setup, build, run, working agreements).

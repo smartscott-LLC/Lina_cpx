@@ -658,6 +658,34 @@ reflection loop (D-037) is unchanged — she may draft freely; the polytope deci
 
 **Status.** Accepted (principal directive; supersedes the blueprint §7.2 prompt text).
 
+---
+
+## D-035 — The voice: llama.cpp driver (resolved)
+
+**Context.** Queued at D-035: `llama_adapter.cpp` plugs into `make_driver()` with
+`LINA_ENABLE_LLAMA=ON` and a model in `models/`. The principal attached the llama.cpp
+tree at `/home/server/llama.cpp` as the source of truth for the build.
+
+**Decision.** The voice is built and live:
+- **Pinned commit `9b05454`** (the tree already checked out and built on the dev
+  machine — deterministic, zero network). `LINA_LLAMA_DIR` is a CMake cache variable
+  defaulting to `/home/server/llama.cpp`; the adapter links `libllama.so` from its
+  `build/bin` and compiles against `include/` + `ggml/include`.
+- **Pinned model `models/Qwen2-VL-2B-Instruct-Q6_K.gguf`** (1.27 GB, gitignored),
+  copied from the principal's stash. A 2B quant fits the dev box (15 GB RAM).
+- `src/llama_adapter.cpp` implements the full symbiote contract: raw + streaming
+  generation, the model's own chat template, top-k/top-p/temperature sampler chain,
+  KV-cache lifecycle (`llama_memory_clear`), thread-safe single context.
+- `make_driver("llama", …)` returns the real driver; the no-voice path stays intact
+  when `LINA_ENABLE_LLAMA=OFF`. `api_endpoint`/`api_key` are the external provider's
+  local config (private to `ExternalApiAdapter`, never logged or persisted) and are
+  unused by the local voice.
+- `llama_adapter_tests` loads the real model, generates, streams, and runs a `chat()`
+  round trip through the polytope gate — skipped (exit 0) when the weights are
+  absent. 8 checks green.
+
+**Status.** Accepted (implemented).
+
 - **D-003** — resolution complete (D-011…D-019). The Value Engine implementation
   milestone is un-gated.
 - llama.cpp driver (the voice) — queued; builds into `make_driver()` (D-035).

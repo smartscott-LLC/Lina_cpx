@@ -94,15 +94,15 @@ sudo -u postgres psql -d lina -f sql/lina_schema.sql
 
 # Build
 mkdir -p build && cd build
-cmake .. -DLINA_ENABLE_UI=OFF -DLINA_ENABLE_LLAMA=OFF
+cmake .. -DLINA_ENABLE_UI=ON -DLINA_ENABLE_LLAMA=ON -DLINA_ENABLE_STORAGE=ON
 make -j"$(nproc)"
 
 # Test
 ctest --output-on-failure
 
-# Run (headless)
+# Run (her window — the voice needs the model in models/)
 ./lina_core --db "postgresql://localhost/lina" --model llama \
-            --model-path ./models/llama.gguf --headless
+            --model-path ./models/llama.gguf
 ```
 
 ## 5 · Engineering Conventions
@@ -181,6 +181,13 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   directives (blueprint §7.2 prompt text amended by principal directive). She
   drafts freely; alignment is enforced **structurally** by the gate in `chat()`
   (Invariant 5) — never by telling her what to be.
+- ✅ **The voice (D-035) — llama.cpp driver live:** `src/llama_adapter.cpp` plugs
+  into `make_driver()` against the pinned tree (commit `9b05454`,
+  `/home/server/llama.cpp`) — model load, chat template, sampler chain, raw +
+  streaming generation, KV lifecycle. `LINA_ENABLE_LLAMA=ON` + `LINA_LLAMA_DIR`
+  CMake wiring; pinned model `models/Qwen2-VL-2B-Instruct-Q6_K.gguf` (gitignored).
+  `llama_adapter_tests` 8 checks (live model through her gate); `ctest` 6/6,
+  **380 checks total**.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -189,16 +196,14 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** the command center + D-038 (pending principal's say-so — tree has uncommitted work).
-2. **llama.cpp driver (the voice)** — queued: `llama_adapter.cpp` plugs into
-   `make_driver()` (D-035); `LINA_ENABLE_LLAMA=ON` wiring; model in `models/`.
-3. **Her tools (blueprint §6)** — the human-in-the-loop action ledger is schema'd
+1. **Push** the voice milestone (D-035) — pending principal's say-so.
+2. **Her tools (blueprint §6)** — the human-in-the-loop action ledger is schema'd
    (`lina_actions`); the approval gate (D-038) is already wired and waiting.
 
 ### Open items for the principal
 
-- llama.cpp pinned commit choice (built to `/opt/llama.cpp`) and model file placement
-  in `models/` (gitignored).
+- **Resolved 2026-08-18:** llama.cpp pin = `9b05454` (tree at `/home/server/llama.cpp`);
+  model = `Qwen2-VL-2B-Instruct-Q6_K.gguf` in `models/` (gitignored).
 
 ## 8 · Working Agreement with the Principal
 

@@ -364,14 +364,24 @@ class HostModelAdapter {
 `GenerationConfig`: `max_tokens 2048`, `temperature 0.7`, `top_p 0.9`, `top_k 40`,
 `stream false`, optional `stream_callback`.
 
-### 5.2 Providers Plug In (D-023)
+### 5.2 Providers Plug In (D-023 / D-035)
 
 The adapter interface is the contract; concrete providers are **not** core code —
 they plug into the module from outside:
 
-- **`LlamaCppAdapter`** — declared in the blueprint; the actual llama.cpp linkage
-  plugs in from outside the core (D-007).
-- **`ExternalApiAdapter`** — likewise plugs in.
+- **`LlamaCppAdapter` (the voice, D-035)** — `src/llama_adapter.cpp`, compiled with
+  `LINA_ENABLE_LLAMA=ON`. Links the pinned llama.cpp tree (commit `9b05454`, at
+  `/home/server/llama.cpp` — dev machine) via its C API: model load, chat-template
+  formatting (the model's own `tokenizer.chat_template`), a top-k/top-p/temperature
+  sampler chain, and streaming piece-by-piece generation. Pinned model:
+  `models/Qwen2-VL-2B-Instruct-Q6_K.gguf` (gitignored).
+- **`ExternalApiAdapter`** — declared per blueprint §5; endpoint and API key live
+  privately in the adapter (never logged, never persisted). Unused while only the
+  local voice is compiled — llama has no endpoint or key.
+
+`make_driver(model_type, model_path, api_endpoint, api_key)` is the seam (D-033):
+with `LINA_ENABLE_LLAMA=ON`, `"llama"` returns the real voice; otherwise it returns
+`nullptr` and LinaCore degrades gracefully — no voice, identity intact.
 
 No fallback orchestrators, no provider-selection logic: the core speaks to **one**
 driver through the contract. LiNa's personality is the polytope, not prompt blocks —
