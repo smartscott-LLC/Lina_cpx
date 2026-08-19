@@ -64,6 +64,51 @@ static std::string model_path() {
     return candidates[0];
 }
 
+// D-046: the vision projector — her eyes. Resolved like the model; the test
+// skips the vision phase (not the whole suite) when the mmproj is absent.
+static std::string mmproj_path() {
+    const char* env = std::getenv("LINA_MMPROJ");
+    if (env && *env) return std::string(env);
+    const char* candidates[] = {
+        "/mnt/huge/lina_mmproj.gguf",
+        "models/mmproj-Qwen2-VL-2B-Instruct-f16.gguf",
+        "../models/mmproj-Qwen2-VL-2B-Instruct-f16.gguf",
+    };
+    for (const char* candidate : candidates) {
+        std::FILE* probe = std::fopen(candidate, "rb");
+        if (probe) {
+            std::fclose(probe);
+            return candidate;
+        }
+    }
+    return candidates[0];
+}
+
+// A 1x1 red PNG (67 bytes) — tiny but a real, decodable image for the vision
+// regression. Written to a temp file for the multimodal turn.
+static std::string write_test_image() {
+    static const unsigned char kPng1x1[] = {
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D,
+        0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+        0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xDE, 0x00, 0x00, 0x00,
+        0x0C, 0x49, 0x44, 0x41, 0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+        0x00, 0x00, 0x03, 0x00, 0x01, 0x80, 0x4D, 0x54, 0x6B, 0x76, 0x00, 0x00,
+        0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
+    };
+    char path[] = "/tmp/lina_vision_test_XXXXXX";
+    const int fd = mkstemp(path);
+    if (fd < 0) return "";
+    std::FILE* out = fdopen(fd, "wb");
+    if (!out) {
+        close(fd);
+        unlink(path);
+        return "";
+    }
+    std::fwrite(kPng1x1, 1, sizeof(kPng1x1), out);
+    std::fclose(out);
+    return path;
+}
+
 int main() {
     // Unbuffered output — progress is visible even if a phase is slow.
     std::setvbuf(stdout, nullptr, _IONBF, 0);
@@ -80,8 +125,19 @@ int main() {
     std::cout << "llama_adapter_tests: loading model...\n";
 
     try {
+        // D-046: the vision projector rides along (her eyes). A missing mmproj
+        // degrades the adapter to text-only gracefully — the suite still runs.
+        const std::string mmproj = mmproj_path();
+        std::FILE* mprobe = std::fopen(mmproj.c_str(), "rb");
+        const bool have_vision = mprobe != nullptr;
+        if (mprobe) std::fclose(mprobe);
+        if (!have_vision) {
+            std::cout << "llama_adapter_tests: no mmproj (" << mmproj
+                      << ") — vision phase will be skipped\n";
+        }
+
         // --- The voice loads and reports itself correctly. ---
-        auto adapter = std::make_unique<model::LlamaCppAdapter>(model);
+        auto adapter = std::make_unique<model::LlamaCppAdapter>(model, mmproj);
         CHECK(adapter->is_connected());
         CHECK(adapter->driver_name() == "llama.cpp");
         CHECK(adapter->is_local());
@@ -133,6 +189,29 @@ int main() {
         if (!long_reply.empty()) {
             std::cout << "llama_adapter_tests: long-frame reply: \""
                       << long_reply.substr(0, 100) << "...\"\n";
+        }
+
+        // --- Her eyes (D-046): a real image through the multimodal pipeline. ---
+        if (have_vision) {
+            const std::string image = write_test_image();
+            CHECK(!image.empty());
+            model::GenerationConfig vconfig;
+            vconfig.max_tokens = 48;
+            vconfig.temperature = 0.6f;
+            vconfig.image_path = image;
+            const std::string vision_reply = adapter->generate_raw(
+                "# You are LINA — Language Intuitive Neural Architecture",
+                {{"user", "This is a picture. Describe what you see "
+                           "in one short sentence."}},
+                vconfig);
+            CHECK(!vision_reply.empty());
+            if (!vision_reply.empty()) {
+                std::cout << "llama_adapter_tests: vision reply: \""
+                          << vision_reply.substr(0, 120) << "...\"\n";
+            }
+            unlink(image.c_str());
+        } else {
+            std::cout << "llama_adapter_tests: vision phase SKIPPED (no mmproj)\n";
         }
 
         // --- End-to-end through her gate (D-035): LinaCore + real voice. ---

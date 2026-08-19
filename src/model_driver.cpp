@@ -17,7 +17,8 @@ std::unique_ptr<HostModelAdapter> make_driver(
     const std::string& model_type,
     const std::string& model_path,
     const std::string& api_endpoint,
-    const std::string& api_key)
+    const std::string& api_key,
+    const std::string& mmproj_path)
 {
     // api_endpoint/api_key are the external provider's LOCAL config — they
     // travel straight into ExternalApiAdapter's private members (blueprint §5)
@@ -25,9 +26,12 @@ std::unique_ptr<HostModelAdapter> make_driver(
     // build, hence the (void).
     (void)api_endpoint;
     (void)api_key;
+    (void)mmproj_path;
 #if defined(LINA_ENABLE_LLAMA)
     if (model_type == "llama") {
-        return std::make_unique<LlamaCppAdapter>(model_path);
+        // mmproj_path (D-046): the vision projector — her eyes. Empty keeps
+        // the voice text-only.
+        return std::make_unique<LlamaCppAdapter>(model_path, mmproj_path);
     }
 #else
     (void)model_type;

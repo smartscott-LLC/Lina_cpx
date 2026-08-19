@@ -37,6 +37,7 @@ ExecStart=/home/server/Lina_cpx/build/lina_core \
     --db postgresql://lina:lina@localhost:5433/lina \
     --model llama \
     --model-path /mnt/huge/lina_model.gguf \
+    --mmproj /mnt/huge/lina_mmproj.gguf \
     --dragoncache-pool /mnt/huge/lina_pool
 WorkingDirectory=/home/server/Lina_cpx
 Environment=XDG_RUNTIME_DIR=/run/user/1000

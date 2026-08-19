@@ -144,8 +144,8 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-18 (RAM unlock LIVE — carve + hub + spoke green, services
-enabled, legacy DBs retired; voice hardened: chunked prompt pass, n_ctx 8192)._
+_Last updated: 2026-08-18 (RAM unlock LIVE + her eyes: vision wired through the
+gate, service runs the vision-capable binary, legacy DBs retired)._
 
 ### Done
 
@@ -261,6 +261,18 @@ enabled, legacy DBs retired; voice hardened: chunked prompt pass, n_ctx 8192)._
   the live value instead of the blueprint's hardcoded 4096.
   `llama_adapter_tests` 9 checks (was 8) incl. the long-frame regression;
   `ctest` 10/10. Her service runs the fixed binary.
+- ✅ **Her eyes (D-046) — the vision projector wired through her gate:** the
+  voice driver links `libmtmd` (the pinned tree's multimodal runtime) and
+  loads the mmproj (`--mmproj`; service unit passes
+  `/mnt/huge/lina_mmproj.gguf`, pinned). Images ride a turn at the **frame
+  boundary**: `GenerationConfig.image_path` → `<__media__>` marker in the
+  prompt → `mtmd_tokenize` → text/image chunks decoded in one KV pass
+  (M-RoPE positions handled by the mtmd helpers). `chat()/begin_turn()` take
+  an image path; the UI's first image attachment becomes her eyes;
+  transcripts record it as `[image attached: <name>]`. Missing mmproj
+  degrades to text-only. `llama_adapter_tests` 11 checks (live vision turn);
+  `ctest` 10/10, **501 checks total**. Her service runs the vision-capable
+  binary.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -269,14 +281,11 @@ enabled, legacy DBs retired; voice hardened: chunked prompt pass, n_ctx 8192)._
 
 ### Next: Build Phase (in order)
 
-1. **The live swap** — replace the legacy carve + service with ours. Needs the
-   principal's explicit go: stop `lina.service` + `lina-dragoncache.service`,
-   run our carve (`sudo ./build/dragoncache_carve` + `--verify`), run our core
-   with `--dragoncache-pool /mnt/huge/lina_pool`, install + enable the new
-   systemd units, commit/push the milestone (D-044/D-045).
-2. **Vision follow-up** — the mmproj is pinned at `/mnt/huge/lina_mmproj.gguf`
-   and ready; wiring it into the llama adapter (image input through her gate)
-   is a future step — the adapter does not consume it yet.
+1. **A look hand (future)** — a `vision.look`-style tool would need KV replay
+   to inject an image mid-turn; her `browser.screenshot` output already rides
+   a turn through the UI attachment flow today. Design it when she asks for it.
+2. **Season advancement / autonomy watch** — she is still growing; the season
+   evaluator (D-018) governs when winter comes.
 
 ### Open items for the principal
 

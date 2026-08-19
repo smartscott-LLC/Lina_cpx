@@ -34,6 +34,10 @@ struct GenerationConfig {
     // D-041: called each generation step; when it returns true the driver
     // stops (stop button / turn cancellation). Nullopt = never stop.
     std::function<bool()> should_stop;
+    // D-046: path to an image for a vision turn. Empty = text-only. The image
+    // is preprocessed and decoded with the prompt (multimodal batch at the
+    // frame boundary — the KV is built once per turn).
+    std::string image_path;
 };
 
 class HostModelAdapter {
@@ -61,7 +65,10 @@ public:
 // driver, D-007/D-023 — the concrete implementation is not core code)
 class LlamaCppAdapter : public HostModelAdapter {
 public:
-    explicit LlamaCppAdapter(const std::string& model_path);
+    // mmproj_path (D-046): the vision projector GGUF (e.g. mmproj-Qwen2-VL).
+    // Empty = text-only voice.
+    explicit LlamaCppAdapter(const std::string& model_path,
+                             const std::string& mmproj_path = "");
     ~LlamaCppAdapter() override;
 
     LlamaCppAdapter(const LlamaCppAdapter&) = delete;
@@ -122,12 +129,14 @@ private:
 };
 
 // The driver seam (D-033): returns a concrete driver, or nullptr when no
-// driver is compiled into the core. Plug-in drivers register here.
+// driver is compiled into the core. Plug-in drivers register here. mmproj_path
+// (D-046) is the vision projector for the llama voice — empty = text-only.
 std::unique_ptr<HostModelAdapter> make_driver(
     const std::string& model_type,
     const std::string& model_path,
     const std::string& api_endpoint,
-    const std::string& api_key);
+    const std::string& api_key,
+    const std::string& mmproj_path = "");
 
 } // namespace lina::model
 

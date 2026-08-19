@@ -191,7 +191,8 @@ ApprovalDecision LinaCore::request_approval(const ApprovalRequest& request) {
 // ---------------------------------------------------------------------------
 
 void LinaCore::begin_turn(const std::string& user_message,
-                          TurnCallbacks callbacks) {
+                          TurnCallbacks callbacks,
+                          const std::string& image_path) {
     if (turn_active_.load()) {
         if (callbacks.on_error) callbacks.on_error("a turn is already active");
         return;
@@ -208,7 +209,15 @@ void LinaCore::begin_turn(const std::string& user_message,
         std::lock_guard<std::mutex> lock(turn_mutex_);
         turn_callbacks_ = std::move(callbacks);
         turn_stop_ = false;
-        conversation_history_.push_back({"user", user_message});
+        // D-046: the transcript stays honest — the image itself is not text.
+        std::string stored = user_message;
+        if (!image_path.empty()) {
+            std::string base = image_path;
+            const auto slash = base.find_last_of('/');
+            if (slash != std::string::npos) base = base.substr(slash + 1);
+            stored += "\n[image attached: " + base + "]";
+        }
+        conversation_history_.push_back({"user", stored});
     }
     // Window discipline: crossing the boundary opens a fresh window.
     {
@@ -222,8 +231,10 @@ void LinaCore::begin_turn(const std::string& user_message,
     turn_active_ = true;
     emit_telemetry("turn begin");
     if (turn_thread_.joinable()) turn_thread_.join();
-    turn_thread_ =
-        std::thread([this, user_message] { run_turn_loop(user_message); });
+    turn_thread_ = std::thread(
+        [this, user_message, image_path] {
+            run_turn_loop(user_message, image_path);
+        });
 }
 
 void LinaCore::stop_turn() {
@@ -300,7 +311,8 @@ void LinaCore::run_voluntary_turn() {
     finalize_turn(utterance, "");
 }
 
-void LinaCore::run_turn_loop(const std::string& user_message) {
+void LinaCore::run_turn_loop(const std::string& user_message,
+                             const std::string& image_path) {
     std::vector<std::pair<std::string, std::string>> turn_history;
     {
         std::lock_guard<std::mutex> lock(turn_mutex_);
@@ -324,6 +336,7 @@ void LinaCore::run_turn_loop(const std::string& user_message) {
         gen.max_tokens = config_.max_tokens;
         gen.temperature = config_.temperature;
         gen.should_stop = [this] { return turn_stop_.load(); };
+        gen.image_path = image_path; // D-046: the vision turn's image
 
         std::string full;
         model_adapter_->generate_stream(
@@ -648,16 +661,24 @@ tools::ToolResult LinaCore::execute_tool(const tools::ToolRequest& request) {
     return result;
 }
 
-std::string LinaCore::chat(const std::string& user_message) {
+std::string LinaCore::chat(const std::string& user_message,
+                           const std::string& image_path) {
     if (!ready_) return "Error: LINA core not ready";
 
     // 1. Build the system prompt (identity + seasonal context — D-039).
     auto system_prompt = build_system_prompt();
 
-    // 2. Update conversation history.
+    // 2. Update conversation history (the image note keeps transcripts honest).
     {
         std::lock_guard<std::mutex> lock(turn_mutex_);
-        conversation_history_.push_back({"user", user_message});
+        std::string stored = user_message;
+        if (!image_path.empty()) {
+            std::string base = image_path;
+            const auto slash = base.find_last_of('/');
+            if (slash != std::string::npos) base = base.substr(slash + 1);
+            stored += "\n[image attached: " + base + "]";
+        }
+        conversation_history_.push_back({"user", stored});
     }
 
     // 3. Generate raw response from the symbiote driver.
@@ -666,6 +687,7 @@ std::string LinaCore::chat(const std::string& user_message) {
         model::GenerationConfig gen_config;
         gen_config.max_tokens = config_.max_tokens;
         gen_config.temperature = config_.temperature;
+        gen_config.image_path = image_path; // D-046
         std::vector<std::pair<std::string, std::string>> history;
         {
             std::lock_guard<std::mutex> lock(turn_mutex_);

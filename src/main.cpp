@@ -29,6 +29,7 @@ void print_usage(const char* prog_name) {
               << "  --temperature F Temperature (0.0-1.0)\n"
               << "  --season S      Season: spring, summer, fall, winter\n"
               << "  --dragoncache-pool PATH  Attach the DragonCache spoke (the RAM unlock)\n"
+              << "  --mmproj PATH   Vision projector GGUF (her eyes, D-046)\n"
               << "  --help          Show this help\n";
 }
 
@@ -47,6 +48,7 @@ int main(int argc, char* argv[]) {
         {"temperature", required_argument, 0, 0},
         {"season", required_argument, 0, 0},
         {"dragoncache-pool", required_argument, 0, 0},
+        {"mmproj", required_argument, 0, 0},
         {"help", no_argument, 0, 0},
         {0, 0, 0, 0}
     };
@@ -68,6 +70,7 @@ int main(int argc, char* argv[]) {
             else if (opt_name == "season") config.season = optarg;
             else if (opt_name == "dragoncache-pool")
                 config.dragoncache_pool = optarg;
+            else if (opt_name == "mmproj") config.mmproj_path = optarg;
             else if (opt_name == "help") { print_usage(argv[0]); return 0; }
         }
     }
@@ -78,7 +81,7 @@ int main(int argc, char* argv[]) {
         // Attach the symbiote driver through the seam (D-033).
         core.attach_model(lina::model::make_driver(
             config.model_type, config.model_path,
-            config.api_endpoint, config.api_key));
+            config.api_endpoint, config.api_key, config.mmproj_path));
 
         std::cout << core.get_status() << std::endl;
 

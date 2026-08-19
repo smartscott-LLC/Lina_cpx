@@ -30,6 +30,7 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
 #include <QHBoxLayout>
@@ -540,18 +541,35 @@ public:
     void sendMessage(const QString& text) {
         if (text.trimmed().isEmpty() || busy_) return;
 
+        // Capture the attachment set before clearing it.
+        const QStringList attachments = attachments_;
+
         QString full = text;
-        if (!attachments_.isEmpty()) {
-            full = "[Attached: " + attachments_.join(", ") + "]\n" + full;
+        if (!attachments.isEmpty()) {
+            full = "[Attached: " + attachments.join(", ") + "]\n" + full;
         }
         appendBubble("You", esc(full));
         input_->clear();
         attachments_.clear();
         updateAttachmentLabel();
 
+        // D-046: the first image attachment rides this turn as her eyes — the
+        // multimodal prompt decodes it at the frame boundary. Everything else
+        // stays in the text prefix (workspace files, etc.).
+        QString image_path;
+        for (const QString& attachment : attachments) {
+            const QString ext = QFileInfo(attachment).suffix().toLower();
+            if (ext == "png" || ext == "jpg" || ext == "jpeg"
+                || ext == "bmp" || ext == "gif" || ext == "webp") {
+                image_path = attachment;
+                break;
+            }
+        }
+
         setBusy(true);
         // D-041: the open-window turn driver — she processes on her own thread.
-        core_.begin_turn(full.toStdString(), makeTurnCallbacks());
+        core_.begin_turn(full.toStdString(), makeTurnCallbacks(),
+                         image_path.toStdString());
     }
 
     // D-041: the streaming event channel — every callback marshals to the UI

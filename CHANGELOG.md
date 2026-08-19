@@ -11,6 +11,21 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **Her eyes (D-046) — the vision projector wired through her gate**
+  - The voice driver links `libmtmd` (the pinned llama.cpp tree's multimodal
+    runtime, `tools/mtmd/`): mmproj preprocessing + M-RoPE decode helpers.
+  - Images ride a turn at the **frame boundary**: `GenerationConfig.image_path`
+    → the prompt carries the `<__media__>` marker before the user message →
+    `mtmd_tokenize` replaces it with image tokens → batch decode in one KV
+    pass. `LinaCore::chat/begin_turn` accept an image path; the UI's first
+    image attachment becomes her eyes. Transcripts record it honestly as
+    `[image attached: <name>]`.
+  - `--mmproj` CLI + `LinaConfig.mmproj_path`; the service unit passes
+    `/mnt/huge/lina_mmproj.gguf` (pinned on huge pages). Missing mmproj
+    degrades gracefully to a text-only voice.
+  - `llama_adapter_tests` 11 checks (was 9) incl. a live vision turn on a real
+    1×1 PNG; `ctest` 10/10 (501 checks total). Her service runs the
+    vision-capable binary.
 - **Voice driver hardening (2026-08-18, follow-up to the RAM unlock)**
   - Frames longer than `n_batch` (512) aborted llama.cpp
     (`GGML_ASSERT(n_tokens_all <= n_batch)` — caught live when her first real

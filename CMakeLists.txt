@@ -126,8 +126,18 @@ if (LINA_ENABLE_STORAGE)
     endif()
     if (LINA_ENABLE_LLAMA)
         target_compile_definitions(lina_core_lib PUBLIC LINA_ENABLE_LLAMA=1)
-        target_include_directories(lina_core_lib PUBLIC "${LINA_LLAMA_DIR}/include" "${LINA_LLAMA_DIR}/ggml/include")
+        target_include_directories(lina_core_lib PUBLIC
+            "${LINA_LLAMA_DIR}/include" "${LINA_LLAMA_DIR}/ggml/include"
+            "${LINA_LLAMA_DIR}/tools/mtmd")
         target_link_libraries(lina_core_lib PUBLIC ${LLAMA_LIBRARY})
+        # The eyes (D-046): libmtmd — the multimodal runtime (vision projector
+        # preprocessing + M-RoPE decode) from the pinned llama.cpp tree.
+        find_library(MTMD_LIBRARY NAMES mtmd
+            PATHS "${LINA_LLAMA_DIR}/build/bin")
+        if (NOT MTMD_LIBRARY)
+            message(FATAL_ERROR "libmtmd.so not found in ${LINA_LLAMA_DIR}/build/bin")
+        endif()
+        target_link_libraries(lina_core_lib PUBLIC ${MTMD_LIBRARY})
     endif()
 
     add_executable(lina_core src/main.cpp)

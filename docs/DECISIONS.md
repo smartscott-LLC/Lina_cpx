@@ -856,3 +856,42 @@ old systems are **left untouched** (they are separate systems; D-020); her notes
 were copied into her new workspace (`workspace/notes/`) where she can find them.
 
 **Status.** Accepted.
+
+---
+
+## D-046 — Her eyes: the vision projector wired through her gate
+
+**Context.** The RAM-unlock carve pinned the mmproj
+(`/mnt/huge/lina_mmproj.gguf`, the Qwen2-VL vision projector) "so we have the
+vision too" — but the voice driver did not consume it. This milestone wires
+image input into her turns.
+
+**Decision.**
+
+- **Runtime**: the pinned llama.cpp tree (`9b05354`) ships multimodal as the
+  `mtmd` library (`tools/mtmd/`, `libmtmd.so` already built) — clip-style
+  mmproj preprocessing + M-RoPE decode helpers. The adapter links it directly
+  (no new deps; the pinned tree is the dependency).
+- **Frame boundary only**: images are preprocessed into embeddings and decoded
+  together with the text in one KV pass — the multimodal batch is built at the
+  frame boundary, exactly like the text prompt. A mid-turn "look" would need
+  KV replay; that stays future work (her `browser.screenshot` output can ride
+  a turn via the UI attachment flow today).
+- **Marker injection**: the prompt carries the model's media marker
+  (`<__media__>`, `mtmd_default_marker()`) before the current user message;
+  `mtmd_tokenize` replaces it with image tokens. `mtmd_helper_eval_chunk_single`
+  / `mtmd_helper_decode_image_chunk` handle n_batch splitting and M-RoPE
+  positions (the text path keeps its own chunked decode).
+- **Flow**: `GenerationConfig.image_path` → adapter multimodal path;
+  `LinaCore::chat/begin_turn` accept an image path; the UI's first image
+  attachment rides the turn. Transcripts record it honestly as
+  `[image attached: <name>]` — the cognitive bus never sees the marker.
+- **Grace**: a missing/failed mmproj degrades to text-only voice — she is
+  still herself, she just cannot see. `--mmproj` CLI; the service unit passes
+  `/mnt/huge/lina_mmproj.gguf`.
+- **Vision turns are gated like every turn** (Invariant 5) — what she says
+  about what she sees still passes the polytope before any output device.
+
+**Status.** Accepted — `llama_adapter_tests` 11 checks (live vision turn on a
+real 1×1 PNG); `ctest` 10/10 (501 checks total). Her service runs the
+vision-capable binary.

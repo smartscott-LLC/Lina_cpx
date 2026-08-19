@@ -57,6 +57,8 @@ struct LinaConfig {
     int context_budget{8192};  // token budget — the rate limiter (D-041)
     std::string dragoncache_pool; // /mnt/huge/lina_pool (the RAM unlock) —
                                   // empty = spoke disabled
+    std::string mmproj_path;      // the vision projector (D-046) —
+                                  // /mnt/huge/lina_mmproj.gguf; empty = blind
 };
 
 class LinaCore {
@@ -64,8 +66,11 @@ public:
     explicit LinaCore(const LinaConfig& config);
     ~LinaCore();
 
-    // Main chat interface
-    std::string chat(const std::string& user_message);
+    // Main chat interface. image_path (D-046): an image riding this turn —
+    // empty = text-only. The image is decoded into the multimodal prompt at
+    // the frame boundary; the transcript records it honestly.
+    std::string chat(const std::string& user_message,
+                     const std::string& image_path = "");
 
     // Session management
     void begin_session(const std::string& user_id = "");
@@ -122,7 +127,8 @@ public:
         std::function<void(const std::string&)> on_error;
     };
     void begin_turn(const std::string& user_message,
-                    TurnCallbacks callbacks);
+                    TurnCallbacks callbacks,
+                    const std::string& image_path = "");
     void stop_turn();
     bool turn_active() const { return turn_active_; }
     void set_window_ms(int64_t ms);
@@ -161,7 +167,8 @@ private:
 
     void start_window_thread();
     void window_loop();
-    void run_turn_loop(const std::string& user_message);
+    void run_turn_loop(const std::string& user_message,
+                       const std::string& image_path = "");
     void run_voluntary_turn();
     std::string build_turn_frame(
         const std::string& user_message,

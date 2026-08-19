@@ -396,7 +396,32 @@ class HostModelAdapter {
 ```
 
 `GenerationConfig`: `max_tokens 2048`, `temperature 0.7`, `top_p 0.9`, `top_k 40`,
-`stream false`, optional `stream_callback`.
+`stream false`, optional `stream_callback`. Since D-046 it also carries
+`image_path` (empty = text-only turn).
+
+### 5.1a Her eyes (D-046) — the vision projector
+
+`LlamaCppAdapter` links `libmtmd` (the pinned llama.cpp tree's multimodal runtime,
+`tools/mtmd/`) and loads the mmproj (`--mmproj`, service unit passes
+`/mnt/huge/lina_mmproj.gguf` — pinned on huge pages). When `config.image_path`
+is set:
+
+1. The formatted prompt carries the media marker `<__media__>` before the
+   current user message (`mtmd_default_marker()`).
+2. `mtmd_helper_bitmap_init_from_file` decodes the image (stb_image inside mtmd).
+3. `mtmd_tokenize` splits the prompt into text/image chunks, replacing the
+   marker with image tokens.
+4. Chunks decode in order — text via `mtmd_helper_eval_chunk_single` (n_batch
+   splitting, logits on the final prompt token), image via batch-encode +
+   `mtmd_helper_decode_image_chunk` (M-RoPE positions) — one KV pass at the
+   frame boundary.
+5. The sampling loop is unchanged; the multimodal turn is gated like every
+   turn (Invariant 5).
+
+A missing mmproj degrades to text-only voice. Images enter only at the frame
+boundary (mid-turn "looks" would need KV replay — future work; browser
+screenshots can ride a turn via the UI attachment flow today). Transcripts
+record the image honestly as `[image attached: <name>]`.
 
 ### 5.2 Providers Plug In (D-023 / D-035)
 
