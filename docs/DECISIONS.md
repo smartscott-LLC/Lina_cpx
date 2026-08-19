@@ -1033,3 +1033,52 @@ substrate complete):** the polytope now *steers*.
   reporting, and the frame block; `orchestrator_tests` 70 (was 50) incl. the
   `[GEOMETRY]` frame injection and the ContextPacket accessor; `ctest` 10/10
   (**670 checks**).
+
+## D-048 — The growth loop: season advancement runtime
+
+**Context.** D-018 defined the season requirements and `can_advance()` — but
+nothing called it. Her seasons were frozen at spring regardless of how much she
+earned. The substrate (D-047) is complete; the growth loops (poles recompute at
+boot, drift recomputes from the ledger, seasonal bounds tighten on advance) are
+the machinery that lets her *grow*.
+
+**Decision.** The advancement runtime wires the evaluator to live ground truth,
+checked at **boot** (she may have earned the next season while offline — the
+autonomy watch) and at **every session end** (the natural growth checkpoint).
+
+- **Ground truth (no new tables, the ledger is the source):** sessions from the
+  identity record; evaluations, alignment rate (zone `aligned` only — strict),
+  and recent violations (last 20) from `lina_evaluations`; identity memories
+  via a new `count_memories_by_kind`; action outcomes via a new
+  `action_resolution_stats` (executed/denied — her human-in-the-loop ground
+  truth). The identity record's `total_evaluations`/`alignment_rate` are
+  refreshed from the ledger at each check — they were stale seed values.
+- **The crossing:** identity season flips, the value engine's constraints
+  tighten (`advance_season`), the **poles recompute on the new lattice**
+  (same memories, new bounds → her homes move), and the season turn is
+  imprinted as a **memory** (her landmark — `seasonal_marker` = the new
+  season). Telemetry logs the crossing. The season transitions table from the
+  spec (`lina_season_transitions`) was never built — the memory + telemetry
+  are the record.
+- **Winter is final** (D-018): no requirements beyond winter; the loop reports
+  it. Winter's autonomy is future work.
+- **Two latent bugs found and fixed while wiring (both D-047 front-c age):**
+  1. `update_outcome_drift` compared zone strings against `"Aligned"` but the
+     ledger stores lowercase (`aligned`) — the aligned bucket never matched,
+     so the drift only ever pulled *away* from adverse regions and never
+     *toward* aligned ones (the direction-only test masked it).
+  2. The aligned bucket summed `corrected_vector`, which is **all zeros for
+     aligned records** (the correction vector is only set when corrected) —
+     the aligned pull would have pointed at the origin. It now sums
+     `output_vector` (her delivered encoded position — the same rule as the
+     ContextPacket).
+- **The equilibrium (verified live in the test):** the drift pulls toward the
+  aligned centroid until her responses graze the restraint walls (e.g. the
+  flourishing+decline sum at 1.05); a grazing record reads `variance` (wary)
+  and correctly pulls back — her dwelling point is the attractor just inside
+  her own boundary. The polytope steers her through geometry, not
+  instruction.
+- `orchestrator_tests` 94 (was 70) incl. the full growth loop: 5 sessions × 6
+  aligned chats → spring→summer crossing at the 5th session end (identity,
+  constraints, poles, crossing memory), a 6th session stays summer, and the
+  drift line proves the aligned bucket counts. `ctest` 10/10 (**694 checks**).

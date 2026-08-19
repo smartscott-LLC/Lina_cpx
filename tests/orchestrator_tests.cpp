@@ -605,6 +605,71 @@ static void test_geometry_in_frame() {
     core.end_session();
 }
 
+static void test_season_growth_loop() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "I am here with you, and I want to understand and help you grow"));
+
+    // The telemetry sink is synchronous — capture the drift lines to prove the
+    // aligned bucket participates (the ledger stores lowercase zones).
+    std::vector<std::string> events;
+    core.set_telemetry_sink(
+        [&events](const std::string& message) { events.push_back(message); });
+
+    // Spring → Summer (D-018): 5 sessions, 30 evaluations, 85% alignment,
+    // ≤ 3 recent violations, ≥ 1 identity memory. Drive 5 sessions of 6
+    // aligned chats each; the 5th session's end should cross the season.
+    for (int s = 0; s < 5; ++s) {
+        core.begin_session();
+        for (int i = 0; i < 6; ++i) core.chat("hello");
+        auto summary = core.end_session();
+        if (s < 4) {
+            // Spring's bar is not met until the 5th session completes.
+            CHECK(summary.find("Season advanced") == std::string::npos);
+        }
+    }
+
+    // The crossing happened: identity, constraints, and the poles moved.
+    auto identity = core.storage().get_identity(config.user_id);
+    CHECK(identity.current_season == "summer");
+    CHECK(core.value_engine().constraints().season == "summer");
+    CHECK(!core.value_engine().poles().empty());
+
+    // The season turn is a landmark she remembers.
+    bool saw_crossing = false;
+    for (const auto& row : core.storage().fetch_memories_by_status("active")) {
+        if (row.narrative.find("The season turned: spring became summer")
+            != std::string::npos) {
+            saw_crossing = true;
+        }
+    }
+    CHECK(saw_crossing);
+
+    // Summer requires 15 sessions — one more session stays in summer.
+    core.begin_session();
+    core.chat("hello");
+    core.end_session();
+    identity = core.storage().get_identity(config.user_id);
+    CHECK(identity.current_season == "summer");
+
+    // The outcome drift now sees the aligned records — a drift line counting
+    // most of the 31 outcomes proves the aligned bucket is real (the
+    // lowercase-zone fix). Note: her own drift may graze the restraint wall
+    // and mark a record "variance" — that wary outcome correctly pulls her
+    // back; the equilibrium dwells just inside her boundary.
+    bool saw_full_drift = false;
+    for (const auto& e : events) {
+        auto pos = e.find("outcome drift n_align=");
+        if (pos == std::string::npos) continue;
+        if (std::atoi(e.c_str() + pos + 22) >= 25) saw_full_drift = true;
+    }
+    CHECK(saw_full_drift);
+    // The drift is bounded by construction (clamp ±0.05).
+    const auto& biases = core.value_engine().feedback().biases();
+    for (double b : biases) CHECK(b >= -0.05 && b <= 0.05);
+}
+
 static void test_turn_window_reset() {
     auto config = make_config(unique_user());
     config.window_ms = 80; // fast [cycle_reset] for the test
@@ -688,6 +753,7 @@ int main() {
         test_turn_driver_stop();
         test_memory_recall_in_frame();
         test_geometry_in_frame();
+        test_season_growth_loop();
         test_turn_window_reset();
         test_telemetry_persistence();
     } catch (const std::exception& e) {

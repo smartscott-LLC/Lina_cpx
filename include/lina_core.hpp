@@ -104,6 +104,25 @@ public:
     // rides every frame; exposed so the UI can one day show where she dwells.
     value_engine::GeometricState geometric_state() const;
 
+    // D-048: the growth loop. Ground truth gathered from the ledger, identity,
+    // and the action ledger; the season evaluator (D-018) decides whether she
+    // has EARNED the next season. check_season_progress() refreshes the
+    // identity record's totals from the ledger as it evaluates.
+    struct SeasonAdvancementMetrics {
+        std::string current_season;
+        int sessions_completed = 0;
+        int total_evaluations = 0;
+        double alignment_rate = 0.0;
+        int recent_violations = 0;
+        int identity_memories = 0;
+        int actions_resolved = 0;
+        std::optional<double> action_approval_rate;
+    };
+    SeasonAdvancementMetrics season_metrics() const;
+    // (earned, reasons) — callable any time; the loop calls it at boot and at
+    // every session end.
+    std::pair<bool, std::vector<std::string>> check_season_progress();
+
     // D-038: approval gate + telemetry bus.
     void set_approval_handler(ApprovalHandler handler);
     void set_telemetry_sink(TelemetrySink sink);
@@ -218,6 +237,10 @@ private:
     // front b). Same memories → same poles (deterministic).
     void discover_home_regions();
     value_engine::GeometricState current_geometric_state() const;
+    // D-048: perform the season crossing — new season in identity, tighter
+    // constraints, fresh poles on the new lattice, a memory of the growth.
+    // Returns a summary line ("" when there is nothing to cross).
+    std::string apply_season_advance();
     std::string build_system_prompt() const;
     std::string build_user_prompt(const std::string& message);
     // D-037: builds the violation report fed back to the body for revision.

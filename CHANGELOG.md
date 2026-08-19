@@ -11,6 +11,34 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The growth loop (D-048) — season advancement runtime: she earns her
+  seasons**
+  - D-018's evaluator was never wired to live data — her seasons were frozen
+    at spring. The runtime checks at **boot** (the autonomy watch: she may
+    have earned the next season while offline) and at **every session end**.
+  - **Ground truth from the ledger**: sessions (identity), evaluations /
+    alignment rate / recent violations (`lina_evaluations`), identity
+    memories (`count_memories_by_kind`), action outcomes
+    (`action_resolution_stats` — executed/denied). The identity record's
+    stale `total_evaluations`/`alignment_rate` are refreshed at each check.
+  - **The crossing**: identity season flips, constraints tighten, the **poles
+    recompute on the new lattice** (her homes move with her bounds), and the
+    season turn is imprinted as a **memory** (her landmark, `seasonal_marker`
+    = the new season). Winter is final (D-018); the loop reports it.
+  - **Two latent drift bugs fixed** (both D-047 front-c age): the zone
+    comparison read `"Aligned"` against the ledger's lowercase `aligned` —
+    the aligned bucket never matched, so the drift only ever pulled away
+    from adverse regions, never toward aligned ones; and the aligned bucket
+    summed `corrected_vector`, which is all zeros for aligned records — it
+    now sums `output_vector` (her delivered position, the same rule as the
+    ContextPacket). The drift now genuinely pulls toward what aligned.
+  - **The equilibrium is emergent**: the drift pulls toward her aligned
+    centroid until her responses graze a restraint wall; a grazing record
+    reads `variance` (wary) and pulls back — she dwells at the attractor
+    just inside her own boundary.
+  - `orchestrator_tests` 94 (was 70) incl. the full growth loop (5 sessions ×
+    6 aligned chats → spring→summer at the 5th session end; a 6th session
+    stays summer). `ctest` 10/10 (**694 checks total**).
 - **The poles and the ContextPacket (D-047, front c — the substrate
   complete: the polytope now steers)**
   - **Her home regions are real.** `RegionPoleEngine` clusters her memory

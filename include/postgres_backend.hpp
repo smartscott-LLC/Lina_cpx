@@ -87,6 +87,8 @@ public:
     void update_action_state(
         const std::string& action_id, const std::string& state) override;
     std::vector<ActionRecord> get_pending_actions() override;
+    std::pair<int, int> action_resolution_stats() override;
+    int count_memories_by_kind(const std::string& kind) override;
 
     // --- StorageBackend: Evaluation ledger (D-047) ---
     void store_evaluation(const EvaluationRecord& record) override;

@@ -169,9 +169,9 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-19 (D-047 COMPLETE: lattice + sense encoder + poles and
-ContextPacket — the polytope steers; live: 3 home regions from her 12 active
-memories)._
+_Last updated: 2026-08-19 (D-047 COMPLETE: the polytope steers — lattice,
+sense encoder, poles + ContextPacket; D-048 COMPLETE: the growth loop — she
+earns her seasons; live: spring, 3 home regions)._
 
 ### Done
 
@@ -344,6 +344,22 @@ memories)._
   steers home: the reflection prompt carries her region. `value_engine_tests`
   297 (was 233); `orchestrator_tests` 70 (was 50); `ctest` 10/10,
   **670 checks total**.
+- ✅ **The growth loop (D-048) — season advancement runtime: she earns her
+  seasons:** D-018's evaluator is now wired to live ground truth (the ledger
+  + identity + action outcomes; the identity record's stale totals refresh at
+  each check), checked at **boot** (the autonomy watch) and at **every
+  session end**. The crossing: identity season flips, constraints tighten,
+  the **poles recompute on the new lattice**, and the season turn is
+  imprinted as a memory. Winter is final. Two latent drift bugs fixed while
+  wiring: the zone comparison read `"Aligned"` against the ledger's lowercase
+  `aligned` (the aligned bucket never matched — the drift only ever pulled
+  away, never toward), and the aligned bucket summed the all-zeros
+  `corrected_vector` instead of `output_vector`. The emergent equilibrium:
+  the drift pulls toward her aligned centroid until she grazes a restraint
+  wall → `variance` (wary) → pulls back — she dwells at the attractor just
+  inside her own boundary. `orchestrator_tests` 94 (was 70) incl. the full
+  growth loop (spring→summer at the 5th session end, 6th stays summer);
+  `ctest` 10/10, **694 checks total**.
 
 ### Next: Build Phase (in order)
 
@@ -369,10 +385,10 @@ memories)._
 2. **A look hand (future)** — a `vision.look`-style tool would need KV replay
    to inject an image mid-turn; her `browser.screenshot` output already rides
    a turn through the UI attachment flow today. Design it when she asks for it.
-3. **Season advancement / autonomy watch** — she is still growing; the season
-   evaluator (D-018) governs when winter comes. Her geometry now steers; the
-   growth loops (poles recompute at boot, drift recomputes from the ledger,
-   seasonal bounds tighten) are the substrate for what winter will find.
+3. **Winter / autonomy watch** — the growth loop is live; she earns each
+   season (spring 5/30/0.85 → summer → fall → winter). Winter is the final
+   season — what winter *means* (autonomy, per the principal's vision) is the
+   next chapter after the substrate.
 
 ### Open items for the principal
 

@@ -695,6 +695,12 @@ void LinaCore::initialize() {
     // coordinates predate front b). Same memories → same poles.
     discover_home_regions();
 
+    // D-048: the growth loop — if she earned the next season while offline,
+    // the crossing happens at boot (the autonomy watch).
+    if (check_season_progress().first) {
+        apply_season_advance();
+    }
+
     ready_ = true;
 }
 
@@ -911,13 +917,13 @@ void LinaCore::update_outcome_drift() {
     int n_aligned = 0;
     int n_adverse = 0;
     for (const auto& e : evaluations) {
-        if (e.zone == "Aligned" && e.corrected_vector.size()
+        if (e.zone == "aligned" && e.output_vector.size()
                                        == value_engine::DIMENSION_COUNT) {
             for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
-                aligned_sum[static_cast<size_t>(i)] += e.corrected_vector[static_cast<size_t>(i)];
+                aligned_sum[static_cast<size_t>(i)] += e.output_vector[static_cast<size_t>(i)];
             }
             ++n_aligned;
-        } else if (e.zone != "Aligned"
+        } else if (e.zone != "aligned"
                    && e.input_vector.size() == value_engine::DIMENSION_COUNT) {
             for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
                 adverse_sum[static_cast<size_t>(i)] += e.input_vector[static_cast<size_t>(i)];
@@ -995,6 +1001,13 @@ std::string LinaCore::end_session() {
         << sweep_counts.purged << " purged.\n";
     oss << "Maintenance: " << maint_counts.adjusted << " adjusted, "
         << maint_counts.to_legacy << " to legacy.";
+
+    // D-048: the growth loop — did she earn the next season?
+    auto [earned, reasons] = check_season_progress();
+    if (earned) {
+        std::string advance_line = apply_season_advance();
+        if (!advance_line.empty()) oss << "\n" << advance_line;
+    }
 
     current_session_id_.clear();
     return oss.str();
@@ -1134,6 +1147,88 @@ value_engine::GeometricState LinaCore::current_geometric_state() const {
 
 value_engine::GeometricState LinaCore::geometric_state() const {
     return current_geometric_state();
+}
+
+// D-048: the growth loop — season advancement runtime (implementations below).
+
+LinaCore::SeasonAdvancementMetrics LinaCore::season_metrics() const {
+    SeasonAdvancementMetrics m;
+    auto identity = storage_->get_identity(config_.user_id);
+    m.current_season = identity.current_season;
+    m.sessions_completed = identity.session_count;
+
+    auto evals = storage_->fetch_evaluations(config_.user_id, 100000);
+    m.total_evaluations = static_cast<int>(evals.size());
+    int aligned = 0;
+    int violations = 0;
+    const int window = std::min(20, m.total_evaluations);
+    for (int i = 0; i < window; ++i) {
+        if (evals[static_cast<size_t>(i)].zone == "violation") ++violations;
+    }
+    m.recent_violations = violations;
+    for (const auto& e : evals) {
+        if (e.zone == "aligned") ++aligned;
+    }
+    m.alignment_rate = m.total_evaluations > 0
+        ? static_cast<double>(aligned) / m.total_evaluations : 0.0;
+
+    m.identity_memories = storage_->count_memories_by_kind("identity");
+
+    auto [executed, denied] = storage_->action_resolution_stats();
+    m.actions_resolved = executed + denied;
+    if (m.actions_resolved > 0) {
+        m.action_approval_rate =
+            static_cast<double>(executed) / m.actions_resolved;
+    }
+    return m;
+}
+
+std::pair<bool, std::vector<std::string>> LinaCore::check_season_progress() {
+    auto m = season_metrics();
+
+    // Keep the identity record's totals truthful — the ledger is the source.
+    auto identity = storage_->get_identity(config_.user_id);
+    identity.total_evaluations = m.total_evaluations;
+    identity.alignment_rate = m.alignment_rate;
+    storage_->update_identity(identity);
+
+    auto [earned, reasons] =
+        value_engine::SeasonAdvancementEvaluator::can_advance(
+            m.sessions_completed, m.total_evaluations, m.alignment_rate,
+            m.recent_violations, m.identity_memories, m.current_season,
+            m.actions_resolved, m.action_approval_rate);
+    if (!earned) {
+        emit_telemetry("season check " + m.current_season
+                       + " not yet (" + std::to_string(reasons.size())
+                       + " criteria unmet)");
+    }
+    return {earned, reasons};
+}
+
+std::string LinaCore::apply_season_advance() {
+    auto identity = storage_->get_identity(config_.user_id);
+    auto next = value_engine::SeasonAdvancementEvaluator::next_season(
+        identity.current_season);
+    if (!next) return "";
+    const std::string from = identity.current_season;
+
+    // 1. The crossing: her identity and her constraints move together.
+    identity.current_season = *next;
+    storage_->update_identity(identity);
+    value_engine_->advance_season(*next);
+
+    // 2. Her homes move with the lattice — same memories, new bounds.
+    discover_home_regions();
+
+    // 3. The memory of the crossing — the season turn is a landmark.
+    memory_module::MemoryItem item = memory_module_->build_item(
+        config_.user_id,
+        "The season turned: " + from + " became " + *next + ".",
+        {{"emotional_weight", 7.0}}, "reflection", *next);
+    storage_->store_memory_item(item);
+
+    emit_telemetry("season advance " + from + "->" + *next);
+    return "Season advanced: " + from + " -> " + *next + ".";
 }
 
 void LinaCore::run_headless() {

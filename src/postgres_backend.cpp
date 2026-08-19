@@ -767,6 +767,35 @@ std::vector<ActionRecord> PostgresBackend::get_pending_actions() {
     return actions;
 }
 
+std::pair<int, int> PostgresBackend::action_resolution_stats() {
+    auto res = execute_query(
+        "SELECT state, COUNT(*) FROM lina_actions "
+        "WHERE state IN ('executed', 'denied') GROUP BY state",
+        {});
+    int executed = 0;
+    int denied = 0;
+    int n = PQntuples(res);
+    for (int i = 0; i < n; ++i) {
+        const std::string state = PQgetvalue(res, i, 0);
+        const int count = std::stoi(PQgetvalue(res, i, 1));
+        if (state == "executed") executed = count;
+        else if (state == "denied") denied = count;
+    }
+    PQclear(res);
+    return {executed, denied};
+}
+
+int PostgresBackend::count_memories_by_kind(const std::string& kind) {
+    auto res = execute_query(
+        "SELECT COUNT(*) FROM lina_memory_items WHERE kind = $1", {kind});
+    int count = 0;
+    if (PQntuples(res) > 0) {
+        count = std::stoi(PQgetvalue(res, 0, 0));
+    }
+    PQclear(res);
+    return count;
+}
+
 // ---------------------------------------------------------------------------
 // Evaluation ledger (D-047) — the outcomes her drift learns from
 // ---------------------------------------------------------------------------

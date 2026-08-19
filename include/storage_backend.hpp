@@ -144,6 +144,10 @@ public:
     virtual void update_action_state(
         const std::string& action_id, const std::string& state) = 0;
     virtual std::vector<ActionRecord> get_pending_actions() = 0;
+    // D-048: the growth loop's action ground truth — (executed, denied).
+    // Her season advancement wants real human-in-the-loop outcomes.
+    virtual std::pair<int, int> action_resolution_stats() = 0;
+    virtual int count_memories_by_kind(const std::string& kind) = 0;
 
     // D-047: the evaluation ledger — outcomes, persisted.
     virtual void store_evaluation(const EvaluationRecord& record) = 0;

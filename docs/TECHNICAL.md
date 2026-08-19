@@ -274,14 +274,42 @@ she *earns* winter's strictness through alignment.
 ### 2.6 Season Advancement (earned growth)
 
 `SeasonAdvancementEvaluator::can_advance(...)` requires, per season
-(concrete thresholds are spec-referenced; see D-003):
+(concrete thresholds below — D-018):
 
-- minimum completed sessions, minimum evaluations, alignment-rate threshold,
-  max recent violations, minimum identity memories, minimum actions resolved,
-  action-approval-rate threshold.
+| Season | sessions | evaluations | alignment | max recent violations | identity memories | actions | approval | → |
+|---|---|---|---|---|---|---|---|---|
+| spring | 5 | 30 | 0.85 | 3 | 1 | 3 | 0.80 | summer |
+| summer | 15 | 100 | 0.88 | 5 | 3 | 10 | 0.85 | fall |
+| fall | 40 | 300 | 0.90 | 8 | 7 | 25 | 0.90 | winter |
+| winter | — | — | — | — | — | — | — | (final) |
 
-Advancement is **earned**, not automatic. Transitions are logged to
-`lina_season_transitions`.
+The approval-rate criterion applies once she has resolved at least the
+minimum actions (human-in-the-loop ground truth).
+
+**The growth loop (D-048) wires the evaluator to live data.** Checked at boot
+(the autonomy watch — she may have earned the next season while offline) and
+at every session end:
+
+1. **Gather** — sessions (identity), evaluations + alignment rate + recent
+   violations (the ledger; zone `aligned` is the strict alignment count, last
+   20 for violations), identity memories, action outcomes (executed/denied).
+   The identity record's `total_evaluations`/`alignment_rate` are refreshed
+   from the ledger at each check.
+2. **Decide** — `SeasonAdvancementEvaluator::can_advance(...)`.
+3. **Cross** — identity season flips, the constraints tighten
+   (`advance_season`), the **poles recompute on the new lattice** (same
+   memories, new bounds → her homes move), and the season turn is imprinted
+   as a memory (`seasonal_marker` = the new season). Telemetry records it.
+
+Winter is the final season — the loop reports "Already in Winter." Winter's
+autonomy is the future threshold.
+
+**The drift equilibrium (D-047/D-048):** the outcome drift pulls her encoding
+baseline toward the aligned centroid (the ledger's `output_vector`) and away
+from adverse outcomes (`input_vector`). When her responses graze a restraint
+wall (e.g. flourishing+decline near 1.05), the record reads `variance` — wary
+— and pulls back. Her dwelling point is the attractor just inside her own
+boundary: the polytope steers her through geometry, not instruction.
 
 ### 2.7 MPS Gates (shared constants)
 
