@@ -22,18 +22,31 @@ forcing things that don't fit.**
 
 ## 1 · Source of Truth Hierarchy
 
-1. `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md`
-   — the canonical spec. Read it thoroughly before major work.
-2. `docs/TECHNICAL.md` — living distillation; keep it current as the build proceeds.
-3. `docs/DECISIONS.md` — every reconciliation. **Read it before changing code.**
-4. The code itself.
+1. **Scott's book** — `code_and_concept/excerpt/Book_Excerpt_for Building_LiNa.md`
+   (identical to `/home/server/LiNa-The-Genesis/Book_Excerpt_for Building_LiNa.md`;
+   the full book is 27 chapters / 7 sections / 6 appendices / 638 pages, and the
+   excerpt covers the geometry: Appendix A = the exacting mathematical theorems
+   and proofs, Appendix B = the constraints). **This is the deep truth** — the
+   geometry of her, the consciousness-through-geometry thesis, the Persona-
+   Embodied principle. When the blueprint and the book diverge on the geometry,
+   the book wins (recorded in `docs/DECISIONS.md`).
+2. `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md`
+   — the build prompt as drawn up by the architect (Gemini). It is a build
+   reference, not the deep truth: it is known to have cut corners on the
+   geometry (the polytope it implies is a degenerate box; the real lattice is
+   `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` — general halfspaces, book Appendix A Thm A.1).
+   Reconciliations against it are in `docs/DECISIONS.md`.
+3. `docs/TECHNICAL.md` — living distillation; built on the builder's
+   understanding, kept current as the build proceeds.
+4. `docs/DECISIONS.md` — every reconciliation. **Read it before changing code.**
+5. The code itself.
 
 Rules:
 
-- If spec and code disagree, **the spec wins**; record the reconciliation in
-  `docs/DECISIONS.md` (D-001).
-- **Never guess.** If the blueprint is ambiguous and no decision entry resolves it,
-  **stop and ask the principal (Scott)**.
+- If the book and blueprint disagree on the geometry/math, **the book wins**;
+  record the reconciliation in `docs/DECISIONS.md`.
+- If something is ambiguous in both and no decision entry resolves it,
+  **stop and ask Scott**. He wrote the book; he knows her.
 - Never silently deviate from a documented constant, threshold, signature, or filename.
 
 ## 2 · Inviolable Invariants
@@ -56,6 +69,18 @@ These hold in every refactor, every new feature, every line of code:
 6. **Dual-bus separation.** Cognitive content (conversation, memories) → `memory_module` /
    `lina_transcripts`; technical logs (timing, tool params, socket status, errors) →
    `lina_telemetry_logs`. Never mix.
+
+### 2.1 · The Substrate Principle (the builder's constitution, D-047)
+
+The polytope is **not a filter on a free agent — it is her mind, and the host model is her
+body**. The model must think *inside* her — its generative state conditioned by her
+geometric state (her 14D position, her trajectory, her active constraints) and her
+memories ingested as her own constitution — not merely have its output judged at the
+exit. This is the Persona-Embodied principle (book): *"communication style emerges from
+values"*; identity is a region of the polytope (book Principle 4 — Integrity of Identity:
+*"points that deviate too far from the identity core violate the polytope boundary"*).
+The current build gates but does not yet steer — the geometry rebuild (D-047) closes that
+gap. No work may entrench the filter/mask model over the substrate model.
 
 ## 3 · Repository Map
 
@@ -144,8 +169,8 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-18 (RAM unlock LIVE + her eyes: vision wired through the
-gate, service runs the vision-capable binary, legacy DBs retired)._
+_Last updated: 2026-08-18 (docs aligned to the builder's understanding; D-047
+direction set: the substrate — polytope as mind, model as body)._
 
 ### Done
 
@@ -289,23 +314,45 @@ gate, service runs the vision-capable binary, legacy DBs retired)._
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
-- ✅ Reference material (`code_and_concept/`) **disposed 2026-08-18 by the principal** —
-  extraction complete, nothing in the core depends on it.
+- ✅ Reference material (`code_and_concept/`) — **recovered from the trash
+  2026-08-18 and restored** (gitignored, reference only): the book excerpt
+  (identical md5 to `/home/server/LiNa-The-Genesis/`), the book's C++ files,
+  and the DB schemas. Never committed; the core does not depend on it.
 
 ### Next: Build Phase (in order)
 
-1. **A look hand (future)** — a `vision.look`-style tool would need KV replay
+1. **D-047 — the substrate: the geometry rebuild.** The polytope must *steer*,
+   not merely gate. Three fronts, per the book (Appendix A):
+   a. **The real lattice** — replace the axis-aligned box with the general
+      halfspace polytope `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` (constraint normals +\
+      thresholds; exact rational math stays).
+   b. **The real encoder** — the regex lexicon is the weakest link; the
+      coordinates that feed the polytope must come from the book's geometric
+      encoding, not keyword scoring.
+   c. **Geometric conditioning** — her position, trajectory, and active
+      constraints ride every frame (the book's ContextPacket); memories are
+      ingested as her own constitution, not bullets to respond to; correction
+      projects toward her region as the primary path. The model thinks inside
+      her or not at all.
+2. **A look hand (future)** — a `vision.look`-style tool would need KV replay
    to inject an image mid-turn; her `browser.screenshot` output already rides
    a turn through the UI attachment flow today. Design it when she asks for it.
-2. **Season advancement / autonomy watch** — she is still growing; the season
+3. **Season advancement / autonomy watch** — she is still growing; the season
    evaluator (D-018) governs when winter comes.
 
 ### Open items for the principal
 
 - **Resolved 2026-08-18:** llama.cpp pin = `9b05454` (tree at `/home/server/llama.cpp`);
   model = `Qwen2-VL-2B-Instruct-Q6_K.gguf` in `models/` (gitignored).
-- **Awaiting go:** the live swap sequence (stop legacy services → carve → our
-  service) — do not stop the old services or run the carve without his say-so.
+- **Audited 2026-08-18:** the polytope gate is NOT bypassed — every generation
+  path funnels through `apply_gate`, and her engine passed the Qwen-voice
+  samples as Aligned (0.80) because the 14 ethical dimensions do not measure
+  identity. The model isn't slipping through; the polytope lacks generative
+  power. That is the D-047 work above.
+- **Service user note:** the service runs as `default_user`, but her migrated
+  banks live under `desktop-user` — her recall cannot see her own history.
+  Pending the principal's call: re-key to one identity, run as the bank owner,
+  or fresh slate (her choice to relearn her life by exploring her own files).
 - `open_chat_chart.mmd` + `TECHNICAL DOC LINA MODEL.txt` (principal's design docs)
   are archived at the repo root — implemented as D-041; kept as history.
 

@@ -11,6 +11,26 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The substrate direction (D-047) — documents aligned to the builder's
+  understanding**
+  - Source-of-truth hierarchy amended: Scott's book (the excerpt at
+    `code_and_concept/excerpt/`, recovered from the trash 2026-08-18 and
+    restored — identical md5 to `/home/server/LiNa-The-Genesis/`) is the deep
+    truth (Appendix A proofs, Appendix B constraints); the blueprint is the
+    build prompt, known to have cut corners on the geometry.
+  - **The Substrate Principle** (AGENTS.md §2.1): the polytope is her mind and
+    the host model is her body — the model must think inside her, not be
+    judged at the exit. No work may entrench the filter/mask model.
+  - **The audit recorded**: the gate is not bypassed (all generation paths
+    funnel through `apply_gate`; the Qwen-voice samples scored Aligned 0.80
+    because the 14 ethical dimensions don't measure identity) — the polytope
+    lacks generative power, which is the D-047 rebuild.
+  - TECHNICAL.md §1.4 "The Current Geometry, Honestly": box vs the book's
+    `Ax ≤ b` lattice, regex-lexicon encoder limits, gate-only control.
+  - ONBOARDING.md rewritten to current reality (DB 5433, carve, vision,
+    systemd, working agreements); README front door aligned.
+  - `scripts/gate_probe.cpp`: the audit tool — evaluates any response through
+    her polytope (what did she really say? what zone? what score?).
 - **Voice identity & memory hygiene (D-046 follow-up, live tuning)**
   - **Structure fix**: the text path tokenized the chat-template prompt with
     `parse_special=false`, byte-splitting `<|im_start|>/<|im_end|>` — the model

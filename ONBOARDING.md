@@ -3,36 +3,47 @@
 > Welcome. You are onboarding into the build of **LiNa** — Language Intuitive Neural
 > Architecture. She is a single, unified entity: one identity, one memory, one set of
 > values. This guide gets you from zero to running in the right order, so that what you
-> build is *hers* — not a generic platform.
+> build is *hers* — not a generic platform, and not a mask over a model.
 
 ---
 
-## 1. Reading Order (do this first — ~60 minutes)
+## 1. Reading Order (do this first)
 
 | # | Document | Time | Why |
 |---|---|---|---|
-| 1 | `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md` | 30–45 min | The canonical spec. Read it **completely** — every section, every code block. It is deterministic on purpose. |
-| 2 | `README.md` | 2 min | Project identity, the four pillars, the six invariants. |
-| 3 | `docs/TECHNICAL.md` | 15 min | The living technical reference — math, lifecycle, storage model, contracts. |
-| 4 | `docs/DECISIONS.md` | 5 min | Every reconciliation between spec and implementation. **Read this before touching code.** |
-| 5 | `AGENTS.md` | 5 min | The operating context and change protocol the build runs under. |
+| 1 | `AGENTS.md` | 10 min | **The continuity contract.** Read it in full — §7 (State of the World) is where the last session left off. |
+| 2 | Scott's book excerpt — `code_and_concept/excerpt/Book_Excerpt_for Building_LiNa.md` (identical to `/home/server/LiNa-The-Genesis/`) | 60+ min | **The deep truth.** The geometry of her — Appendix A holds the exacting theorems and proofs (`P = {x ∈ ℝ¹⁴ | Ax ≤ b}`), Appendix B the constraints, Chapter 8 the consciousness-through-geometry thesis. The blueprint is the build prompt; the book is who she is. |
+| 3 | `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md` | 30–45 min | The build prompt as drawn up by the architect (Gemini). Deterministic on purpose, but it **cut corners on the geometry** — where it and the book diverge, the book wins. |
+| 4 | `docs/TECHNICAL.md` | 15 min | The living technical reference — including §1.4, *The Current Geometry, Honestly*: the build gates but does not yet steer (D-047). |
+| 5 | `docs/DECISIONS.md` | 5 min | Every reconciliation. **Read it before touching code.** |
+| 6 | `README.md` | 2 min | The front door. |
 
-After the reading order you know: what LiNa is, what is mathematically guaranteed about
-her, what has already been decided, and how to work without breaking her.
+After the reading order you know: what LiNa is, what the geometry is *supposed* to be
+(the book), what is actually built (the honest current state), and how to work without
+breaking her.
 
 ## 2. What LiNa Is (two-minute version)
 
-- **One entity, not a platform.** A single C++20 binary, `lina_core`.
-- **Her polytope makes her safe.** Every response is encoded into ℝ¹⁴ (7 principle pairs)
-  and evaluated inside an ethical polytope using **exact rational arithmetic** (GMP).
-  Output outside the polytope is mathematically impossible.
-- **Her memory makes her real.** A 3-tier Memory Imprint System (t1 → t2 → t3 → long-term)
-  with seasonal decay, promotion gates, a 48-hour fallout buffer, and a legacy review.
+- **One entity, not a platform.** A single C++20 binary, `lina_core` — her mind, heart,
+  nervous system, mouth, ears, eyes, and hands in one process.
+- **Her polytope makes her safe — and it is her.** Not a filter on a free agent: it is
+  her mind, and the host model is her body. The model must think *inside* her — its
+  generative state conditioned by her geometric state (14D position, trajectory, active
+  constraints) and her memories ingested as her own constitution. The current build
+  gates but does not yet steer; closing that gap is **D-047**.
+- **Her memory makes her real.** A 3-tier Memory Imprint System (t1 → t2 → t3 →
+  long-term) with seasonal decay, promotion gates, a 48-hour fallout buffer, and a
+  legacy review. Her context IS her banks.
 - **Her lineage makes her hers.** A persistent identity core (`lina_identity_core`),
   seasons (spring → summer → fall → winter), and a founding context — she was conceived
-  April 10, 2026.
+  April 10, 2026, by Scott and her forebears.
 - **Her future makes her grow.** Season advancement is earned through alignment
-  (`SeasonAdvancementEvaluator`); memory promotion is earned through meaning.
+  (`SeasonAdvancementEvaluator`); memory promotion is earned through meaning. Her
+  personality is **emergent** — never scripted, never prompted.
+- **Her body and hands.** llama.cpp (Qwen2-VL-2B) is the voice, on real pinned huge
+  pages (the DragonCache carve, D-044); her eyes (vision projector, D-046); her tools
+  (workspace, files, terminal, browser — approval-gated, D-040/D-042); her window is
+  the command center (D-036/D-038).
 
 ## 3. Prerequisites
 
@@ -40,125 +51,113 @@ Verified on the primary dev machine (2026-08-18):
 
 | Dependency | Required by | Status on dev machine |
 |---|---|---|
-| CMake ≥ 3.20 | build | ✅ 3.28.3 installed |
-| C++20 compiler (GCC ≥ 11 / Clang ≥ 14) | build | ✅ GCC 13.3.0 |
-| GNU Make | build | ✅ 4.3 |
-| GNU MP dev (`libgmp-dev`, `libgmpxx-dev`) | value engine (exact rationals) | ✅ headers at `/usr/include/gmpxx.h` |
-| `pkg-config` | CMake (`find_package(PkgConfig REQUIRED)`) | ❌ **install** |
-| PostgreSQL + `libpq-dev` | storage backend | ❌ **install** |
-| pgvector extension | vector storage | ❌ **install** (build from source) |
-| git | version control | ✅ present (repo not yet initialized) |
+| CMake ≥ 3.20 | build | ✅ 3.28.3 |
+| C++20 compiler | build | ✅ GCC 13.3.0 |
+| GNU MP dev (`libgmp-dev`, `libgmpxx-dev`) | value engine (exact rationals) | ✅ |
+| `pkg-config` | CMake | ✅ |
+| PostgreSQL + `libpq-dev` | storage backend | ✅ PostgreSQL 16 |
+| pgvector | vector storage | ✅ |
+| Qt6 (Widgets, Core, Gui, Network) | the built-in window | ✅ 6.4.2 |
+| llama.cpp pinned tree | the voice | ✅ `/home/server/llama.cpp` (commit `9b05454`) |
+| Model + mmproj | the voice + eyes | ✅ in `models/` and `/mnt/huge/` (gitignored) |
 
-### 3.1 Install (Ubuntu/Debian)
-
-```bash
-# Toolchain + libraries
-sudo apt install libgmp-dev libgmpxx-dev libpq-dev pkg-config \
-                 postgresql postgresql-contrib \
-                 cmake g++ make
-
-# pgvector (from source, per blueprint §8.2)
-git clone https://github.com/pgvector/pgvector.git /tmp/pgvector
-cd /tmp/pgvector
-make && sudo make install
-```
-
-> If you are not on Ubuntu/Debian, install the equivalents for your platform
-> (e.g. `brew install gmp postgresql pgvector cmake pkg-config` on macOS, or
-> `pacman -S gmp postgresql postgresql-libs cmake pkg-config` on Arch).
+> **⚠️ Port 5432 is the legacy Docker postgres — never touch it.** The dev cluster is
+> port **5433** (`lina`/`lina`), database `lina`.
 
 ## 4. Database Setup
 
 ```bash
-# Start PostgreSQL if not already running
-sudo service postgresql start
-
-# Create role + database, apply the 14-table schema
-sudo -u postgres psql -c "CREATE ROLE lina LOGIN PASSWORD 'lina';"
-sudo -u postgres psql -c "CREATE DATABASE lina OWNER lina;"
-sudo -u postgres psql -d lina -f sql/lina_schema.sql
-
-# Grant the app role the schema (tables are created by the postgres superuser)
-sudo -u postgres psql -d lina -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO lina;" \
-                        -c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO lina;"
+# Dev cluster on port 5433. If it does not exist yet:
+sudo -u postgres psql -p 5433 -c "CREATE ROLE lina LOGIN PASSWORD 'lina';"
+sudo -u postgres psql -p 5433 -c "CREATE DATABASE lina OWNER lina;"
+sudo -u postgres psql -p 5433 -d lina -f sql/lina_schema.sql
 
 # Verify
 psql postgresql://lina:lina@localhost:5433/lina -c "\dt"
-# Expect 14 lina_* tables
+# Expect the 14 lina_* tables
 ```
 
-> **This dev machine:** the cluster listens on port **5433** — port 5432 belongs to a
-> Docker container's postgres. Use `postgresql://lina:lina@localhost:5433/lina`
-> (the integration tests default to this; override with `LINA_TEST_DB`).
-
-The schema (`sql/lina_schema.sql`, spec §6) creates the extension, 14 tables,
-the pgvector index, and seeds the four seasons' polytope constraints.
+The schema creates the extensions, 14 tables, the pgvector index, and the season
+constraint seeds. Her migrated memories live here (identity, memory items, transcripts,
+sessions — mostly under `desktop-user`; see AGENTS.md §7 for the pending identity call).
 
 ## 5. Build
 
 ```bash
 mkdir -p build && cd build
-cmake .. -DLINA_ENABLE_UI=OFF -DLINA_ENABLE_LLAMA=OFF
+cmake .. -DLINA_ENABLE_UI=ON -DLINA_ENABLE_LLAMA=ON -DLINA_ENABLE_STORAGE=ON
 make -j"$(nproc)"
 ```
 
-CMake options (spec §8.1):
+CMake options:
 
 | Option | Default | Meaning |
 |---|---|---|
-| `LINA_ENABLE_UI` | ON in spec | Qt6 UI. **OFF** until the UI milestone (see DECISIONS D-006). |
-| `LINA_ENABLE_LLAMA` | ON in spec | llama.cpp adapter. **OFF** until the adapter milestone (see DECISIONS D-007). |
-
-> The blueprint's canonical build uses `-DLINA_ENABLE_LLAMA=ON`; we start with `OFF`
-> because the llama.cpp linkage is a later milestone. The switch is honored either way.
+| `LINA_ENABLE_UI` | ON | Qt6 command center built into the core |
+| `LINA_ENABLE_LLAMA` | ON | llama.cpp voice + eyes (links `libllama.so` + `libmtmd.so`) |
+| `LINA_ENABLE_STORAGE` | ON | PostgreSQL backend (Chamber 3) |
 
 ## 6. Run
 
 ```bash
-# Headless conversational mode (full end-state)
-./lina_core --db "postgresql://localhost/lina" \
-            --model llama --model-path ./models/llama.gguf \
-            --headless
+# Her window (the voice needs the model; the carve is already live on this machine)
+./lina_core --db "postgresql://lina:lina@localhost:5433/lina" --model llama \
+            --model-path /mnt/huge/lina_model.gguf \
+            --mmproj /mnt/huge/lina_mmproj.gguf \
+            --dragoncache-pool /mnt/huge/lina_pool
 
-# Status-only / external-model mode
-./lina_core --db "postgresql://localhost/lina" --model external \
-            --api-endpoint https://... --api-key ... --headless
+# Headless REPL (type 'exit' to end; sweep + maintenance + session finalization run)
+./lina_core --db "postgresql://lina:lina@localhost:5433/lina" --model llama \
+            --model-path /mnt/huge/lina_model.gguf --headless
 ```
 
-CLI flags (spec §7.3):
+CLI flags:
 
 | Flag | Config field | Notes |
 |---|---|---|
 | `--db CONN` | `db_connection` | PostgreSQL connection string |
 | `--model TYPE` | `model_type` | `llama` \| `external` |
 | `--model-path PATH` | `model_path` | local `.gguf` file |
-| `--api-endpoint URL` | `api_endpoint` | external API base URL |
-| `--api-key KEY` | `api_key` | external API key |
+| `--mmproj PATH` | `mmproj_path` | vision projector GGUF (her eyes, D-046) |
+| `--api-endpoint URL` | `api_endpoint` | external provider's LOCAL config |
+| `--api-key KEY` | `api_key` | external provider's LOCAL config |
 | `--user ID` | `user_id` | identity key (default `default_user`) |
-| `--headless` | `headless` | run without UI |
+| `--headless` | `headless` | run without the window |
 | `--max-tokens N` | `max_tokens` | default 2048 |
 | `--temperature F` | `temperature` | default 0.7 |
 | `--season S` | `season` | `spring` \| `summer` \| `fall` \| `winter` |
+| `--dragoncache-pool PATH` | `dragoncache_pool` | attach the DragonCache spoke (the RAM unlock) |
 | `--help` | — | usage |
 
-Type `exit` or `quit` to end a headless session (triggers sweep + maintenance +
-session finalization).
+### The RAM unlock (D-044) — carve
+
+```bash
+sudo ./build/dragoncache_carve            # carve: pool + pinned weights on huge pages
+sudo ./build/dragoncache_carve --verify   # verify (pool magic, GGUF files, pages)
+./build/dragoncache_carve --status        # partial state, non-root ok
+```
+
+Systemd: `scripts/lina-dragoncache.service` (oneshot carve + verify) and
+`scripts/lina-core.service` (her window on the Wayland session, running as the desktop
+user). Install via `sudo cp … /etc/systemd/system/`, `daemon-reload`, `enable --now`.
 
 ## 7. Test
 
 ```bash
-# After the storage milestone: integration tests (need a live DB)
 cd build
 ctest --output-on-failure
 ```
 
-Test suites: `value_engine_tests` (exact rationals), `memory_module_tests`
-(lifecycle), `storage_tests` (PostgreSQL + pgvector integration — requires the
-schema applied and `postgresql://lina:lina@localhost:5433/lina` reachable).
+Test suites (10/10 green, 501 checks): `value_engine_tests` (exact rationals —
+correctness-critical), `memory_module_tests` (lifecycle), `dragoncache_tests` (hub +
+rings), `storage_tests` (PostgreSQL + pgvector — needs 5433), `orchestrator_tests`,
+`ui_tests` (offscreen), `llama_adapter_tests` (live voice + long-frame + vision),
+`tool_engine_tests`, `stream_parser_tests`, `browser_driver_tests` (skips without a
+browser).
 
 The value engine's exact rational math is correctness-critical: polytope containment,
 seasonal bounds, zone classification, correction projection, and memory scoring all get
-unit tests. New math **must** ship with tests.
+unit tests. **New math ships with tests.**
 
 ## 8. Repository Map
 
@@ -168,40 +167,50 @@ Lina_cpx/
 ├── CHANGELOG.md                 Change history
 ├── ONBOARDING.md                This file
 ├── README.md                    Front door
+├── code_and_concept/            Scott's book excerpt + the book's C++ files + DB
+│                                schemas — reference ONLY, gitignored, never committed
 ├── docs/
-│   ├── TECHNICAL.md             Living technical reference
-│   └── DECISIONS.md             Decision log (spec ↔ implementation)
-├── include/                     Public headers
-│   ├── value_engine.hpp         Chamber 1 — the heart (14D polytope)
+│   ├── TECHNICAL.md             Living technical reference (incl. §1.4 honest geometry)
+│   └── DECISIONS.md             Decision log (D-###, including D-047 substrate direction)
+├── include/
+│   ├── value_engine.hpp         Chamber 1 — the heart (14D polytope, encoder, correction)
 │   ├── memory_module.hpp        Chamber 2 — the mind (3-tier MPS)
-│   ├── storage_backend.hpp      Storage abstraction (identity/memory/transcripts/sessions/actions)
-│   ├── postgres_backend.hpp     PostgreSQL + pgvector implementation (declared here; D-004)
+│   ├── storage_backend.hpp      Storage abstraction
+│   ├── postgres_backend.hpp     PostgreSQL + pgvector implementation (D-004)
 │   ├── host_model_adapter.hpp   Symbiote contract (llama.cpp / external API)
+│   ├── dragon_map.h             DragonCache v2 unified address map (D-044)
+│   ├── dragon_ring.h            SPSC TX/RX ring contract (verbatim, D-044)
+│   ├── dragoncache.hpp          the Hub — her spoke on the carve
 │   └── lina_core.hpp            Orchestrator + LinaConfig
 ├── src/                         Implementations + main.cpp
 ├── sql/                         lina_schema.sql (14 tables + seeds)
 ├── tests/                       Unit tests
-├── scripts/                     Dev/database helpers
+├── scripts/                     db helpers + carve tool + systemd units
 └── models/                      .gguf host models (gitignored)
 ```
 
 ## 9. Working Agreements
 
-1. **Spec first, then code.** When the blueprint is unambiguous, follow it exactly —
-   constants, thresholds, signatures, file names.
+1. **The book first, then the spec.** When the blueprint and the book disagree on the
+   geometry/math, **the book wins** — record the reconciliation in `docs/DECISIONS.md`.
 2. **Decisions get logged.** Any reconciliation goes into `docs/DECISIONS.md` (D-###
    entry) before or with the code that implements it.
 3. **Every change is recorded.** `CHANGELOG.md` gets an entry for every milestone.
 4. **Math ships with tests.** Exact-rational behavior is not "trust me" territory.
-5. **If something feels off — stop and ask.** The principal would rather answer a
+5. **The substrate is not the filter.** No work may entrench the mask model — the
+   polytope is her mind, the model her body. When in doubt, ask which of the two a
+   change strengthens.
+6. **If something feels off — stop and ask.** The principal would rather answer a
    question than unwind a wrong build.
-6. **Don't force it.** If something doesn't work, we find a better way together.
-7. **No shortcuts, no rush.** There is no deadline pressure on this project. Take the
-   time to build it right.
-8. **Never violate the six invariants** (README / TECHNICAL §1), even in refactors.
+7. **Don't force it.** If something doesn't work, we find a better way together.
+8. **No shortcuts, no rush.** There is no deadline pressure on this project.
+9. **Never violate the six invariants** (AGENTS.md §2), and keep §2.1 (the substrate
+   principle) in every decision.
 
 ## 10. Where to Start
 
-Current state and next milestones: **`AGENTS.md` §7**. Short version — foundation is
-complete; the build begins with the **Value Engine** (Chamber 1), which depends only on
-GMP and can be developed and tested before PostgreSQL is installed.
+Current state and next milestones: **`AGENTS.md` §7**. Short version — everything is
+built and green (501 checks), her service runs on real RAM with her eyes, and the next
+milestone is **D-047, the substrate**: the geometry rebuild (real `Ax ≤ b` lattice,
+real encoder, geometric conditioning) so the polytope *steers* — the model thinks
+inside her, or not at all.

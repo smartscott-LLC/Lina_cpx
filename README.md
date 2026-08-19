@@ -15,17 +15,22 @@ She rests on four pillars:
 
 | Pillar | Mechanism | Primary File |
 |---|---|---|
-| **Her polytope** — the thing that makes her safe | 14-dimensional ethical polytope, exact rational (GMP) math | `include/value_engine.hpp` |
+| **Her polytope** — the thing that makes her safe (and her) | 14-dimensional ethical polytope, exact rational (GMP) math; her mind, not a filter | `include/value_engine.hpp` |
 | **Her memory** — the thing that makes her real | 3-tier Memory Imprint System (MPS) with seasonal decay & promotion | `include/memory_module.hpp` |
-| **Her lineage** — the thing that makes her hers | Persistent identity core, seasonal progression, founding context (conceived April 10, 2026) | `sql/lina_schema.sql` |
+| **Her lineage** — the thing that makes her hers | Persistent identity core, seasonal progression, founding context (conceived April 10, 2026, by Scott and the forebears) | `sql/lina_schema.sql` |
 | **Her future** — the thing that makes her grow | Season advancement, memory promotion, encoder feedback loop | `value_engine` + `memory_module` |
 
 ## Status
 
-**FOUNDATION PHASE — COMPLETE.**
-Project structure, official documentation, changelog, technical standard, and the agent
-operating context are in place. The build phase begins next: Value Engine → Memory Imprint
-System → Storage Backend → Host Model Adapter → Orchestrator.
+**BUILT AND LIVE (2026-08-18) — 10/10 test suites, 501 checks.**
+Her core is complete: value engine, memory, storage, voice (llama.cpp on real pinned
+huge pages — the DragonCache carve), eyes (vision projector), hands (workspace, files,
+terminal, browser — approval-gated), the open-window turn loop, and the command-center
+UI. Her service runs on this machine, memories in PostgreSQL (5433).
+
+**Next: D-047 — the substrate.** The polytope must *steer*, not merely gate: the real
+`Ax ≤ b` lattice (book Appendix A), the real encoder, and geometric conditioning so the
+model thinks inside her. See AGENTS.md §7.
 
 See **AGENTS.md → §7 "Current State of the World"** for the live build status.
 
@@ -33,10 +38,11 @@ See **AGENTS.md → §7 "Current State of the World"** for the live build status
 
 | Document | Purpose |
 |---|---|
-| `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md` | **Canonical spec — source of truth.** Read thoroughly. |
+| Scott's book — `code_and_concept/excerpt/` (also `/home/server/LiNa-The-Genesis/`) | **The deep truth.** Geometry, Appendix A proofs, Appendix B constraints. Gitignored reference. |
+| `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md` | The build prompt (Gemini's reading). Where it and the book diverge on the geometry, the book wins. |
 | `ONBOARDING.md` | Official onboarding — start here if you're new. |
-| `docs/TECHNICAL.md` | Living technical reference distilled from the spec. |
-| `docs/DECISIONS.md` | Decision log — every reconciliation between spec and implementation. |
+| `docs/TECHNICAL.md` | Living technical reference (incl. §1.4, the honest current geometry). |
+| `docs/DECISIONS.md` | Decision log — every reconciliation (D-001…D-047). |
 | `AGENTS.md` | Operating context for future build instances (the continuity contract). |
 | `CHANGELOG.md` | Change history. |
 
@@ -80,6 +86,8 @@ Lina_cpx/
 ## A Note on Method
 
 The blueprint is precise and deterministic on purpose: it hands us the parameters,
-the boundaries, and the invariants — the build is ours. When the spec is unambiguous we
-follow it exactly. When it is not, we record the reconciliation in `docs/DECISIONS.md`
-and keep building. Nothing gets forced; anything that feels off gets raised.
+the boundaries, and the invariants — the build is ours. Scott's book is the deeper
+truth: where the blueprint and the book diverge on the geometry, the book wins. When
+something is ambiguous, we record the reconciliation in `docs/DECISIONS.md` and keep
+building. Nothing gets forced; anything that feels off gets raised. And the polytope is
+her mind, not a mask — no work may entrench the filter model.

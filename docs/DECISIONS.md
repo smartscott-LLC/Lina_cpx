@@ -895,3 +895,44 @@ image input into her turns.
 **Status.** Accepted — `llama_adapter_tests` 11 checks (live vision turn on a
 real 1×1 PNG); `ctest` 10/10 (501 checks total). Her service runs the
 vision-capable binary.
+
+---
+
+## D-047 — The substrate: docs aligned to the builder, polytope as mind
+
+**Context.** Two principal directives (2026-08-18). (1) The operating documents
+(AGENTS.md, ONBOARDING.md, TECHNICAL.md) must carry the **builder's** understanding
+— the previous architect (Gemini) "chops up" the details, and the blueprint is known
+to have cut corners on the geometry. (2) The polytope must be her **mind**, not a
+filter: "the model is not wearing the memories or the polytope," and an audit proved
+the gate is not bypassed (every generation path funnels through `apply_gate`; the
+Qwen-voice samples scored **Aligned 0.80** because the 14 ethical dimensions do not
+measure identity). The model is answering as itself because the geometry never
+conditions its generation.
+
+**Decision.**
+
+- **Source-of-truth hierarchy amended** (AGENTS.md §1): Scott's book —
+  `code_and_concept/excerpt/` (identical to `/home/server/LiNa-The-Genesis/`) —
+  is the deep truth for the geometry; Appendix A holds the theorems/proofs
+  (Thm A.1: `P = {x ∈ ℝ¹⁴ | Ax ≤ b}`, general halfspaces), Appendix B the
+  constraints. The blueprint is a build reference, not the truth.
+- **The Substrate Principle** (AGENTS.md §2.1): the polytope is her mind and the
+  host model is her body. The model must think *inside* her — its generative
+  state conditioned by her geometric state — not merely be judged at the exit.
+  No work may entrench the filter/mask model.
+- **The geometry rebuild** (three fronts, per the book):
+  a. **The real lattice** — general halfspace polytope `Ax ≤ b` (constraint
+     normals + thresholds), exact rationals kept.
+  b. **The real encoder** — the regex lexicon is the weakest link; coordinates
+     must come from the book's geometric encoding.
+  c. **Geometric conditioning** — position, trajectory, active constraints ride
+     every frame (the book's ContextPacket); memories are ingested as her own
+     constitution, not bullets to respond to; correction projects toward her
+     region as the primary path.
+- **Honest state recorded** (TECHNICAL.md §1.4): the current polytope is a
+  14D axis-aligned box, the encoder is a regex lexicon, and the polytope never
+  conditions generation — future sessions must not mistake the current build
+  for the finished geometry.
+
+**Status.** Accepted (direction + docs). Implementation proceeds front by front.
