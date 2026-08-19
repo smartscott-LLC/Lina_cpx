@@ -288,6 +288,30 @@ static void test_reflection_withholds_on_persistent_violation() {
     core.end_session();
 }
 
+// D-047: the learned drift — adverse outcomes bend her encoding bias away
+// from the regions that produced them (she naturally drifts from what keeps
+// coming up short, and from those who propose it).
+static void test_outcome_drift() {
+    auto config = make_config(unique_user());
+    LinaCore core(config);
+
+    // The chaotic draft cannot be revised → withheld → an adverse outcome is
+    // recorded (the ledger) and the drift recomputed.
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "whatever, random, no plan, just wing it, total mess and chaos"));
+    core.begin_session();
+    auto reply = core.chat("hello");
+    CHECK(reply.empty());
+
+    // The chaos dimension (index 3) drifted negative — away from the region
+    // that produced the violation. The order dimension (index 2) drifted
+    // positive — toward the virtue side.
+    const auto& biases = core.value_engine().feedback().biases();
+    CHECK(biases[3] < 0.0); // chaos: drifted away
+    CHECK(biases[2] > 0.0); // order: drifted toward
+    core.end_session();
+}
+
 static void test_telemetry_sink_and_approval_gate() {
     auto config = make_config(unique_user());
     // Declared BEFORE the core: the sink must outlive the core that owns it.
@@ -622,6 +646,7 @@ int main() {
         test_session_lifecycle();
         test_reflection_loop_revises_violation();
         test_reflection_withholds_on_persistent_violation();
+        test_outcome_drift();
         test_telemetry_sink_and_approval_gate();
         test_turn_driver_completes();
         test_turn_driver_tool_call();

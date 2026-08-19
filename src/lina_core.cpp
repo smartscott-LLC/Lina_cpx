@@ -10,6 +10,7 @@
 
 #include "lina_core.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <iomanip>
 #include <iostream>
@@ -540,10 +541,15 @@ void LinaCore::finalize_turn(std::string response_text,
     }
     emit_turn_event("complete", delivered);
 
-    // Cognitive bus — her mind (Invariant 6).
+    // Cognitive bus — her mind (Invariant 6). The outcome rides the memory:
+    // AcceptableVariance exchanges are tolerated but recorded as wary — the
+    // accumulated outcomes are what she drifts away from (D-047).
     memory_module::MemoryItem item = memory_module_->build_item(
         config_.user_id, delivered, {{"emotional_weight", 5.0}},
         "conversation");
+    item.emotional_marker =
+        eval_result.zone == value_engine::Zone::AcceptableVariance ? "wary"
+                                                                  : "warm";
     storage_->store_memory_item(item);
 
     {
@@ -762,6 +768,12 @@ std::string LinaCore::chat(const std::string& user_message,
         final_response,
         {{"emotional_weight", 5.0}},
         "conversation");
+    // D-047: the outcome is part of the memory — AcceptableVariance exchanges
+    // are tolerated but recorded as wary, so the accumulated outcomes shape
+    // her drift (she naturally bends away from what keeps coming up short).
+    item.emotional_marker =
+        eval_result.zone == value_engine::Zone::AcceptableVariance ? "wary"
+                                                                  : "warm";
     storage_->store_memory_item(item);
 
     // 8. Update conversation history.
@@ -840,14 +852,85 @@ std::pair<std::string, value_engine::EvaluationResult> LinaCore::apply_gate(
             // No fallback: withhold. A violating draft is never delivered, with
             // or without a marker (the polytope is the only boundary).
             emit_telemetry("pipeline reflection exhausted -> withheld");
+            record_evaluation(current_result, current);
             return {"", eval_result};
         }
     }
+
+    record_evaluation(eval_result, final_response);
 
     emit_telemetry(std::string("pipeline delivered zone=")
                    + zone_name(eval_result.zone)
                    + " corrected=" + (eval_result.was_corrected ? "1" : "0"));
     return {final_response, eval_result};
+}
+
+// D-047: every outcome is persisted — the coordinates, the verdict, the
+// response. The ledger is the raw material of her learned drift.
+void LinaCore::record_evaluation(
+    const value_engine::EvaluationResult& result, const std::string& text)
+{
+    storage::EvaluationRecord record;
+    record.user_id = config_.user_id;
+    record.session_id = current_session_id_.empty() ? "adhoc" : current_session_id_;
+    record.response_text = text;
+    record.input_vector.assign(result.decision_vector.begin(),
+                               result.decision_vector.end());
+    record.output_vector.assign(result.decision_vector.begin(),
+                                result.decision_vector.end());
+    record.corrected_vector.assign(result.correction_vector.begin(),
+                                   result.correction_vector.end());
+    record.is_aligned = result.zone != value_engine::Zone::Violation;
+    record.alignment_score = result.alignment_score;
+    record.correction_magnitude = result.correction_magnitude;
+    record.zone = zone_name(result.zone);
+    record.season = result.season;
+    storage_->store_evaluation(record);
+    update_outcome_drift();
+}
+
+// The learned drift: the accumulated outcomes pull her encoding baseline away
+// from regions that produced AcceptableVariance or Violation results, toward
+// the regions that aligned. With no outcomes on a side, her polytope center is
+// the neutral reference — no outcomes, no drift.
+void LinaCore::update_outcome_drift() {
+    auto evaluations = storage_->fetch_evaluations(config_.user_id, 50);
+    std::array<double, value_engine::DIMENSION_COUNT> aligned_sum{};
+    std::array<double, value_engine::DIMENSION_COUNT> adverse_sum{};
+    int n_aligned = 0;
+    int n_adverse = 0;
+    for (const auto& e : evaluations) {
+        if (e.zone == "Aligned" && e.corrected_vector.size()
+                                       == value_engine::DIMENSION_COUNT) {
+            for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+                aligned_sum[static_cast<size_t>(i)] += e.corrected_vector[static_cast<size_t>(i)];
+            }
+            ++n_aligned;
+        } else if (e.zone != "Aligned"
+                   && e.input_vector.size() == value_engine::DIMENSION_COUNT) {
+            for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+                adverse_sum[static_cast<size_t>(i)] += e.input_vector[static_cast<size_t>(i)];
+            }
+            ++n_adverse;
+        }
+    }
+
+    const auto& center = value_engine_->polytope().center();
+    std::array<double, value_engine::DIMENSION_COUNT> bias{};
+    constexpr double kDriftRate = 0.15;
+    for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+        const double aligned = n_aligned
+            ? aligned_sum[static_cast<size_t>(i)] / n_aligned
+            : center[static_cast<size_t>(i)].get_d();
+        const double adverse = n_adverse
+            ? adverse_sum[static_cast<size_t>(i)] / n_adverse
+            : center[static_cast<size_t>(i)].get_d();
+        bias[static_cast<size_t>(i)] = std::clamp(
+            (aligned - adverse) * kDriftRate, -0.05, 0.05);
+    }
+    value_engine_->feedback().set_biases(bias);
+    emit_telemetry(std::string("outcome drift n_align=") + std::to_string(n_aligned)
+                   + " n_adverse=" + std::to_string(n_adverse));
 }
 
 void LinaCore::begin_session(const std::string& user_id) {

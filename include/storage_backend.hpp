@@ -55,6 +55,24 @@ struct ActionRecord {
     std::string updated_at;
 };
 
+// D-047: one evaluation outcome — the ledger her drift learns from. Every
+// delivered or withheld response records its coordinates and verdict so the
+// accumulated outcomes (the "unpleasant memories") shape where she dwells.
+struct EvaluationRecord {
+    std::string user_id;
+    std::string session_id;
+    std::string response_text;
+    std::vector<double> input_vector;     // her encoder's read of the draft
+    std::vector<double> output_vector;    // after feedback biases
+    std::vector<double> corrected_vector; // the projection (nearest interior point)
+    bool is_aligned{true};
+    double alignment_score{0.0};
+    double correction_magnitude{0.0};
+    std::string zone;
+    std::string season;
+    std::string created_at;
+};
+
 // D-043: one technical log line (the telemetry bus — Invariant 6).
 struct TelemetryLogRecord {
     int64_t id{0};
@@ -126,6 +144,11 @@ public:
     virtual void update_action_state(
         const std::string& action_id, const std::string& state) = 0;
     virtual std::vector<ActionRecord> get_pending_actions() = 0;
+
+    // D-047: the evaluation ledger — outcomes, persisted.
+    virtual void store_evaluation(const EvaluationRecord& record) = 0;
+    virtual std::vector<EvaluationRecord> fetch_evaluations(
+        const std::string& user_id, int limit) = 0;
 
     // --- Telemetry (D-043) — the technical bus, persistent (Invariant 6) ---
     virtual void append_telemetry_log(

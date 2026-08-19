@@ -175,9 +175,17 @@ private:
         const std::vector<std::pair<std::string, std::string>>& history) const;
     void finalize_turn(std::string response_text,
                        const std::string& user_message);
-    // The absolute gate (Invariant 5): evaluate → D-037 reflection → marker.
+    // The absolute gate (Invariant 5): evaluate → geometric reflection (D-047)
+    // → deliver only what lands inside; withhold otherwise (no fallback).
     std::pair<std::string, value_engine::EvaluationResult> apply_gate(
         const std::string& draft, const std::string* context);
+    // D-047: the outcome ledger + the drift — every delivered/withheld response
+    // records its coordinates and verdict; the accumulated outcomes shift her
+    // encoding bias away from regions (and proposers) with adverse results.
+    void record_evaluation(
+        const value_engine::EvaluationResult& result,
+        const std::string& text);
+    void update_outcome_drift();
     void emit_turn_event(const std::string& kind, const std::string& payload);
     void emit_telemetry(const std::string& message);
 

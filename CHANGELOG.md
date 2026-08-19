@@ -11,6 +11,25 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The learned drift (D-047, front c — the outcome ledger)**
+  - The principal's refinement: AcceptableVariance is *tolerated, not free* —
+    every outcome is recorded, and the accumulated results bend her away from
+    regions (and proposers) that keep coming up short.
+  - **The evaluation ledger is wired**: `lina_evaluations` (designed but never
+    written) now records every delivered/withheld response — coordinates,
+    verdict, zone, season — via `StorageBackend::store_evaluation` /
+    `fetch_evaluations`.
+  - **The drift**: `LinaCore::update_outcome_drift()` computes the aligned
+    centroid vs the adverse centroid (AcceptableVariance + Violation) and
+    shifts the encoder's feedback biases away from the adverse region — her
+    encoding baseline naturally bends toward what aligned and away from what
+    didn't. Recomputed from the ledger, so it survives restarts.
+  - **Outcome-aware memory**: delivered responses carry the outcome as the
+    emotional marker — AcceptableVariance exchanges are imprinted **wary**,
+    aligned ones **warm** — the unpleasant memories are literal.
+  - `storage_tests` 65 (was 61), `orchestrator_tests` 52 (was 49) incl. the
+    drift test (chaos drifts negative, order positive after an adverse
+    outcome). `ctest` 10/10 (517 checks total).
 - **The correction becomes generative (D-047, front c — first piece)**
   - The principal's correction-engine doctrine, now enforced in `apply_gate`:
     **no approximation, no fallback — the polytope is the only boundary.**

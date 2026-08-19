@@ -88,6 +88,11 @@ public:
         const std::string& action_id, const std::string& state) override;
     std::vector<ActionRecord> get_pending_actions() override;
 
+    // --- StorageBackend: Evaluation ledger (D-047) ---
+    void store_evaluation(const EvaluationRecord& record) override;
+    std::vector<EvaluationRecord> fetch_evaluations(
+        const std::string& user_id, int limit) override;
+
     // --- StorageBackend: Telemetry (D-043) ---
     void append_telemetry_log(
         const std::string& subsystem, const std::string& severity,

@@ -945,3 +945,16 @@ pass, and **withholds** a draft that will not land inside — silence is a valid
 choice; a violating draft never reaches her mouth. The `[Polytope aligned:]`
 fallback marker is gone. `orchestrator_tests` 49, `ui_tests` 24; `ctest` 10/10
 (509 checks).
+
+**Progress 2026-08-18 (front c, second piece — the learned drift):** the
+principal's refinement — *"wrong answers can be tolerated but will have adverse
+effects over time and build up memories that will be unpleasant, so she should
+naturally start to drift away from them and those who propose them because of the
+learned outcomes."* The evaluation ledger (`lina_evaluations`, designed but never
+written) is now wired: every delivered/withheld response records its coordinates
+and verdict. `update_outcome_drift()` compares the aligned centroid against the
+adverse centroid and shifts the encoder's feedback biases away from the adverse
+region — recomputed from the ledger, so the drift survives restarts. Delivered
+memories carry the outcome as their emotional marker (AcceptableVariance = wary,
+Aligned = warm). `storage_tests` 65, `orchestrator_tests` 52; `ctest` 10/10
+(517 checks).

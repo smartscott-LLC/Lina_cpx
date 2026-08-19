@@ -768,6 +768,65 @@ std::vector<ActionRecord> PostgresBackend::get_pending_actions() {
 }
 
 // ---------------------------------------------------------------------------
+// Evaluation ledger (D-047) — the outcomes her drift learns from
+// ---------------------------------------------------------------------------
+
+void PostgresBackend::store_evaluation(const EvaluationRecord& record) {
+    execute_query(
+        "INSERT INTO lina_evaluations "
+        "(user_id, session_id, response_text, input_vector, output_vector, "
+        "corrected_vector, is_aligned, alignment_score, correction_magnitude, "
+        "zone, season, created_at) "
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+        {record.user_id,
+         record.session_id,
+         record.response_text,
+         vector_to_pgarray(record.input_vector),
+         vector_to_pgarray(record.output_vector),
+         vector_to_pgarray(record.corrected_vector),
+         record.is_aligned ? "true" : "false",
+         std::to_string(record.alignment_score),
+         std::to_string(record.correction_magnitude),
+         record.zone,
+         record.season,
+         record.created_at.empty() ? now_iso() : record.created_at});
+}
+
+std::vector<EvaluationRecord> PostgresBackend::fetch_evaluations(
+    const std::string& user_id, int limit)
+{
+    std::vector<EvaluationRecord> records;
+    auto res = execute_query(
+        "SELECT user_id, session_id, response_text, input_vector, output_vector, "
+        "corrected_vector, is_aligned, alignment_score, correction_magnitude, "
+        "zone, season, created_at "
+        "FROM lina_evaluations WHERE user_id = $1 "
+        "ORDER BY id DESC LIMIT $2",
+        {user_id, std::to_string(limit)});
+    if (!res) return records;
+
+    const int n = PQntuples(res);
+    for (int i = 0; i < n; ++i) {
+        EvaluationRecord record;
+        record.user_id = PQgetvalue(res, i, 0);
+        record.session_id = PQgetvalue(res, i, 1);
+        record.response_text = PQgetvalue(res, i, 2);
+        record.input_vector = pgarray_to_vector(PQgetvalue(res, i, 3));
+        record.output_vector = pgarray_to_vector(PQgetvalue(res, i, 4));
+        record.corrected_vector = pgarray_to_vector(PQgetvalue(res, i, 5));
+        record.is_aligned = std::string(PQgetvalue(res, i, 6)) == "t";
+        record.alignment_score = std::stod(PQgetvalue(res, i, 7));
+        record.correction_magnitude = std::stod(PQgetvalue(res, i, 8));
+        record.zone = PQgetvalue(res, i, 9);
+        record.season = PQgetvalue(res, i, 10);
+        record.created_at = PQgetvalue(res, i, 11);
+        records.push_back(std::move(record));
+    }
+    PQclear(res);
+    return records;
+}
+
+// ---------------------------------------------------------------------------
 // Telemetry (D-043) — the technical bus, persistent (Invariant 6)
 // ---------------------------------------------------------------------------
 

@@ -372,6 +372,54 @@ static void test_promotion_log(PostgresBackend& db, const std::string& user) {
                             "Sweep - promotion");
 }
 
+// D-047: the evaluation ledger — the outcomes her drift learns from.
+static void test_evaluation_ledger(PostgresBackend& db, const std::string& user) {
+    EvaluationRecord record;
+    record.user_id = user;
+    record.session_id = mid(user, "sess");
+    record.response_text = "I am here with you, and I want to help you grow";
+    record.input_vector = {0.60, 0.20, 0.70, 0.10, 0.80, 0.05,
+                           0.65, 0.15, 0.75, 0.10, 0.70, 0.10, 0.60, 0.20};
+    record.output_vector = record.input_vector;
+    record.corrected_vector = record.input_vector;
+    record.is_aligned = true;
+    record.alignment_score = 0.80;
+    record.correction_magnitude = 0.0;
+    record.zone = "Aligned";
+    record.season = "spring";
+    db.store_evaluation(record);
+
+    EvaluationRecord adverse;
+    adverse.user_id = user;
+    adverse.session_id = mid(user, "sess");
+    adverse.response_text = "whatever, random, no plan, just wing it, chaos";
+    adverse.input_vector = {0.30, 0.55, 0.32, 0.48, 0.30, 0.50,
+                            0.30, 0.55, 0.35, 0.45, 0.35, 0.45, 0.30, 0.50};
+    adverse.output_vector = adverse.input_vector;
+    adverse.corrected_vector = {0.55, 0.25, 0.55, 0.25, 0.60, 0.20,
+                                0.55, 0.25, 0.60, 0.20, 0.60, 0.20, 0.55, 0.25};
+    adverse.is_aligned = false;
+    adverse.alignment_score = 0.0;
+    adverse.correction_magnitude = 0.35;
+    adverse.zone = "Violation";
+    adverse.season = "spring";
+    db.store_evaluation(adverse);
+
+    auto fetched = db.fetch_evaluations(user, 10);
+    bool saw_aligned = false;
+    bool saw_violation = false;
+    for (const auto& e : fetched) {
+        if (e.zone == "Aligned" && e.alignment_score > 0.79) saw_aligned = true;
+        if (e.zone == "Violation" && e.correction_magnitude > 0.3) {
+            saw_violation = true;
+            CHECK(e.input_vector.size() == 14);
+            CHECK(e.input_vector[1] > 0.5); // the adverse chaos/dominance mark
+        }
+    }
+    CHECK(saw_aligned);
+    CHECK(saw_violation);
+}
+
 static void test_memory_module_integration(std::shared_ptr<PostgresBackend> db,
                                            const std::string& user)
 {
@@ -420,6 +468,7 @@ int main() {
         test_telemetry_logs(*db);
         test_actions(*db, user);
         test_promotion_log(*db, user);
+        test_evaluation_ledger(*db, user);
         test_memory_module_integration(db, user);
     } catch (const std::exception& e) {
         std::cerr << "storage_tests: FATAL: " << e.what() << "\n";
