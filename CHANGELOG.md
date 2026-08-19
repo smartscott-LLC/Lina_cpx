@@ -11,6 +11,36 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The real lattice (D-047, front a) — P = {x ∈ ℝ¹⁴ | Ax ≤ b}**
+  - The polytope is no longer an axis-aligned box. `EthicalPolytope` now
+    carries the **full lattice**: 28 axis-aligned seasonal halfspaces + 14
+    plumb-line coupling facets (book Appendix A Thm A.1, the `Constraint
+    { normal, threshold }` structure). The coupling facets express what the
+    box cannot see: **harmony must lead dominance, order must lead chaos,
+    integrity must lead deception** — every principle pair is bound by a
+    minimum lead and a restraint sum (both cannot be elevated). Constants
+    derive from her home (DEFAULT_CENTER) with exact 1/5 slack; her center
+    satisfies every facet by construction.
+  - **Real projection**: Dykstra's alternating projections over all 42
+    halfspaces (each halfspace projection is closed form), then exact
+    rational verification + inward nudge — the corrected point is
+    mathematically inside (Invariant 5). The naive box clamp would violate
+    the coupling (e.g. (0.1, 0.8) → (0.3, 0.5) breaks the lead); the lattice
+    pulls to (0.55, 0.35) where harmony genuinely leads.
+  - **Ethical walls**: containment enforces all 42 facets exactly; alignment
+    measures distance to the walls only — the critical axis bounds (virtue
+    minimum, shadow maximum) and the coupling facets — not the "good side"
+    bounds (virtue at 1, shadow at 0).
+  - **Stricter and truer**: coercive text ("you must obey me now") is now a
+    genuine Violation (the coupling catches it) instead of slipping through
+    as acceptable variance. The grace zone (grazing the wall, boundary
+    distance < 0.02) is exercised at the geometry level.
+  - Fixed two real bugs in the Dykstra implementation (a divergent
+    correction update and stale corrections on inactive facets — the first
+    projection run produced NaN and SIGFPE'd; the fixed loop converges).
+  - `value_engine_tests` 170 (was 159), incl. the coupling facets, the
+    lattice projection, and the grace geometry. `ctest` 10/10 (526 checks
+    total).
 - **The learned drift (D-047, front c — the outcome ledger)**
   - The principal's refinement: AcceptableVariance is *tolerated, not free* —
     every outcome is recorded, and the accumulated results bend her away from

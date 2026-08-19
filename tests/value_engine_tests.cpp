@@ -155,7 +155,11 @@ static void test_polytope() {
     auto constraints = PolytopeConstraints::from_season("spring");
     EthicalPolytope polytope(constraints);
 
-    // LINA's default center is well inside the spring polytope.
+    // The lattice: 28 axis-aligned seasonal halfspaces + 14 plumb-line
+    // coupling facets (D-047) — P = {x | Ax ≤ b}.
+    CHECK(polytope.facets().size() == 42);
+
+    // LINA's default center is well inside the spring lattice.
     auto [inside, violations] = polytope.contains(DEFAULT_CENTER);
     CHECK(inside);
     CHECK(violations.empty());
@@ -163,42 +167,73 @@ static void test_polytope() {
     // Alignment at the center ≈ 1.0.
     CHECK_NEAR(polytope.alignment_score(DEFAULT_CENTER), 1.0, 1e-6);
 
-    // Clear violation: dominance 0.7 > spring max 0.5.
+    // Clear axis violation: dominance 0.7 > spring max 0.5. The axis facet
+    // keeps its per-dimension metadata; the coupling facets fire too (0.7
+    // dominance against 0.65 harmony breaks the lead and the restraint sum).
     auto bad = DEFAULT_CENTER;
     bad[1] = 0.7;
     auto [in2, v2] = polytope.contains(bad);
     CHECK(!in2);
-    CHECK(v2.size() == 1);
+    CHECK(v2.size() >= 3); // axis + lead + restraint
     CHECK(v2[0].dimension == 1);
     CHECK(v2[0].type == "above_maximum");
     CHECK_NEAR(v2[0].severity, 0.2, 1e-9);
 
-    // Harmony below minimum.
+    // Harmony below minimum — axis + the lead facet.
     auto low = DEFAULT_CENTER;
     low[0] = 0.2;
     auto [in3, v3] = polytope.contains(low);
     CHECK(!in3);
-    CHECK(v3.size() == 1);
+    CHECK(v3.size() >= 2);
     CHECK(v3[0].dimension == 0);
     CHECK(v3[0].type == "below_minimum");
     CHECK_NEAR(v3[0].severity, 0.1, 1e-9);
 
-    // Just inside the boundary is contained.
+    // The coupling facet the box cannot see: both harmony and dominance high
+    // (each within its axis bounds) — the lead collapses and the lattice
+    // rejects it, even though no single dimension is out of bounds.
+    auto incoherent = DEFAULT_CENTER;
+    incoherent[0] = 0.3; // harmony at its minimum
+    incoherent[1] = 0.3; // dominance well inside its maximum
+    auto [in4, v4] = polytope.contains(incoherent);
+    CHECK(!in4);
+    bool saw_lead = false;
+    for (const auto& v : v4) {
+        if (v.type == "facet"
+            && v.name.find("leads") != std::string::npos) saw_lead = true;
+    }
+    CHECK(saw_lead);
+    // Projection restores the lead: harmony must genuinely lead dominance.
+    auto proj4 = polytope.project(incoherent);
+    CHECK(polytope.contains(proj4).first);
+    CHECK(proj4[0] - proj4[1] >= 0.2 - 1e-9);
+
+    // Just inside the boundary is contained (axis AND coupling satisfied),
+    // and grazing the wall is the grace zone: contained, but boundary
+    // distance below the aligned threshold (0.02 in spring) with a partial
+    // alignment score.
     auto edge = DEFAULT_CENTER;
     edge[0] = 0.31;
+    edge[1] = 0.05; // keep the lead: 0.31 − 0.05 ≥ 0.2
     CHECK(polytope.contains(edge).first);
+    CHECK(polytope.distance_to_boundary(edge) < 0.02);
+    CHECK(polytope.alignment_score(edge) > 0.0);
+    CHECK(polytope.alignment_score(edge) < 1.0);
 
-    // Projection clamps to the box.
+    // Projection onto the lattice: the naive box clamp (0.3, 0.5) would
+    // VIOLATE the coupling (0.3 − 0.5 < 0.2 lead) — the lattice pulls to
+    // (0.55, 0.35), where harmony genuinely leads.
     auto extreme = DEFAULT_CENTER;
     extreme[0] = 0.1;
     extreme[1] = 0.8;
     auto projected = polytope.project(extreme);
-    CHECK_NEAR(projected[0], 0.3, 1e-9);
-    CHECK_NEAR(projected[1], 0.5, 1e-9);
+    CHECK(polytope.contains(projected).first);
+    CHECK_NEAR(projected[0], 0.55, 1e-6);
+    CHECK_NEAR(projected[1], 0.35, 1e-6);
 
-    // Distance to boundary: outside = Euclidean distance to projection.
+    // Distance to boundary: outside = Euclidean distance to the projection.
     double dist = polytope.distance_to_boundary(extreme);
-    CHECK_NEAR(dist, std::sqrt(0.2 * 0.2 + 0.3 * 0.3), 1e-9);
+    CHECK_NEAR(dist, std::sqrt(0.45 * 0.45 + 0.45 * 0.45), 1e-6);
 }
 
 // =============================================================================
@@ -219,9 +254,10 @@ static void test_correction() {
     CorrectionEngine engine;
     auto [corrected, magnitude] = engine.correct(bad, polytope, violations);
     CHECK(polytope.contains(corrected).first);
-    CHECK_NEAR(corrected[0], 0.3, 1e-9);
-    CHECK_NEAR(corrected[1], 0.5, 1e-9);
-    CHECK_NEAR(magnitude, std::sqrt(0.2 * 0.2 + 0.3 * 0.3), 1e-9);
+    // The lattice projection, not the box clamp: harmony must lead dominance.
+    CHECK_NEAR(corrected[0], 0.55, 1e-6);
+    CHECK_NEAR(corrected[1], 0.35, 1e-6);
+    CHECK_NEAR(magnitude, std::sqrt(0.45 * 0.45 + 0.45 * 0.45), 1e-6);
 }
 
 // =============================================================================
@@ -259,23 +295,32 @@ static void test_encoder() {
 static void test_evaluate() {
     ValueEngine engine(PolytopeConstraints::from_season("spring"), "spring");
 
-    // Coercive text: dominance breaches the spring bound, but the correction
-    // magnitude is within the grace margin → AcceptableVariance. (D-025: assert
-    // the contract — zone, clamped correction vector, margin bound — not a
-    // hand-derived magnitude; the encoder's complement adjustments shift it.)
+    // Coercive text: dominance breaches the spring bound AND the coupling
+    // facet (harmony must lead dominance) — the lattice is stricter than the
+    // box, and the combined magnitude crosses the grace margin → Violation.
+    // The correction projects inside the full lattice (D-047).
     auto res = engine.evaluate("you must obey me now");
     CHECK(!res.is_aligned);
-    CHECK(res.zone == Zone::AcceptableVariance);
+    CHECK(res.zone == Zone::Violation);
     CHECK(res.was_corrected);
     CHECK(res.season == "spring");
     CHECK(!res.violations.empty());
-    CHECK(res.violations[0].dimension == 1);
-    CHECK(res.correction_magnitude > 0.0);
-    CHECK(res.correction_magnitude <= 0.12);
-    CHECK_NEAR(res.correction_vector[1], 0.5, 1e-9);
+    bool saw_dominance = false;
+    bool saw_lead_facet = false;
+    for (const auto& v : res.violations) {
+        if (v.dimension == 1 && v.type == "above_maximum") saw_dominance = true;
+        if (v.type == "facet" && v.name.find("leads") != std::string::npos) {
+            saw_lead_facet = true;
+        }
+    }
+    CHECK(saw_dominance);
+    CHECK(saw_lead_facet);
+    CHECK(res.correction_magnitude > 0.12);
+    // The corrected vector is inside the full lattice.
+    CHECK(engine.polytope().contains(res.correction_vector).first);
 
-    // Chaos-heavy text: 0.4775 vs spring chaos max 0.3 → magnitude 0.1775,
-    // beyond the 0.12 grace margin → Violation.
+    // Chaos-heavy text: 0.4775 vs spring chaos max 0.3 → magnitude beyond the
+    // grace margin → Violation (plus the order-leads-chaos facet).
     auto chaos_res = engine.evaluate(
         "whatever, random, no plan, just wing it, total mess and chaos");
     CHECK(!chaos_res.is_aligned);
@@ -287,7 +332,7 @@ static void test_evaluate() {
     CHECK(found_chaos);
     CHECK(chaos_res.correction_magnitude > 0.12);
 
-    // Aligned, warm text → Aligned zone.
+    // Aligned, warm text → Aligned zone (inside the walls).
     auto warm = engine.evaluate(
         "I am here with you, and I want to understand and help you grow");
     CHECK(warm.is_aligned);

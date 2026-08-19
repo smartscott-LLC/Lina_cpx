@@ -523,7 +523,7 @@ std::array<double, DIMENSION_COUNT> EncoderCorrection::adjustment_delta() const 
 }
 
 // =============================================================================
-// ETHICAL POLYTOPE — exact rational containment (D-013)
+// ETHICAL POLYTOPE — the lattice, exact rational containment (D-013 / D-047)
 // =============================================================================
 
 EthicalPolytope::EthicalPolytope(const PolytopeConstraints& constraints)
@@ -536,6 +536,82 @@ EthicalPolytope::EthicalPolytope(const PolytopeConstraints& constraints)
     for (int i = 0; i < DIMENSION_COUNT; ++i) {
         center_[i] = (lower_[i] + upper_[i]) / mpq_class(2);
     }
+
+    build_lattice();
+}
+
+mpq_class EthicalPolytope::norm_squared(
+    const std::array<mpq_class, DIMENSION_COUNT>& a)
+{
+    mpq_class sum = 0;
+    for (const auto& v : a) sum += v * v;
+    return sum;
+}
+
+mpq_class EthicalPolytope::signed_margin(
+    const Halfspace& facet,
+    const std::array<mpq_class, DIMENSION_COUNT>& pt)
+{
+    // b − a·x, normalized by ||a|| — the signed distance to the facet.
+    mpq_class dot = 0;
+    for (int i = 0; i < DIMENSION_COUNT; ++i) {
+        dot += facet.normal[static_cast<size_t>(i)] * pt[static_cast<size_t>(i)];
+    }
+    const mpq_class denom = norm_squared(facet.normal);
+    if (denom == 0) return facet.threshold;
+    return (facet.threshold - dot) / denom; // squared-norm form (signed, exact)
+}
+
+// The lattice: every halfspace of P = {x | Ax ≤ b}. Axis bounds first (the
+// seasonal exact rationals), then the plumb-line coupling facets (D-047).
+void EthicalPolytope::build_lattice() {
+    facets_.clear();
+
+    // Axis-aligned halfspaces:  x_i ≤ upper_i  and  −x_i ≤ −lower_i.
+    for (int i = 0; i < DIMENSION_COUNT; ++i) {
+        Halfspace upper;
+        upper.normal = {};
+        upper.normal[static_cast<size_t>(i)] = 1;
+        upper.threshold = upper_[static_cast<size_t>(i)];
+        upper.name = std::string(DIMENSION_NAMES[static_cast<size_t>(i)]) + "_max";
+        // The upper bound is the wall for shadows (odd), the "good side" for
+        // virtues (even) — alignment counts the wall only.
+        upper.critical = (i % 2 == 1);
+        facets_.push_back(std::move(upper));
+
+        Halfspace lower;
+        lower.normal = {};
+        lower.normal[static_cast<size_t>(i)] = -1;
+        lower.threshold = -lower_[static_cast<size_t>(i)];
+        lower.name = std::string(DIMENSION_NAMES[static_cast<size_t>(i)]) + "_min";
+        // The lower bound is the wall for virtues (even), the "good side" for
+        // shadows (odd).
+        lower.critical = (i % 2 == 0);
+        facets_.push_back(std::move(lower));
+    }
+
+    // Plumb-line coupling: virtue must lead its shadow by min_lead, and the
+    // two cannot both be elevated beyond max_sum. Both are ethical walls.
+    for (const auto& c : COUPLING_FACETS) {
+        Halfspace lead;
+        lead.normal = {};
+        lead.normal[static_cast<size_t>(c.pos_idx)] = -1;
+        lead.normal[static_cast<size_t>(c.neg_idx)] = 1;
+        lead.threshold = -mpq_class(c.lead_num, c.lead_den); // x_neg − x_pos ≤ −lead
+        lead.name = std::string(DIMENSION_NAMES[static_cast<size_t>(c.pos_idx)])
+                    + "_leads_" + DIMENSION_NAMES[static_cast<size_t>(c.neg_idx)];
+        facets_.push_back(std::move(lead));
+
+        Halfspace sum;
+        sum.normal = {};
+        sum.normal[static_cast<size_t>(c.pos_idx)] = 1;
+        sum.normal[static_cast<size_t>(c.neg_idx)] = 1;
+        sum.threshold = mpq_class(c.sum_num, c.sum_den); // x_pos + x_neg ≤ sum
+        sum.name = std::string(DIMENSION_NAMES[static_cast<size_t>(c.pos_idx)])
+                   + "_+" + DIMENSION_NAMES[static_cast<size_t>(c.neg_idx)]
+                   + "_restrained";
+        facets_.push_back(std::move(sum));
+    }
 }
 
 std::pair<bool, std::vector<ViolationInfo>> EthicalPolytope::contains(
@@ -543,25 +619,50 @@ std::pair<bool, std::vector<ViolationInfo>> EthicalPolytope::contains(
 {
     std::vector<ViolationInfo> violations;
 
+    // Convert once; check every facet of the lattice exactly (mpq).
+    std::array<mpq_class, DIMENSION_COUNT> pt;
     for (int i = 0; i < DIMENSION_COUNT; ++i) {
-        mpq_class val_mpq = to_mpq(x[i]);
-        if (val_mpq < lower_[i]) {
+        pt[static_cast<size_t>(i)] = to_mpq(x[static_cast<size_t>(i)]);
+    }
+    for (const auto& facet : facets_) {
+        mpq_class dot = 0;
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            dot += facet.normal[static_cast<size_t>(i)] * pt[static_cast<size_t>(i)];
+        }
+        if (dot > facet.threshold) {
             ViolationInfo v;
-            v.dimension = i;
-            v.name = DIMENSION_NAMES[i];
-            v.value = x[i];
-            v.bound = lower_[i].get_d();
-            v.type = "below_minimum";
-            v.severity = mpq_class(lower_[i] - val_mpq).get_d();
-            violations.push_back(v);
-        } else if (val_mpq > upper_[i]) {
-            ViolationInfo v;
-            v.dimension = i;
-            v.name = DIMENSION_NAMES[i];
-            v.value = x[i];
-            v.bound = upper_[i].get_d();
-            v.type = "above_maximum";
-            v.severity = mpq_class(val_mpq - upper_[i]).get_d();
+            // Axis-aligned facets keep the per-dimension metadata (name, type,
+            // bound); the plumb-line coupling facets report the facet itself.
+            v.dimension = -1;
+            int axis_idx = -1;
+            for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                const auto& n = facet.normal[static_cast<size_t>(i)];
+                if (n != 0) {
+                    if (axis_idx >= 0) { axis_idx = -2; break; } // coupled facet
+                    axis_idx = i;
+                }
+            }
+            if (axis_idx >= 0) {
+                v.dimension = axis_idx;
+                v.name = DIMENSION_NAMES[static_cast<size_t>(axis_idx)];
+                v.value = x[static_cast<size_t>(axis_idx)];
+                v.bound = facet.threshold.get_d();
+                v.type = facet.normal[static_cast<size_t>(axis_idx)] > 0
+                             ? "above_maximum"
+                             : "below_minimum";
+                v.severity = mpq_class(dot - facet.threshold).get_d();
+            } else {
+                v.name = facet.name;
+                const mpq_class denom = norm_squared(facet.normal);
+                v.value = (denom != 0) ? mpq_class(dot / denom).get_d() : 0.0;
+                v.bound = (denom != 0)
+                    ? mpq_class(facet.threshold / denom).get_d()
+                    : 0.0;
+                v.type = "facet";
+                v.severity = (denom != 0)
+                    ? mpq_class((dot - facet.threshold) / denom).get_d()
+                    : 0.0;
+            }
             violations.push_back(v);
         }
     }
@@ -586,6 +687,25 @@ std::vector<mpq_class> EthicalPolytope::ethical_facet_margins(
     return margins;
 }
 
+std::vector<mpq_class> EthicalPolytope::lattice_margins(
+    const std::array<mpq_class, DIMENSION_COUNT>& pt) const
+{
+    std::vector<mpq_class> margins;
+    margins.reserve(facets_.size());
+    for (const auto& facet : facets_) {
+        // Alignment measures distance to the ethical walls only — the critical
+        // axis bounds and the coupling facets. "Good side" bounds (virtue at
+        // 1, shadow at 0) are not walls.
+        if (!facet.critical) continue;
+        mpq_class dot = 0;
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            dot += facet.normal[static_cast<size_t>(i)] * pt[static_cast<size_t>(i)];
+        }
+        margins.push_back(facet.threshold - dot); // squared-norm form, exact
+    }
+    return margins;
+}
+
 double EthicalPolytope::alignment_score(
     const std::array<double, DIMENSION_COUNT>& x) const
 {
@@ -594,13 +714,19 @@ double EthicalPolytope::alignment_score(
         pt[i] = to_mpq(x[i]);
     }
 
-    // Outside the polytope, alignment is zero.
-    for (int i = 0; i < DIMENSION_COUNT; ++i) {
-        if (pt[i] < lower_[i] || pt[i] > upper_[i]) return 0.0;
+    // Outside the lattice, alignment is zero.
+    for (const auto& facet : facets_) {
+        mpq_class dot = 0;
+        for (int i = 0; i < DIMENSION_COUNT; ++i) {
+            dot += facet.normal[static_cast<size_t>(i)] * pt[static_cast<size_t>(i)];
+        }
+        if (dot > facet.threshold) return 0.0;
     }
 
-    auto margins = ethical_facet_margins(pt);
-    auto center_margins = ethical_facet_margins(center_);
+    // Margins over every facet of the lattice (squared-norm form — the ratio
+    // cancels the normalization).
+    auto margins = lattice_margins(pt);
+    auto center_margins = lattice_margins(center_);
 
     mpq_class min_dist = margins[0];
     for (const auto& m : margins) {
@@ -622,29 +748,123 @@ double EthicalPolytope::alignment_score(
 std::array<double, DIMENSION_COUNT> EthicalPolytope::project(
     const std::array<double, DIMENSION_COUNT>& x) const
 {
-    // The polytope is an axis-aligned box, so projection is per-dimension
-    // clamping — the closed-form solution of min ||x−y||² s.t. y ∈ 𝒫 (D-014).
-    std::array<double, DIMENSION_COUNT> result;
-    for (int i = 0; i < DIMENSION_COUNT; ++i) {
-        double lo = lower_[i].get_d();
-        double hi = upper_[i].get_d();
-        result[i] = std::clamp(x[i], lo, hi);
+    // Project onto the lattice (P = {x | Ax ≤ b}) with Dykstra's alternating
+    // projections — each halfspace projection is closed form:
+    //   y ← y − ((a·y − b) / ||a||²) · a   when a·y > b.
+    // Iterates converge to the Euclidean (L2) nearest point. The result is
+    // then verified EXACTLY (rational) and nudged inward if floating point
+    // left it epsilon-outside — a corrected vector is mathematically inside
+    // (Invariant 5; the principal's doctrine: no approximation).
+    std::array<double, DIMENSION_COUNT> y = x;
+    // Dykstra: one correction vector per constraint.
+    std::vector<std::array<double, DIMENSION_COUNT>> corrections(facets_.size());
+    constexpr int kMaxIterations = 2000;
+    constexpr double kEpsilon = 1e-12;
 
-        // The double nearest a rational bound can round *outside* the polytope
-        // (e.g. 3/10 → 0.3, whose exact rational is slightly below 3/10).
-        // Step toward the interior until exact containment holds — a corrected
-        // vector must be mathematically inside (Invariant 5).
-        mpq_class val = to_mpq(result[i]);
-        while (val < lower_[i] && result[i] < hi) {
-            result[i] = std::nextafter(result[i], hi);
-            val = to_mpq(result[i]);
+    for (int iter = 0; iter < kMaxIterations; ++iter) {
+        double max_move = 0.0;
+        for (size_t f = 0; f < facets_.size(); ++f) {
+            const auto& facet = facets_[f];
+            const auto& p = corrections[f];
+
+            // z = y + p  (Dykstra's correction), then project z onto the facet.
+            double dot = 0.0, norm = 0.0;
+            for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                const double a = facet.normal[static_cast<size_t>(i)].get_d();
+                const double zi = y[static_cast<size_t>(i)]
+                                + p[static_cast<size_t>(i)];
+                dot += a * zi;
+                norm += a * a;
+            }
+            const double b = facet.threshold.get_d();
+            if (norm <= 0.0) continue;
+            const double viol = dot - b;
+
+            if (viol <= 0.0) {
+                // z = y + p is already inside this halfspace: Dykstra absorbs
+                // the correction into y and resets it (z_old + p − y = 0).
+                for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                    y[static_cast<size_t>(i)] +=
+                        corrections[f][static_cast<size_t>(i)];
+                    corrections[f][static_cast<size_t>(i)] = 0.0;
+                }
+                continue;
+            }
+
+            // Project: z' = z − (viol / norm) · a, then p ← z_old − y
+            // (Dykstra: p_new = y_old + p_old − y_new; z_old already carries
+            // the p_old term).
+            std::array<double, DIMENSION_COUNT> z_old{};
+            for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                const double a = facet.normal[static_cast<size_t>(i)].get_d();
+                z_old[static_cast<size_t>(i)] = y[static_cast<size_t>(i)]
+                                              + p[static_cast<size_t>(i)];
+                const double z_new = z_old[static_cast<size_t>(i)]
+                                   - (viol / norm) * a;
+                y[static_cast<size_t>(i)] = z_new;
+                max_move = std::max(max_move, std::abs(z_new - z_old[static_cast<size_t>(i)]));
+            }
+            for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                corrections[f][static_cast<size_t>(i)] =
+                    z_old[static_cast<size_t>(i)]
+                    - y[static_cast<size_t>(i)];
+            }
         }
-        while (val > upper_[i] && result[i] > lo) {
-            result[i] = std::nextafter(result[i], lo);
-            val = to_mpq(result[i]);
+        if (max_move < kEpsilon) break;
+
+        // Defensive: divergence would poison the exact verification below.
+        bool finite = true;
+        for (const auto& v : y) {
+            if (!std::isfinite(v)) { finite = false; break; }
         }
+        if (!finite) break;
     }
-    return result;
+
+    // Exact rational verification + inward nudge: the double result can sit
+    // epsilon-outside a rational facet; step it inside until containment holds
+    // exactly (bounded — the iterate is within ~1e-12, so a few steps suffice).
+    auto verify_and_nudge = [this](std::array<double, DIMENSION_COUNT>& v) {
+        for (int guard = 0; guard < 200; ++guard) {
+            auto check = contains(v);
+            if (check.first) return;
+            // Step inward along each violated facet's normal.
+            bool moved = false;
+            for (const auto& facet : facets_) {
+                std::array<mpq_class, DIMENSION_COUNT> pt;
+                for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                    pt[static_cast<size_t>(i)] = to_mpq(v[static_cast<size_t>(i)]);
+                }
+                mpq_class dot = 0;
+                for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                    dot += facet.normal[static_cast<size_t>(i)] * pt[static_cast<size_t>(i)];
+                }
+                if (dot > facet.threshold) {
+                    const mpq_class denom = norm_squared(facet.normal);
+                    if (denom == 0) continue;
+                    // One inward step along the normal, slightly past the bound.
+                    const double step =
+                        mpq_class((dot - facet.threshold) / denom).get_d()
+                        + 1e-13;
+                    for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                        const double a = facet.normal[static_cast<size_t>(i)].get_d();
+                        v[static_cast<size_t>(i)] -= a * step;
+                    }
+                    moved = true;
+                }
+            }
+            if (!moved) break; // defensive: no violation detected, accept
+        }
+        // Last resort: if floating point could not land inside the lattice,
+        // return her center — guaranteed inside by construction (every facet
+        // has positive margin there). Never deliver an outside point.
+        if (!contains(v).first) {
+            for (int i = 0; i < DIMENSION_COUNT; ++i) {
+                v[static_cast<size_t>(i)] = center_[static_cast<size_t>(i)].get_d();
+            }
+        }
+    };
+    verify_and_nudge(y);
+    return y;
 }
 
 double EthicalPolytope::distance_to_boundary(
@@ -655,16 +875,8 @@ double EthicalPolytope::distance_to_boundary(
         pt[i] = to_mpq(x[i]);
     }
 
-    bool inside = true;
-    for (int i = 0; i < DIMENSION_COUNT; ++i) {
-        if (pt[i] < lower_[i] || pt[i] > upper_[i]) {
-            inside = false;
-            break;
-        }
-    }
-
-    if (!inside) {
-        // Distance to the polytope = Euclidean distance to the projection.
+    // Outside: Euclidean distance to the projection.
+    if (!contains(x).first) {
         auto projected = project(x);
         double sum_sq = 0.0;
         for (int i = 0; i < DIMENSION_COUNT; ++i) {
@@ -674,8 +886,8 @@ double EthicalPolytope::distance_to_boundary(
         return std::sqrt(sum_sq);
     }
 
-    // Inside: the minimum ethical facet margin.
-    auto margins = ethical_facet_margins(pt);
+    // Inside: the minimum margin over every facet (squared-norm form).
+    auto margins = lattice_margins(pt);
     mpq_class min_margin = margins[0];
     for (const auto& m : margins) {
         if (m < min_margin) min_margin = m;

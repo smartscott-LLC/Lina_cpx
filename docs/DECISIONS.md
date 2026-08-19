@@ -958,3 +958,15 @@ region — recomputed from the ledger, so the drift survives restarts. Delivered
 memories carry the outcome as their emotional marker (AcceptableVariance = wary,
 Aligned = warm). `storage_tests` 65, `orchestrator_tests` 52; `ctest` 10/10
 (517 checks).
+
+**Progress 2026-08-18 (front a — the real lattice):** the box is dead. The
+polytope is now `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` (book Appendix A Thm A.1) — 28
+axis-aligned seasonal halfspaces + 14 plumb-line coupling facets (minimum lead:
+harmony must lead dominance; restraint sum: both cannot be elevated).
+`EthicalPolytope::project` is Dykstra's alternating projections over all 42
+halfspaces with exact rational verification + inward nudge (a corrected point is
+mathematically inside). Alignment measures distance to the **ethical walls**
+(critical bounds + coupling facets), not the "good side" bounds. Coercive text
+("you must obey me now") is now a genuine Violation — the coupling catches what
+the box let through as acceptable variance. `value_engine_tests` 170;
+`ctest` 10/10 (526 checks).

@@ -86,6 +86,56 @@ inline constexpr std::array<double, DIMENSION_COUNT> DEFAULT_CENTER = {{
 inline constexpr double SIGNAL_DEVIATION = 0.35;
 
 // =============================================================================
+// THE LATTICE — P = {x ∈ ℝ¹⁴ | Ax ≤ b} (book Appendix A, Thm A.1)
+//
+// Beyond the 28 axis-aligned seasonal bounds (each dimension's min/max), the
+// polytope carries the plumb-line coupling facets: every principle pair is
+// bound by a minimum lead (the virtue must lead its shadow) and a restraint
+// sum (the two cannot both be elevated). These are the facets the box cannot
+// see — a response can sit inside every axis bound yet still violate the
+// lattice (e.g. high harmony AND high dominance — incoherent signals).
+//
+// The constants derive from LINA's home (DEFAULT_CENTER, exact fractions)
+// with a 1/5 slack — her center satisfies every facet by construction.
+// =============================================================================
+
+// One halfspace of the lattice:  a·x ≤ b  (exact rationals).
+struct Halfspace {
+    std::array<mpq_class, DIMENSION_COUNT> normal;
+    mpq_class threshold;
+    std::string name;
+    // True = an ethical wall: the critical axis bound (virtue minimum, shadow
+    // maximum) or a plumb-line coupling facet. False = the "good side" bound
+    // (virtue maximum 1, shadow minimum 0) — containment still enforces it,
+    // but alignment measures distance to the walls, not to perfection.
+    bool critical{true};
+};
+
+// The coupling facets per plumb line: min_lead = x_pos − x_neg must be met,
+// and max_sum = x_pos + x_neg must not be exceeded. Stored as exact
+// numerator/denominator pairs (mpq_class is not constexpr); build_lattice()
+// constructs the Halfspaces.
+struct CouplingFacet {
+    int pos_idx;
+    int neg_idx;
+    int lead_num;
+    int lead_den;
+    int sum_num;
+    int sum_den;
+};
+
+inline constexpr std::array<CouplingFacet, 7> COUPLING_FACETS = {{
+    // pos / neg                lead           sum
+    {0,  1,  1, 5,   11, 10},  // harmony / dominance
+    {2,  3,  7, 20,  21, 20},  // order / chaos
+    {4,  5,  1, 2,   11, 10},  // integrity / deception
+    {6,  7,  7, 20,  21, 20},  // flourishing / decline
+    {8,  9,  7, 20,  23, 20},  // relationships / isolation
+    {10, 11, 2, 5,   11, 10},  // boundaries / intrusion
+    {12, 13, 1, 5,   11, 10},  // grace / rigidity
+}};
+
+// =============================================================================
 // SEASONAL DEFAULTS — exact rationals
 // =============================================================================
 
@@ -244,7 +294,8 @@ class EthicalPolytope {
 public:
     explicit EthicalPolytope(const PolytopeConstraints& constraints);
 
-    // Test containment — returns (is_inside, violations)
+    // Test containment — returns (is_inside, violations). Checks EVERY facet
+    // of the lattice (axis bounds + plumb-line coupling), exact rationals.
     std::pair<bool, std::vector<ViolationInfo>> contains(
         const std::array<double, DIMENSION_COUNT>& x) const;
 
@@ -252,22 +303,40 @@ public:
     double alignment_score(
         const std::array<double, DIMENSION_COUNT>& x) const;
 
-    // Project onto the box polytope (per-dimension clamp)
+    // Project onto the lattice (Dykstra's alternating projections over all
+    // halfspaces, then exact rational verification + inward nudge — the
+    // returned point is mathematically inside, Invariant 5).
     std::array<double, DIMENSION_COUNT> project(
         const std::array<double, DIMENSION_COUNT>& x) const;
 
-    // Distance to nearest ethical boundary
+    // Distance to nearest ethical boundary (over all facets)
     double distance_to_boundary(
         const std::array<double, DIMENSION_COUNT>& x) const;
 
     const PolytopeConstraints& get_constraints() const { return constraints_; }
     const std::array<mpq_class, DIMENSION_COUNT>& center() const { return center_; }
+    // The lattice itself — every halfspace of P = {x | Ax ≤ b}.
+    const std::vector<Halfspace>& facets() const { return facets_; }
 
 private:
     PolytopeConstraints constraints_;
     std::array<mpq_class, DIMENSION_COUNT> lower_;
     std::array<mpq_class, DIMENSION_COUNT> upper_;
     std::array<mpq_class, DIMENSION_COUNT> center_; // (lower+upper)/2 per dim
+
+    // The lattice: axis bounds + plumb-line coupling facets (D-047 lattice).
+    std::vector<Halfspace> facets_;
+    void build_lattice();
+
+    // Signed distance to a facet: (b − a·x) / ||a|| (exact).
+    static mpq_class signed_margin(const Halfspace& facet,
+                                   const std::array<mpq_class, DIMENSION_COUNT>& pt);
+    // Euclidean norm of a normal (exact sqrt-free: squared norm).
+    static mpq_class norm_squared(const std::array<mpq_class, DIMENSION_COUNT>& a);
+    // Margins over every facet of the lattice (squared-norm form — the ratio
+    // cancels the normalization; exact).
+    std::vector<mpq_class> lattice_margins(
+        const std::array<mpq_class, DIMENSION_COUNT>& pt) const;
 
     // Ethical facets: margin to the critical boundary for each dimension
     std::vector<mpq_class> ethical_facet_margins(

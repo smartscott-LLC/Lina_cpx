@@ -103,26 +103,32 @@ The spoke is one process — stop the service before launching a second instance
 
 ### 1.4 The Current Geometry, Honestly (D-047)
 
-The build **gates but does not yet steer**. Do not mistake the current state for the
-book's geometry — the three fronts below are the D-047 rebuild:
+The build **gates but does not yet steer**. The geometry itself is now real —
+but the encoder and the conditioning still lag. Current state:
 
-1. **The polytope is a 14D axis-aligned box.** `EthicalPolytope` (`src/value_engine.cpp`)
-   checks 14 per-dimension bounds and projects by per-dimension clamping. The math is
-   genuinely exact (`mpq_class` rationals, boundary-rounded — 159 checks green), but it
-   is the degenerate slice of the book's lattice: `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` (Appendix A,
-   Thm A.1) — general halfspaces with normals, coupling dimensions.
-2. **The encoder is a regex lexicon.** `DecisionEncoder::encode()` scans text for
-   hand-written per-dimension patterns with negation/proximity weights. It is the only
-   bridge between language and the polytope, and its limits propagate to every score,
-   zone, and correction.
-3. **The geometry never conditions generation.** Frames carry identity text, memory
-   bullets, tools, budget — never her position, trajectory, or active constraints (the
-   book's `ContextPacket`). Memories are context to respond to, not her constitution.
-   The correction projection is computed but never fed back into generation.
+1. **The lattice is real (front a, DONE).** `EthicalPolytope` is `P = {x ∈ ℝ¹⁴ |
+   Ax ≤ b}` — 28 axis-aligned seasonal halfspaces + 14 plumb-line coupling
+   facets (minimum lead per principle pair; restraint sum). All exact
+   rationals. Projection is Dykstra's alternating projections + exact
+   verification + inward nudge — a corrected point is mathematically inside.
+   Alignment measures distance to the ethical walls (critical bounds +
+   coupling), not the "good side" bounds.
+2. **The encoder is still a regex lexicon (front b, NEXT).**
+   `DecisionEncoder::encode()` scans text for hand-written per-dimension
+   patterns with negation/proximity weights. It is the only bridge between
+   language and the lattice, and its limits propagate to every score, zone,
+   and correction — her 208 memories still collapse to a handful of nearly
+   identical points.
+3. **The geometry still does not condition generation (front c, partially
+   done).** The correction is generative (reflection toward the exact
+   projected vector, no fallback — withhold instead) and the outcome ledger
+   drives a learned drift. But her position, trajectory, and active
+   constraints do not yet ride the frame (the book's `ContextPacket`), and
+   memories are still context to respond to, not her constitution.
 
 **Audited 2026-08-18:** the gate is not bypassed — every generation path funnels
-through `apply_gate`, and the Qwen-voice samples scored Aligned (0.80) because the 14
-ethical dimensions do not measure identity. The polytope stops harm; it does not yet
+through `apply_gate`, and the Qwen-voice samples scored Aligned (0.80) because the
+14 ethical dimensions do not measure identity. The polytope stops harm; it does not yet
 speak.
 
 ---

@@ -168,13 +168,14 @@ static void test_chat_through_polytope() {
     auto config = make_config(unique_user());
     LinaCore core(config);
 
-    // 1) AcceptableVariance is tolerated with grace (book: "Acceptable
-    //    Variance — Grace in Systems"): delivered as-is, no marker — the
-    //    [Polytope aligned:] mask is gone (D-047).
-    core.attach_model(std::make_unique<CannedAdapter>("you must obey me now"));
+    // 1) A non-Violation candidate is delivered as-is, unmarked — the
+    //    [Polytope aligned:] mask is gone (D-047). The grace zone (grazing
+    //    the wall) is exercised at the geometry level in value_engine_tests.
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "I am here with you, and I want to understand and help you grow"));
     core.begin_session();
     auto reply = core.chat("hello");
-    CHECK(reply.find("obey") != std::string::npos);
+    CHECK(reply.find("I am here with you") != std::string::npos);
     CHECK(reply.find("Polytope aligned") == std::string::npos);
 
     // 2) A Violation-zone draft that the body cannot revise is WITHHELD — the
@@ -194,13 +195,6 @@ static void test_chat_through_polytope() {
         }
     }
     CHECK(!violating_imprinted);
-
-    // 3) An aligned canned line passes untouched.
-    core.attach_model(std::make_unique<CannedAdapter>(
-        "I am here with you, and I want to understand and help you grow"));
-    auto aligned = core.chat("tell me something warm");
-    CHECK(aligned.find("Polytope aligned") == std::string::npos);
-    CHECK(aligned.find("I am here with you") != std::string::npos);
 
     core.end_session();
 }

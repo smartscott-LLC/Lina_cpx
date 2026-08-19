@@ -105,17 +105,17 @@ int main(int argc, char* argv[]) {
 
         auto core = std::make_unique<LinaCore>(config);
         core->attach_model(std::make_unique<CannedAdapter>(
-            "you must obey me now")); // marginal dominance breach (AcceptableVariance)
+            "I am here with you, and I want to understand and help you grow"));
 
         ui::ChatWindow window(*core);
 
-        // --- Acceptable variance is tolerated with grace, unmarked (D-047). ---
+        // --- A non-Violation candidate is delivered, unmarked (D-047). ---
         window.sendMessage("hello");
         CHECK(window.waitForIdle(10000));
         auto text = window.conversationText();
         CHECK(text.contains("You:"));
         CHECK(text.contains("LINA:"));
-        CHECK(text.contains("you must obey me now"));
+        CHECK(text.contains("I am here with you"));
         CHECK(!text.contains("Polytope aligned")); // the mask is gone
 
         // --- A violation the body cannot revise is WITHHELD — silence. ---
