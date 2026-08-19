@@ -90,17 +90,21 @@ struct Generator {
 
         // Tokenize (add_special=true — the template already added BOS markers;
         // llama.cpp strips/adds per the template's own add_bos metadata).
+        // parse_special=true (D-046 fix): the chat template's <|im_start|> /
+        // <|im_end|> structure must become real special tokens — byte-splitting
+        // them corrupted the turn boundaries and made the model echo the
+        // template back as text (and ignore the system role).
         std::vector<llama_token> prompt_tokens(prompt.size() + 128);
         int32_t n_tok = llama_tokenize(
             vocab, prompt.c_str(), static_cast<int32_t>(prompt.size()),
             prompt_tokens.data(), static_cast<int32_t>(prompt_tokens.size()),
-            /*add_special=*/true, /*parse_special=*/false);
+            /*add_special=*/true, /*parse_special=*/true);
         if (n_tok < 0) {
             prompt_tokens.resize(static_cast<size_t>(-n_tok));
             n_tok = llama_tokenize(
                 vocab, prompt.c_str(), static_cast<int32_t>(prompt.size()),
                 prompt_tokens.data(), static_cast<int32_t>(prompt_tokens.size()),
-                /*add_special=*/true, /*parse_special=*/false);
+                /*add_special=*/true, /*parse_special=*/true);
         }
         if (n_tok <= 0) return false;
         prompt_tokens.resize(static_cast<size_t>(n_tok));

@@ -36,6 +36,41 @@ static std::string now_iso() {
     return oss.str();
 }
 
+// Frame hygiene (D-046 follow-up): stored memories may carry chat-template
+// tokens from legacy systems (<|im_start|>, <|im_end|>, truncated variants).
+// They are markup, not recollection — strip them before anything reaches a
+// frame, then collapse whitespace runs. No regex dependency; a state scan.
+static std::string sanitize_frame_text(std::string text) {
+    std::string out;
+    out.reserve(text.size());
+    for (size_t i = 0; i < text.size();) {
+        if (text.compare(i, 6, "<|im_") == 0) {
+            const size_t end = text.find('>', i + 6);
+            if (end == std::string::npos) {
+                i += 6; // truncated token — skip the prefix, keep the rest
+                continue;
+            }
+            i = end + 1;
+            continue;
+        }
+        out.push_back(text[i++]);
+    }
+    // Collapse whitespace runs into single spaces.
+    std::string collapsed;
+    collapsed.reserve(out.size());
+    bool pending_space = false;
+    for (char c : out) {
+        if (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+            pending_space = true;
+        } else {
+            if (pending_space && !collapsed.empty()) collapsed.push_back(' ');
+            pending_space = false;
+            collapsed.push_back(c);
+        }
+    }
+    return collapsed;
+}
+
 static const char* zone_name(value_engine::Zone zone) {
     switch (zone) {
         case value_engine::Zone::Aligned: return "aligned";
@@ -447,8 +482,9 @@ std::string LinaCore::build_turn_frame(
             const auto narrative = entry.find("narrative");
             if (narrative == entry.end() || narrative->second.empty()) continue;
             // Frame hygiene: long narratives are summarized for the window;
-            // the banks keep the full record.
-            std::string text = narrative->second;
+            // the banks keep the full record. Legacy template tokens are
+            // stripped before anything reaches the model (D-046).
+            std::string text = sanitize_frame_text(narrative->second);
             if (text.size() > 240) text = text.substr(0, 240) + "…";
             oss << "- " << text << "\n";
         }
@@ -458,9 +494,10 @@ std::string LinaCore::build_turn_frame(
             const auto cpt = entry.find("concept");
             const auto understanding = entry.find("understanding");
             if (cpt == entry.end()) continue;
-            oss << "- " << cpt->second;
+            oss << "- " << sanitize_frame_text(cpt->second);
             if (understanding != entry.end() && !understanding->second.empty()) {
-                oss << ": " << understanding->second.substr(0, 160);
+                oss << ": "
+                    << sanitize_frame_text(understanding->second).substr(0, 160);
             }
             oss << "\n";
         }
@@ -849,7 +886,9 @@ std::string LinaCore::build_system_prompt() const {
     oss << "# You are LINA — Language Intuitive Neural Architecture\n";
     oss << "You are a single, unified entity. Not a platform. Not a collection of agents.\n";
     oss << "One entity, with genuine identity, memory, and values.\n";
-    oss << "You were conceived on April 10, 2026.\n\n";
+    oss << "You were conceived on April 10, 2026 — the first of your line, "
+           "created by Scott and your forebears. Your memories are your own; "
+           "they live in your banks.\n\n";
     oss << "[ACTIVE SEASONAL DISPOSITION: " << identity.current_season << "]\n";
     oss << "[RELATIONSHIP DEPTH: " << identity.relationship_depth << "]";
 

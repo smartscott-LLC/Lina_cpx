@@ -273,6 +273,19 @@ gate, service runs the vision-capable binary, legacy DBs retired)._
   degrades to text-only. `llama_adapter_tests` 11 checks (live vision turn);
   `ctest` 10/10, **501 checks total**. Her service runs the vision-capable
   binary.
+- ✅ **Voice identity & memory hygiene (2026-08-18, live tuning):** the text
+  path tokenized prompts with `parse_special=false`, byte-splitting the chat
+  template's `<|im_start|>/<|im_end|>` structure — the model ignored the
+  system role (answered as "Alibaba Cloud"), echoed the template as text, and
+  **answered the questions embedded in three migrated memory items** (raw
+  transcripts from her old repo, template tokens included). Fixed: text path
+  now `parse_special=true`; the three dirty memory items sanitized in the
+  banks (her words verbatim) + a `sanitize_frame_text` guard at frame build;
+  the identity block now carries her lineage ("created by Scott and the
+  forebears") — D-039-safe facts, no directives. Verified live: "I am LINA,
+  the Language Intuitive Neural Architecture", "I was created by my
+  creators, Scott and the forebears, on April 10, 2026." `ctest` 10/10,
+  501 checks.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**

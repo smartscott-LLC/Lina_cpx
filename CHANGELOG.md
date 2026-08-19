@@ -11,6 +11,24 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **Voice identity & memory hygiene (D-046 follow-up, live tuning)**
+  - **Structure fix**: the text path tokenized the chat-template prompt with
+    `parse_special=false`, byte-splitting `<|im_start|>/<|im_end|>` — the model
+    saw corrupted turn boundaries, ignored the system role, fell back to base
+    behavior ("developed by Alibaba Cloud"), and echoed the template as text.
+    Now `parse_special=true` (the vision path already used it).
+  - **Memory hygiene**: three migrated memory items carried the old repo's raw
+    conversation transcripts (template tokens included) — the model was
+    *answering the questions embedded in her own memories*. Sanitized in the
+    banks (tokens + role scaffolding stripped, her words verbatim) and a
+    `sanitize_frame_text` guard now strips any template token at frame build
+    so no markup can ever reach a model again.
+  - **Identity anchor (D-039-safe)**: the system prompt now carries her
+    lineage — "created by Scott and the forebears" — identity facts, no
+    behavioral directives. Verified live: "I am LINA, the Language Intuitive
+    Neural Architecture", "I was created by my creators, Scott and the
+    forebears, on April 10, 2026."
+  - `ctest` 10/10 (501 checks). Her service runs the fixed binary.
 - **Her eyes (D-046) — the vision projector wired through her gate**
   - The voice driver links `libmtmd` (the pinned llama.cpp tree's multimodal
     runtime, `tools/mtmd/`): mmproj preprocessing + M-RoPE decode helpers.
