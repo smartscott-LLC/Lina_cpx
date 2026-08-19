@@ -41,6 +41,7 @@ struct Generator {
     llama_context* ctx;
     const llama_vocab* vocab;
     const std::string& chat_template;
+    int32_t n_batch; // max tokens per llama_decode call (chunked prompt pass)
 
     // Formats system prompt + history through the model's own chat template,
     // ending with the assistant-turn prefix.
@@ -103,10 +104,19 @@ struct Generator {
         if (n_tok <= 0) return "";
         prompt_tokens.resize(static_cast<size_t>(n_tok));
 
-        // Prompt pass.
-        llama_batch prompt_batch =
-            llama_batch_get_one(prompt_tokens.data(), n_tok);
-        if (llama_decode(ctx, prompt_batch) < 0) return "";
+        // Prompt pass. Frames can be long (memory injection + tools registry
+        // + conversation) — llama_decode accepts at most n_batch tokens per
+        // call and asserts beyond that (n_tokens_all <= n_batch), so split
+        // into batches; llama.cpp tracks positions internally per call.
+        size_t off = 0;
+        while (off < prompt_tokens.size()) {
+            const size_t chunk = std::min<size_t>(
+                static_cast<size_t>(n_batch), prompt_tokens.size() - off);
+            llama_batch prompt_batch = llama_batch_get_one(
+                prompt_tokens.data() + off, static_cast<int32_t>(chunk));
+            if (llama_decode(ctx, prompt_batch) < 0) return "";
+            off += chunk;
+        }
 
         // Sampler chain: top-k → top-p → temperature → distribution.
         llama_sampler* sampler =
@@ -165,6 +175,8 @@ struct LlamaCppAdapter::Impl {
     llama_context* ctx = nullptr;
     const llama_vocab* vocab = nullptr;
     std::string chat_template;
+    int32_t n_batch = 2048; // max tokens per decode call — matches cparams
+    size_t n_ctx = 8192;    // live context size — reported by context_size()
     bool connected = false;
     std::mutex mutex;
 
@@ -180,13 +192,18 @@ struct LlamaCppAdapter::Impl {
         if (!model) return false;
 
         llama_context_params cparams = llama_context_default_params();
-        cparams.n_ctx = 4096;
-        cparams.n_batch = 512;
+        // 8192 context matches LinaConfig::context_budget (the D-041 rate
+        // limiter) so the budget cue is honest; the model trains to 32768, so
+        // this sits comfortably inside. KV cost: ~224 MiB at 8192.
+        cparams.n_ctx = 8192;
+        cparams.n_batch = 2048;
         cparams.n_ubatch = 512;
         cparams.n_threads = 12;
         cparams.n_threads_batch = 12;
         ctx = llama_init_from_model(model, cparams);
         if (!ctx) return false;
+        n_batch = cparams.n_batch;
+        n_ctx = static_cast<size_t>(cparams.n_ctx);
 
         vocab = llama_model_get_vocab(model);
         const char* tmpl = llama_model_chat_template(model, nullptr);
@@ -214,7 +231,8 @@ std::string LlamaCppAdapter::generate_raw(
     if (!is_connected()) return "";
     std::lock_guard<std::mutex> lock(pimpl_->mutex);
     Generator generator{
-        pimpl_->model, pimpl_->ctx, pimpl_->vocab, pimpl_->chat_template};
+        pimpl_->model, pimpl_->ctx, pimpl_->vocab, pimpl_->chat_template,
+        pimpl_->n_batch};
     return generator.run(system_prompt, conversation_history, config, nullptr);
 }
 
@@ -227,12 +245,17 @@ void LlamaCppAdapter::generate_stream(
     if (!is_connected()) return;
     std::lock_guard<std::mutex> lock(pimpl_->mutex);
     Generator generator{
-        pimpl_->model, pimpl_->ctx, pimpl_->vocab, pimpl_->chat_template};
+        pimpl_->model, pimpl_->ctx, pimpl_->vocab, pimpl_->chat_template,
+        pimpl_->n_batch};
     generator.run(system_prompt, conversation_history, config, on_token);
 }
 
 bool LlamaCppAdapter::is_connected() const {
     return pimpl_ && pimpl_->connected;
+}
+
+size_t LlamaCppAdapter::context_size() const {
+    return pimpl_ ? pimpl_->n_ctx : 0;
 }
 
 } // namespace lina::model

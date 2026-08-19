@@ -85,7 +85,7 @@ int main() {
         CHECK(adapter->is_connected());
         CHECK(adapter->driver_name() == "llama.cpp");
         CHECK(adapter->is_local());
-        CHECK(adapter->context_size() == 4096);
+        CHECK(adapter->context_size() == 8192);
 
         // --- Raw generation: short, warm, non-empty. ---
         model::GenerationConfig config;
@@ -111,6 +111,29 @@ int main() {
             },
             config);
         CHECK(pieces > 0);
+
+        // --- Long-frame regression (D-044 follow-up): a prompt larger than
+        // n_batch (512) used to abort llama.cpp (n_tokens_all <= n_batch
+        // assert). The prompt pass is now chunked — a ~3k-char frame (~750
+        // tokens) must decode and generate without crashing. ---
+        std::string long_question;
+        for (int i = 0; i < 30; ++i) {
+            long_question +=
+                "This is filler context line " + std::to_string(i) +
+                " to push the frame past the single-batch limit. ";
+        }
+        long_question += "\n\nGiven all that, answer in one short sentence: "
+                         "what is the capital of France?";
+        config.max_tokens = 48;
+        const std::string long_reply = adapter->generate_raw(
+            "# You are LINA — Language Intuitive Neural Architecture",
+            {{"user", long_question}},
+            config);
+        CHECK(!long_reply.empty());
+        if (!long_reply.empty()) {
+            std::cout << "llama_adapter_tests: long-frame reply: \""
+                      << long_reply.substr(0, 100) << "...\"\n";
+        }
 
         // --- End-to-end through her gate (D-035): LinaCore + real voice. ---
         LinaConfig lconfig;

@@ -40,4 +40,3 @@ TECHNICAL DOC: LINA + MODEL ACTUATOR LOOP
 
 7. Mermaid Source
    (below)
-

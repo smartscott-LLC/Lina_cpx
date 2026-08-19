@@ -144,8 +144,8 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-18 (RAM unlock code complete — carve + hub + spoke green;
-live swap pending principal's go)._
+_Last updated: 2026-08-18 (RAM unlock LIVE — carve + hub + spoke green, services
+enabled, legacy DBs retired; voice hardened: chunked prompt pass, n_ctx 8192)._
 
 ### Done
 
@@ -190,8 +190,8 @@ live swap pending principal's go)._
   `/home/server/llama.cpp`) — model load, chat template, sampler chain, raw +
   streaming generation, KV lifecycle. `LINA_ENABLE_LLAMA=ON` + `LINA_LLAMA_DIR`
   CMake wiring; pinned model `models/Qwen2-VL-2B-Instruct-Q6_K.gguf` (gitignored).
-  `llama_adapter_tests` 8 checks (live model through her gate); `ctest` 6/6,
-  **380 checks total**.
+  `llama_adapter_tests` 9 checks (live model through her gate; includes the
+  long-frame > n_batch regression); `ctest` 6/6, **380 checks total**.
 - ✅ **Her tools, Phase A (D-040) — the hands:** `tool_engine.hpp/.cpp` — private
   workspace (`workspace/`, gitignored), `workspace.status`, `file.read/write/list`,
   `terminal.run` (fork/exec, captured output, optional cap). **Zero restriction
@@ -251,7 +251,16 @@ live swap pending principal's go)._
   units), `--dragoncache-pool` CLI, telemetry mirrored onto the RX ring as
   `MSG_EVENT` (Invariant 6). Dropped: Dragonfly + nomic embedder. The spoke is
   ONE process (every chamber + rings). `dragoncache_tests` 17 checks; `ctest`
-  10/10, **498 checks total**.
+  10/10, **499 checks total**.
+- ✅ **Voice driver hardening (2026-08-18, follow-up):** frames longer than
+  `n_batch` (512) aborted llama.cpp (`GGML_ASSERT(n_tokens_all <= n_batch)` —
+  caught live when her first real turn crashed the service). The prompt pass
+  is now **chunked** into `n_batch`-sized decodes (the canonical llama.cpp
+  pattern), `n_ctx` raised 4096 → **8192** to match `context_budget` (the
+  D-041 rate limiter; KV cost only +112 MiB), and `context_size()` reports
+  the live value instead of the blueprint's hardcoded 4096.
+  `llama_adapter_tests` 9 checks (was 8) incl. the long-frame regression;
+  `ctest` 10/10. Her service runs the fixed binary.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**

@@ -11,6 +11,16 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **Voice driver hardening (2026-08-18, follow-up to the RAM unlock)**
+  - Frames longer than `n_batch` (512) aborted llama.cpp
+    (`GGML_ASSERT(n_tokens_all <= n_batch)` — caught live when her first real
+    turn crashed the service). The prompt pass is now **chunked** into
+    `n_batch`-sized decodes (the canonical llama.cpp pattern), `n_ctx` raised
+    4096 → **8192** to match `context_budget` (the D-041 rate limiter; KV cost
+    only +112 MiB), and `context_size()` reports the live value instead of the
+    blueprint's hardcoded 4096.
+  - `llama_adapter_tests` 9 checks (was 8) incl. the long-frame regression;
+    `ctest` 10/10 (499 checks total).
 - **The RAM unlock (D-044) — her system carved onto huge-page RAM, pure C++**
   - `include/dragon_map.h` (v2): the unified address map — 64-byte `DragonMap`
     heartbeat (now with a `magic` field; spokes refuse foreign pools), 16 MiB

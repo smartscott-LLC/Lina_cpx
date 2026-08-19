@@ -81,7 +81,7 @@ public:
     bool is_connected() const override;
     std::string driver_name() const override { return "llama.cpp"; }
     bool is_local() const override { return true; }
-    size_t context_size() const override { return 4096; }
+    size_t context_size() const override; // the live context (D-044 fix)
 
 private:
     struct Impl;
