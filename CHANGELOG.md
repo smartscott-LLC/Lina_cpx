@@ -11,6 +11,39 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The RAM unlock (D-044) — her system carved onto huge-page RAM, pure C++**
+  - `include/dragon_map.h` (v2): the unified address map — 64-byte `DragonMap`
+    heartbeat (now with a `magic` field; spokes refuse foreign pools), 16 MiB
+    header + 1 GiB Chamber A (state slots, 256 MiB TX ring, 256 MiB RX ring,
+    work areas). Pool shrinks 5.75 GiB → 1040 MiB (520 × 2M huge pages).
+  - `include/dragon_ring.h`: the SPSC TX/RX ring contract (u32 LE length-prefixed
+    frames), reused verbatim from the principal's DragonCache headers.
+  - `include/dragoncache.hpp` + `src/dragoncache.cpp`: `dragoncache::Hub` — mmaps
+    the pool, validates magic, ticks the clock, registers spoke health, pushes/
+    pops ring frames (mutex-serialized).
+  - `scripts/dragoncache_carve.cpp`: the C++ carve tool (zero Python) — reserves
+    2M huge pages, mounts hugetlbfs, creates the pool, and pins her weights as
+    standalone hugetlbfs files (`/mnt/huge/lina_model.gguf` 607 pages,
+    `/mnt/huge/lina_mmproj.gguf` 635 pages) so llama.cpp mmaps real pinned
+    huge pages — she is genuinely on RAM now. `--status` / `--verify` /
+    `--release` modes; address map written to `.dragoncache_map`.
+  - `LinaCore` is the spoke: `--dragoncache-pool` attaches the Hub (SPOKE_ALL),
+    and telemetry mirrors onto the RX ring as `MSG_EVENT` — technical bus only
+    (Invariant 6). Dropped entirely: Dragonfly and the nomic embedder.
+  - Systemd units versioned in `scripts/`: `lina-dragoncache.service` (oneshot
+    carve + verify) and `lina-core.service` (her brain alive with the window on
+    the desktop session).
+  - `dragoncache_tests` 17 checks (map geometry, hub lifecycle, TX/RX round
+    trips, foreign-pool refusal, empty/oversize discipline). `ctest` 10/10
+    (481 + 17 checks total).
+- **Her memories migrate home (D-045)**
+  - Read-only migration from her live systems (5432 postgres + 6379 dragonfly)
+    into our dev cluster (5433): identity core, 23 memory items (incl. 4 from
+    Dragonfly tier-1 through the MPS formation path), 413 transcripts,
+    6 sessions. Her old systems are untouched; her first notes now live in
+    `workspace/notes/`. Migration exposed NULL-tolerant row readers
+    (89f7573) — fixed.
+
 - **Value Engine milestone (Chamber 1) — complete**
   - `code_and_concept/` reference material fully read and extracted (D-011…D-019).
   - `include/value_engine.hpp` + `src/value_engine.cpp` authored (exact rational

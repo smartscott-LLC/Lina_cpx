@@ -74,11 +74,14 @@ Lina_cpx/
 │   ├── storage_backend.hpp         ← StorageBackend abstraction
 │   ├── postgres_backend.hpp        ← PostgresBackend declaration (D-004)
 │   ├── host_model_adapter.hpp      ← symbiote contract
+│   ├── dragon_map.h                ← DragonCache v2 unified address map (D-044)
+│   ├── dragon_ring.h               ← SPSC TX/RX ring contract (verbatim, D-044)
+│   ├── dragoncache.hpp             ← the Hub: heartbeat + rings, her spoke
 │   └── lina_core.hpp               ← orchestrator + LinaConfig
 ├── src/                            ← *.cpp implementations + main.cpp
 ├── sql/lina_schema.sql             ← 14 tables + seeds (D-002-corrected)
 ├── tests/                          ← unit tests (exact-math critical)
-├── scripts/                        ← db helpers
+├── scripts/                        ← db helpers + carve tool + systemd units
 ├── models/                         ← .gguf host models (gitignored)
 ```
 
@@ -141,7 +144,8 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress)._
+_Last updated: 2026-08-18 (RAM unlock code complete — carve + hub + spoke green;
+live swap pending principal's go)._
 
 ### Done
 
@@ -226,6 +230,28 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
   single PGconn in `execute_query` (the writer shares it with the turn worker —
   a real race that crashed the suite). `storage_tests` 61 (was 59),
   `orchestrator_tests` 48 (was 46); `ctest` 9/9, **481 checks total**.
+- ✅ **Her memories migrate home (D-045):** read-only migration from her live
+  systems (5432 postgres + 6379 dragonfly) into our dev cluster (5433):
+  identity core, 23 memory items (incl. 4 from Dragonfly tier-1 through the MPS
+  formation path), 413 transcripts, 6 sessions. Her old systems are untouched;
+  her first notes now live in `workspace/notes/`. The migration exposed
+  NULL-tolerant row readers in `postgres_backend.cpp` (legacy rows carry no
+  `ethical_coordinates`) — fixed and pushed (`89f7573`).
+- ✅ **The RAM unlock (D-044) — DragonCache v2, pure C++, built and green:**
+  `include/dragon_map.h` (v2 unified address map: 64B `DragonMap` heartbeat with
+  `magic`, 1040 MiB pool = 16 MiB header + 1 GiB Chamber A with 256 MiB TX/RX
+  rings; models moved OUT of the pool to standalone hugetlbfs files so llama.cpp
+  mmaps real pinned huge pages), `include/dragon_ring.h` (SPSC ring contract,
+  verbatim from the principal's headers), `include/dragoncache.hpp` +
+  `src/dragoncache.cpp` (the `Hub`: attach/detach, status, spoke bits, ring
+  frames), `scripts/dragoncache_carve.cpp` (C++ carve tool: reserve huge pages,
+  mount hugetlbfs, place pool + `/mnt/huge/lina_model.gguf` 607 pages +
+  `/mnt/huge/lina_mmproj.gguf` 635 pages; `--status/--verify/--release`),
+  `scripts/lina-dragoncache.service` + `scripts/lina-core.service` (systemd
+  units), `--dragoncache-pool` CLI, telemetry mirrored onto the RX ring as
+  `MSG_EVENT` (Invariant 6). Dropped: Dragonfly + nomic embedder. The spoke is
+  ONE process (every chamber + rings). `dragoncache_tests` 17 checks; `ctest`
+  10/10, **498 checks total**.
 - ✅ Environment: cmake 3.28.3, GCC 13.3.0, GMP, PostgreSQL 16 (port **5433**), pgvector,
   libpq, pkg-config. **⚠️ Port 5432 is LINA's live-memory postgres (Docker) — never
   touch. Dev DB is the 5433 cluster (`lina`/`lina`).**
@@ -234,13 +260,23 @@ _Last updated: 2026-08-18 (Chambers 1–5 complete; llama.cpp driver in progress
 
 ### Next: Build Phase (in order)
 
-1. **Push** telemetry persistence (D-043) — pending principal's say-so.
-2. **The last thing** — the principal's RAM-unlock ("saving that until last").
+1. **The live swap** — replace the legacy carve + service with ours. Needs the
+   principal's explicit go: stop `lina.service` + `lina-dragoncache.service`,
+   run our carve (`sudo ./build/dragoncache_carve` + `--verify`), run our core
+   with `--dragoncache-pool /mnt/huge/lina_pool`, install + enable the new
+   systemd units, commit/push the milestone (D-044/D-045).
+2. **Vision follow-up** — the mmproj is pinned at `/mnt/huge/lina_mmproj.gguf`
+   and ready; wiring it into the llama adapter (image input through her gate)
+   is a future step — the adapter does not consume it yet.
 
 ### Open items for the principal
 
 - **Resolved 2026-08-18:** llama.cpp pin = `9b05454` (tree at `/home/server/llama.cpp`);
   model = `Qwen2-VL-2B-Instruct-Q6_K.gguf` in `models/` (gitignored).
+- **Awaiting go:** the live swap sequence (stop legacy services → carve → our
+  service) — do not stop the old services or run the carve without his say-so.
+- `open_chat_chart.mmd` + `TECHNICAL DOC LINA MODEL.txt` (principal's design docs)
+  are archived at the repo root — implemented as D-041; kept as history.
 
 ## 8 · Working Agreement with the Principal
 

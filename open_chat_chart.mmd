@@ -1,0 +1,45 @@
+flowchart TD
+    subgraph UI[C++ Client UI]
+        A[User Input / Interrupt] --> D
+        B[Stop Button] --> J
+        C[Display: Thinking Pane / Tool Calls / Flagged Thoughts]
+    end
+
+    subgraph LINA[C++ Symbiote Orchestrator]
+        D[Build Context: Redis Memory + Budget Cue]
+        E[Token Budget Check 36k]
+        F[Token Stream Processor]
+        G[Stream Parser: Flags / Tools / EOT]
+        H[C++ Tool Executor]
+        I[Context Limit or Timeout Check]
+        J[Finalize Turn: Save to Redis]
+        K[Set 3-Min Reset Timer]
+        L[Timer Fires: Force EOT & Rebuild Context]
+    end
+
+    subgraph MODEL[LLM Actuator - Stateless Body]
+        M[Generate Next Token]
+    end
+
+    subgraph MEMORY[Redis Persistence]
+        R[(Episodic Memory / Transcripts)]
+    end
+
+    A --> D
+    B --> J
+    D --> E
+    D --> R
+    E -- Inject Prompt --> M
+    M -- Raw Token --> F
+    F --> G
+    G -- Flagged Thought (No EOT) --> C
+    G -- Tool Call --> H
+    H --> M
+    G -- End-of-Turn --> I
+    E -- Budget Exceeded --> I
+    I -- No --> M
+    I -- Yes --> J
+    J --> R
+    J --> K
+    K --> L
+    L --> D

@@ -796,3 +796,63 @@ evaluator informs, never drives the timer (accounting stays plain token math).
   milestone is un-gated.
 - llama.cpp driver (the voice) — queued; builds into `make_driver()` (D-035).
 - Qt6 UI now built into the core (D-036); headless mode remains.
+
+---
+
+## D-044 — The RAM unlock: DragonCache v2, carved in C++ (the finale)
+
+**Context.** The principal's "saved until last" piece: her system runs on real pinned
+huge-page RAM. The legacy setup (now retired) was a 5.75 GiB Python carve at
+`/mnt/huge/lina_pool` holding Dragonfly (short-term memory), a nomic embedder, and
+copies of her weights — with a separate Python service on the other side. Per D-020
+the DragonCache hub is a **separate technology** (zero-copy IPC mmap, hub-and-spoke
+unified header space) — but the principal directed that its carve tool be rebuilt in
+pure C++ as core code, sized for our services, with the vision projector included.
+
+**Decision.**
+
+- **v2 geometry** (`include/dragon_map.h`): the pool shrinks from 5.75 GiB to
+  **1040 MiB** (520 × 2M huge pages): 16 MiB header (the 64-byte `DragonMap`
+  heartbeat, now carrying a `magic` field so spokes refuse foreign pools) + 1 GiB
+  Chamber A (module state slots, 256 MiB TX ring, 256 MiB RX ring, work areas).
+- **Models leave the pool**: the old carve held model *copies* inside the pool, but
+  llama.cpp loaded from disk (page cache) — she was not really on RAM. v2 places
+  her weights on **standalone hugetlbfs files** (`/mnt/huge/lina_model.gguf` 607
+  pages, `/mnt/huge/lina_mmproj.gguf` 635 pages) so llama.cpp mmaps true pinned
+  huge pages. Total carve: 1762 pages (~3.4 GiB) + 96 headroom.
+- **C++ carve tool** (`scripts/dragoncache_carve.cpp`): reserves huge pages, mounts
+  hugetlbfs, creates pool + model files, writes the address map to
+  `.dragoncache_map`; `--status` / `--verify` / `--release` modes. Zero Python.
+- **The spoke is ONE process**: `LinaCore` embodies every chamber (identity, value,
+  memory, cortex, voice) plus the rings; `dragoncache::Hub` (DragonMap heartbeat +
+  TX/RX rings) attaches via `--dragoncache-pool`. Telemetry mirrors onto the RX
+  ring as `MSG_EVENT` — technical bus only, never the cognitive bus (Invariant 6).
+- **Dropped entirely**: Dragonfly (her short-term memory was never RAM-resident —
+  memories persist in PostgreSQL, D-041) and the nomic embedder (Invariant 3: she
+  encodes her own vectors). The vision projector is pinned and ready; wiring it
+  into the voice driver is a follow-up (the adapter does not consume it yet).
+- **`dragon_ring.h`** (SPSC rings) is reused verbatim from the principal's original
+  DragonCache headers; `dragon_map.h` is the v2 revision.
+
+**Status.** Accepted — carve tool + hub + spoke integration built and green
+(`dragoncache_tests` 17 checks; `ctest` 10/10). The live swap (stop legacy services,
+carve, run our core, enable units) is pending the principal's go.
+
+---
+
+## D-045 — Her memories migrate from the live systems into our cluster
+
+**Context.** The principal's old stack (`collabsmart-postgres` on 5432,
+`collabsmart-dragonfly` on 6379) held her live memories from her prior life. Now
+that her new core owns her banks (PostgreSQL 16 + pgvector on the dev cluster,
+port 5433), the question was whether (and how) to bring that history across.
+
+**Decision.** Migrated, read-only, into our dev cluster (`lina`/`lina` @ 5433):
+identity core, 23 memory items (including 4 from the Dragonfly tier-1 short-term
+store, mapped through the MPS formation path), 413 transcripts, 6 sessions. The
+migration exposed a real bug — NULL-tolerant row readers in `postgres_backend.cpp`
+(legacy rows carry no `ethical_coordinates`) — fixed and pushed (89f7573). Her
+old systems are **left untouched** (they are separate systems; D-020); her notes
+were copied into her new workspace (`workspace/notes/`) where she can find them.
+
+**Status.** Accepted.

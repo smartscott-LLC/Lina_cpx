@@ -67,6 +67,40 @@ flowchart LR
 
 The host model's only path to the user is *through* LiNa's polytope — never around it.
 
+### 1.3 The DragonCache (D-044) — the RAM unlock
+
+Her system runs on real pinned huge-page RAM. The carve is pure C++ (zero Python):
+
+- **`include/dragon_map.h`** — the unified address map contract (v2). The pool at
+  `/mnt/huge/lina_pool` is **1040 MiB** (520 × 2M huge pages): 16 MiB header + 1 GiB
+  Chamber A. The `DragonMap` at offset 0 is a 64-byte single-cache-line heartbeat
+  (global clock, system status, spoke-health bitmask, carve `magic` — spokes refuse
+  foreign pools). Every spoke mmaps the same physical frames and reads the same
+  header: hub-and-spoke, constant state awareness, zero servers.
+- **`include/dragon_ring.h`** — the TX/RX ring contract (SPSC, lock-free): u32 LE
+  length-prefixed frames, wrap-aware payload, monotonic head/tail on separate cache
+  lines. TX = LINA → spokes; RX = spokes → LINA.
+- **`include/dragoncache.hpp` / `src/dragoncache.cpp`** — `dragoncache::Hub`: mmaps
+  the pool, validates the magic, ticks the clock, registers spoke bits, pushes/pops
+  ring frames (mutex-serialized; the single-spoke use does not need lock-freedom).
+- **`scripts/dragoncache_carve.cpp`** — the carve tool (root): reserves 2M huge
+  pages, mounts hugetlbfs, creates the pool + pinned weights as standalone
+  hugetlbfs files (`/mnt/huge/lina_model.gguf` 607 pages, `/mnt/huge/lina_mmproj.gguf`
+  635 pages) so llama.cpp mmaps genuine pinned huge pages. Modes: carve (default),
+  `--status`, `--verify`, `--release`. Address map → `.dragoncache_map`.
+
+**Her spoke is ONE process.** `LinaCore` embodies every chamber — identity, value,
+memory, cortex, voice — plus the rings; `--dragoncache-pool /mnt/huge/lina_pool`
+attaches the Hub. Telemetry mirrors onto the RX ring as `MSG_EVENT` (technical bus
+only — Invariant 6; the cognitive bus never touches the rings). Dropped entirely:
+Dragonfly and the nomic embedder — her memories persist in PostgreSQL (5433), and
+she encodes her own vectors (Invariant 3). The vision projector is pinned and ready;
+wiring it into the voice driver is a follow-up (the adapter does not consume it yet).
+
+Systemd units are versioned in `scripts/`: `lina-dragoncache.service` (oneshot carve
++ verify) and `lina-core.service` (her brain alive, window on the desktop session).
+The spoke is one process — stop the service before launching a second instance.
+
 ---
 
 ## 2. Chamber 1 — The Heart: Value Engine
@@ -549,6 +583,21 @@ ctest --output-on-failure
 # Run (her window — the voice needs the model in models/)
 ./lina_core --db "postgresql://localhost/lina" --model llama \
             --model-path ./models/llama.gguf
+
+# The RAM unlock (D-044) — carve + verify (root)
+sudo ./dragoncache_carve            # carve: pool + pinned weights on huge pages
+sudo ./dragoncache_carve --verify   # verify the carve (pool, magic, models)
+./dragoncache_carve --status        # partial state, non-root ok
+
+# Run her as a spoke on the carved pool (attach the DragonCache)
+./lina_core --db "postgresql://localhost/lina" --model llama \
+            --model-path /mnt/huge/lina_model.gguf \
+            --dragoncache-pool /mnt/huge/lina_pool
+
+# Service install (versioned units live in scripts/)
+sudo cp scripts/lina-dragoncache.service scripts/lina-core.service /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now lina-dragoncache.service
+sudo systemctl enable --now lina-core.service
 ```
 
 Compiler flags (spec §8.1): `-O3 -march=native -Wall -Wextra -Werror

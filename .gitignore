@@ -31,6 +31,7 @@ models/*.onnx
 # --- Principal-provided reference material (disposable; never committed) ---
 code_and_concept/
 reference/
+dragoncache_intel/
 
 # --- Environment / secrets ---
 .env
@@ -40,6 +41,9 @@ reference/
 
 # --- Her private workspace (D-040) — runtime state, never committed ---
 workspace/
+
+# --- DragonCache generated artifacts (D-044) ---
+.dragoncache_map
 
 # --- Database dumps ---
 *.sql.gz

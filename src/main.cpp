@@ -28,6 +28,7 @@ void print_usage(const char* prog_name) {
               << "  --max-tokens N  Max tokens per response\n"
               << "  --temperature F Temperature (0.0-1.0)\n"
               << "  --season S      Season: spring, summer, fall, winter\n"
+              << "  --dragoncache-pool PATH  Attach the DragonCache spoke (the RAM unlock)\n"
               << "  --help          Show this help\n";
 }
 
@@ -45,6 +46,7 @@ int main(int argc, char* argv[]) {
         {"max-tokens", required_argument, 0, 0},
         {"temperature", required_argument, 0, 0},
         {"season", required_argument, 0, 0},
+        {"dragoncache-pool", required_argument, 0, 0},
         {"help", no_argument, 0, 0},
         {0, 0, 0, 0}
     };
@@ -64,6 +66,8 @@ int main(int argc, char* argv[]) {
             else if (opt_name == "max-tokens") config.max_tokens = std::stoi(optarg);
             else if (opt_name == "temperature") config.temperature = std::stof(optarg);
             else if (opt_name == "season") config.season = optarg;
+            else if (opt_name == "dragoncache-pool")
+                config.dragoncache_pool = optarg;
             else if (opt_name == "help") { print_usage(argv[0]); return 0; }
         }
     }

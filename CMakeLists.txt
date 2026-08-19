@@ -73,6 +73,20 @@ add_executable(memory_module_tests tests/memory_module_tests.cpp)
 target_link_libraries(memory_module_tests PRIVATE lina_memory_module)
 add_test(NAME memory_module_tests COMMAND memory_module_tests)
 
+# --- DragonCache (the RAM unlock) — carve tool + hub unit surface -------------
+# The carve tool reserves huge pages, mounts hugetlbfs, and creates the pool +
+# pinned model files. The Hub implementation rides into lina_core_lib via
+# LINA_CORE_SOURCES; the test compiles it directly (no storage deps).
+add_executable(dragoncache_carve scripts/dragoncache_carve.cpp)
+target_include_directories(dragoncache_carve PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_executable(dragoncache_tests tests/dragoncache_tests.cpp src/dragoncache.cpp)
+target_include_directories(dragoncache_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(dragoncache_tests PRIVATE pthread)
+add_test(NAME dragoncache_tests COMMAND dragoncache_tests)
+
 # --- Storage backend (Chamber 3) — PostgreSQL + pgvector -------------------
 if (LINA_ENABLE_STORAGE)
     find_package(PkgConfig REQUIRED)
@@ -89,7 +103,7 @@ if (LINA_ENABLE_STORAGE)
     # --- Orchestrator (Chamber 5) — binds the chambers ---------------------
     set(LINA_CORE_SOURCES src/lina_core.cpp src/model_driver.cpp
                           src/tool_engine.cpp src/stream_parser.cpp
-                          src/browser_driver.cpp)
+                          src/browser_driver.cpp src/dragoncache.cpp)
     if (LINA_ENABLE_LLAMA)
         # The voice (D-035) — pinned llama.cpp tree, linked via its C API.
         set(LINA_LLAMA_DIR "/home/server/llama.cpp" CACHE PATH

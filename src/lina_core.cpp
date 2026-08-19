@@ -68,6 +68,13 @@ LinaCore::~LinaCore() {
     }
     approval_handler_ = nullptr;
 
+    // Release the spoke before the threads wind down.
+    if (dragoncache_) {
+        dragoncache_->spoke_offline(SPOKE_ALL);
+        dragoncache_->set_status(STATUS_OFFLINE);
+        dragoncache_->detach();
+    }
+
     // Wind down the active turn first (it may still emit telemetry), then the
     // window thread, then the telemetry writer, then storage dies.
     stop_turn();
@@ -106,6 +113,12 @@ void LinaCore::set_telemetry_sink(TelemetrySink sink) {
 
 void LinaCore::emit_telemetry(const std::string& message) {
     persist_telemetry("core", "info", message);
+    // Mirror onto the DragonCache RX ring when the spoke is attached —
+    // technical bus only (Invariant 6).
+    if (dragoncache_ && dragoncache_->attached()) {
+        dragoncache_->push_frame(/*tx=*/false, MSG_EVENT, message.data(),
+                                 static_cast<uint32_t>(message.size()));
+    }
     std::lock_guard<std::mutex> lock(sink_mutex_);
     if (telemetry_sink_) telemetry_sink_(message);
 }
@@ -587,6 +600,19 @@ void LinaCore::initialize() {
         return request_approval(request);
     });
     tool_engine_->ensure_workspace();
+
+    // The DragonCache spoke (the RAM unlock): one process embodies every
+    // chamber — identity, value, memory, cortex, voice — plus the rings.
+    dragoncache_ = std::make_unique<dragoncache::Hub>();
+    if (!config_.dragoncache_pool.empty()) {
+        if (dragoncache_->attach(config_.dragoncache_pool)) {
+            dragoncache_->spoke_ready(SPOKE_ALL);
+            dragoncache_->set_status(STATUS_LIVE);
+            emit_telemetry("dragoncache spoke attached");
+        } else {
+            emit_telemetry("dragoncache spoke attach failed (carve not live?)");
+        }
+    }
 
     window_ms_ = config_.window_ms;
     start_window_thread();

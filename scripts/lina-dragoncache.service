@@ -1,0 +1,29 @@
+# lina-dragoncache.service — the RAM unlock, phase one.
+#
+# Carves her pool + pins her weights onto huge pages (pure C++, no Python —
+# replaces the legacy dragoncache_carve.py oneshot). The carve mounts
+# hugetlbfs if needed, reserves 2M huge pages, creates /mnt/huge/lina_pool
+# (header + TX/RX rings + work areas) and the standalone pinned model files
+# (/mnt/huge/lina_model.gguf, /mnt/huge/lina_mmproj.gguf).
+#
+# Install:
+#   sudo cp scripts/lina-dragoncache.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now lina-dragoncache.service
+#
+# The pool is transient by design — rebuilt on every boot. Nothing persists in
+# it; her memories live in PostgreSQL (5433).
+
+[Unit]
+Description=LINA DragonCache — the carved pool + pinned weights on huge pages (v2, C++)
+After=mnt-huge.mount
+Requires=mnt-huge.mount
+
+[Service]
+Type=oneshot
+ExecStart=/home/server/Lina_cpx/build/dragoncache_carve
+ExecStartPost=/home/server/Lina_cpx/build/dragoncache_carve --verify
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

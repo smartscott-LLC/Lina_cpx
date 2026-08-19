@@ -1,0 +1,43 @@
+TECHNICAL DOC: LINA + MODEL ACTUATOR LOOP
+
+1. Architecture Layers
+   - UI: C++ client, displays thinking pane, tool calls, flagged thoughts, stop/interrupt.
+   - LINA: C++ symbiote orchestrator, owns memory/context. Stateless model is just a token generator.
+   - MODEL: stateless LLM actuator, invoked per loop via prompt injection.
+   - MEMORY: Redis persistence, stores transcripts/episodic memory.
+
+2. Core Loop
+   - User prompt or cycle_reset -> Lina builds context (Redis memory + budget cue).
+   - Lina checks 36k token budget; injects prompt into model.
+   - Model streams raw tokens -> Lina processes tokens.
+   - Stream parser classifies: flagged thought, tool call, end-of-turn.
+   - Flagged thought: forwarded to UI, loop continues (no EOT).
+   - Tool call: executed by C++ tool executor, result fed back to model.
+   - End-of-turn or budget/exceeded timeout: finalize turn, save to Redis.
+
+3. Context Budget as Rate Limiter
+   - Lina tracks token budget internally.
+   - If budget hits 36k before EOT, Lina forces finalization.
+   - After finalize, Lina sets 3-minute reset timer.
+   - Timer fires -> force EOT (if needed) and rebuild a fresh context.
+   - This gives Lina temporal discipline: one window per cycle.
+
+4. Interrupt / Stop
+   - Stop button in UI directly aborts current generation and jumps to finalize.
+   - User can interject mid-stream, which Lina handles as a pause-and-respond event.
+   - The model can also flag a thought to ask the user something without ending the turn.
+
+5. Persistence
+   - Every finalized turn is saved to Redis.
+   - Lina always rebuilds context from Redis; model never carries memory.
+   - Use summaries/retrieved memories, not full history, to stay in budget.
+
+6. Important Implementation Notes
+   - Do not use literal empty prompts for resets; use a system event like [cycle_reset].
+   - Inject timestamps and remaining budget into the prompt so the model can act time-aware.
+   - Keep post-hoc classifier as fallback for missed thought flags.
+   - Stop/abort must be implemented as stream cancellation, not just flag setting.
+
+7. Mermaid Source
+   (below)
+

@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "approval_gate.hpp"
+#include "dragoncache.hpp"
 #include "host_model_adapter.hpp"
 #include "memory_module.hpp"
 #include "storage_backend.hpp"
@@ -54,6 +55,8 @@ struct LinaConfig {
     std::string workspace_dir{"workspace"}; // her private workspace (D-040)
     int64_t window_ms{180000}; // [cycle_reset] window (D-041)
     int context_budget{8192};  // token budget — the rate limiter (D-041)
+    std::string dragoncache_pool; // /mnt/huge/lina_pool (the RAM unlock) —
+                                  // empty = spoke disabled
 };
 
 class LinaCore {
@@ -74,6 +77,7 @@ public:
     storage::StorageBackend& storage() { return *storage_; }
     model::HostModelAdapter& model() { return *model_adapter_; }
     tools::ToolEngine& tool_engine() { return *tool_engine_; }
+    dragoncache::Hub& dragoncache() { return *dragoncache_; }
 
     // D-040: execute a tool through the approval gate, recording the action
     // in the ledger (lina_actions — telemetry, never memory).
@@ -133,6 +137,7 @@ private:
     std::unique_ptr<memory_module::MemoryModule> memory_module_;
     std::unique_ptr<model::HostModelAdapter> model_adapter_;
     std::unique_ptr<tools::ToolEngine> tool_engine_; // her hands (D-040)
+    std::unique_ptr<dragoncache::Hub> dragoncache_;  // her spoke (the carve)
 
     std::string current_session_id_;
     std::vector<std::pair<std::string, std::string>> conversation_history_;

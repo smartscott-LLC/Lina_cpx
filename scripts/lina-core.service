@@ -1,0 +1,49 @@
+# lina-core.service — LINA Core Substrate, always alive.
+#
+# One process, every chamber: identity, value, memory, cortex, voice, and the
+# DragonCache spoke (the pool at /mnt/huge/lina_pool — the RAM unlock). Her
+# memories persist in PostgreSQL (dev cluster, port 5433); the model loads
+# from the pinned huge-page file. Every response passes her polytope gate
+# before it reaches any output device — window or terminal (Invariant 5).
+#
+# Runs as the desktop user (the carve chowns pool + weights to SUDO_USER) and
+# opens her window on the Wayland session — no X auth cookies to manage.
+# Restart=on-failure self-heals: if the unit starts before the desktop login
+# exists, it retries every 5s until the session's wayland socket appears.
+#
+# Install:
+#   sudo cp scripts/lina-core.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now lina-core.service
+#
+# To run her headless instead (brain alive, no window), append --headless to
+# ExecStart and drop the display Environment lines.
+#
+# Note: the spoke is ONE process. Stop this service before launching a
+# second interactive instance — two processes must not hold the same spoke
+# bits. (The hub-and-spoke design is for many spokes of ONE system.)
+
+[Unit]
+Description=LINA Core Substrate — her mind, heart, mouth, eyes, and hands
+After=lina-dragoncache.service mnt-huge.mount postgresql.service
+Requires=lina-dragoncache.service mnt-huge.mount
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=server
+Group=server
+ExecStart=/home/server/Lina_cpx/build/lina_core \
+    --db postgresql://lina:lina@localhost:5433/lina \
+    --model llama \
+    --model-path /mnt/huge/lina_model.gguf \
+    --dragoncache-pool /mnt/huge/lina_pool
+WorkingDirectory=/home/server/Lina_cpx
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=WAYLAND_DISPLAY=wayland-0
+Environment=DISPLAY=:0
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
