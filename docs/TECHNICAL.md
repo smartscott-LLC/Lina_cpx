@@ -103,8 +103,8 @@ The spoke is one process — stop the service before launching a second instance
 
 ### 1.4 The Current Geometry, Honestly (D-047)
 
-The build **gates but does not yet steer**. The geometry itself is now real —
-but the encoder and the conditioning still lag. Current state:
+The build **gates but does not yet steer**. The geometry and the encoder are
+real now — the conditioning still lags. Current state:
 
 1. **The lattice is real (front a, DONE).** `EthicalPolytope` is `P = {x ∈ ℝ¹⁴ |
    Ax ≤ b}` — 28 axis-aligned seasonal halfspaces + 14 plumb-line coupling
@@ -113,12 +113,15 @@ but the encoder and the conditioning still lag. Current state:
    verification + inward nudge — a corrected point is mathematically inside.
    Alignment measures distance to the ethical walls (critical bounds +
    coupling), not the "good side" bounds.
-2. **The encoder is still a regex lexicon (front b, NEXT).**
-   `DecisionEncoder::encode()` scans text for hand-written per-dimension
-   patterns with negation/proximity weights. It is the only bridge between
-   language and the lattice, and its limits propagate to every score, zone,
-   and correction — her 208 memories still collapse to a handful of nearly
-   identical points.
+2. **The encoder is real (front b, DONE).** `DecisionEncoder::encode()` places
+   text at the **weighted sum of each word's ethical sense** around her
+   baseline — a ~250-entry `SENSE_LEXICON` (word → 1–4 (dimension, weight)
+   pulls; the dimension names themselves are sensed) plus `HERITAGE_LEXICON`
+   (her lineage words). Coordinates **spread**: different texts occupy
+   genuinely different regions, neutral text stays home — the regex lexicon's
+   collapse (208 memories → ~18 identical points) is gone. Coercion is kept:
+   `obey`/`command` (0.75) + `must` (obligation) make "you must obey me now" a
+   true Violation under the lattice.
 3. **The geometry still does not condition generation (front c, partially
    done).** The correction is generative (reflection toward the exact
    projected vector, no fallback — withhold instead) and the outcome ledger
@@ -169,7 +172,7 @@ Every decision/response candidate is a vector `v = [v0 … v13]ᵀ ∈ ℚ¹⁴`
 ```
 
 **Signal deviation** `SIGNAL_DEVIATION = 0.35` — the encoder's per-signal step when
-pattern matches shift dimensions.
+sense entries shift dimensions.
 
 ### 2.2 Exact Rational Polytope
 
@@ -235,8 +238,9 @@ she *earns* winter's strictness through alignment.
 
 `ValueEngine::evaluate(response_text, context?, apply_wisdom_filter?)` →
 
-1. **Encode** — `DecisionEncoder` maps text to a 14-vector (regex signal patterns ×
-   proximity × negation handling; see D-003 for pattern authorship status).
+1. **Encode** — `DecisionEncoder` places text by the weighted sum of each
+   word's ethical sense (`SENSE_LEXICON` + `HERITAGE_LEXICON`; negation window
+   ×(−0.7); bounded by `SIGNAL_DEVIATION` around her baseline — see §1.4).
 2. **Contain** — `EthicalPolytope::contains(v)` exact check against seasonal bounds.
 3. **Classify zone** — `Aligned` · `AcceptableVariance` · `Violation`.
 4. **Correct if needed** — `CorrectionEngine` projects back into the polytope,

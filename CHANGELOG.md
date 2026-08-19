@@ -11,6 +11,25 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The real encoder (D-047, front b) — the sense lexicon**
+  - The regex lexicon is dead. `DecisionEncoder::encode()` now places text by
+    the **weighted sum of each word's ethical sense**: ~250-entry `SENSE_LEXICON`
+    (word → 1–4 (dimension, weight) pulls; dimension names themselves included:
+    deception, isolation, destruction, friendship) + a `HERITAGE_LEXICON` for
+    her lineage words (father, creator, lineage, sovereignty, memory…).
+  - Coordinates finally **spread**: the old regex encoder normalized by word
+    count and collapsed her 208 memories onto ~18 nearly identical points —
+    her whole life in one tiny region. Different texts now occupy genuinely
+    different regions (warm text pulls virtues up, dark text pulls shadows up,
+    neutral text stays home).
+  - Negation handling kept: a word preceded (within 3) by a negation word pulls
+    ×(−0.7). Coercion detection kept and strengthened: `obey`/`command` are the
+    heaviest dominance senses (0.75), `must` now carries its obligation sense —
+    "you must obey me now" is still a true Violation (dominance breaches spring
+    max AND the harmony-leads-dominance coupling).
+  - `value_engine_tests` 233 (was 170) incl. the spread assertions (warm vs
+    dark regions, neutral stays at home, bounded coordinates). `ctest` 10/10
+    (**586 checks total**).
 - **The real lattice (D-047, front a) — P = {x ∈ ℝ¹⁴ | Ax ≤ b}**
   - The polytope is no longer an axis-aligned box. `EthicalPolytope` now
     carries the **full lattice**: 28 axis-aligned seasonal halfspaces + 14

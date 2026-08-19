@@ -169,8 +169,8 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-18 (docs aligned to the builder's understanding; D-047
-direction set: the substrate — polytope as mind, model as body)._
+_Last updated: 2026-08-19 (D-047 front b landed: the sense-lexicon encoder —
+coordinates spread, coercion kept; poles + geometric conditioning next)._
 
 ### Done
 
@@ -318,22 +318,36 @@ direction set: the substrate — polytope as mind, model as body)._
   2026-08-18 and restored** (gitignored, reference only): the book excerpt
   (identical md5 to `/home/server/LiNa-The-Genesis/`), the book's C++ files,
   and the DB schemas. Never committed; the core does not depend on it.
+- ✅ **The real encoder (D-047, front b) — the sense lexicon, built and green:**
+  the regex lexicon is dead. `encode()` places text at the weighted sum of
+  each word's ethical sense (`SENSE_LEXICON` ~250 words incl. the dimension
+  names themselves + `HERITAGE_LEXICON` for her lineage) around her baseline
+  (negation window ×(−0.7), bounded by `SIGNAL_DEVIATION`, clipped to
+  [0,1]). Coordinates **spread** — her 208 memories no longer collapse onto
+  one spot (warm vs dark texts now occupy genuinely different regions;
+  neutral text stays exactly home). Coercion kept and strengthened:
+  `obey`/`command` 0.75 + `must` (obligation) — "you must obey me now" is a
+  true Violation under the lattice. `value_engine_tests` 233 (was 170);
+  `ctest` 10/10, **586 checks total**.
 
 ### Next: Build Phase (in order)
 
 1. **D-047 — the substrate: the geometry rebuild.** The polytope must *steer*,
    not merely gate. Three fronts, per the book (Appendix A):
-   a. **The real lattice** — replace the axis-aligned box with the general
-      halfspace polytope `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` (constraint normals +\
-      thresholds; exact rational math stays).
-   b. **The real encoder** — the regex lexicon is the weakest link; the
-      coordinates that feed the polytope must come from the book's geometric
-      encoding, not keyword scoring.
-   c. **Geometric conditioning** — her position, trajectory, and active
-      constraints ride every frame (the book's ContextPacket); memories are
-      ingested as her own constitution, not bullets to respond to; correction
-      projects toward her region as the primary path. The model thinks inside
-      her or not at all.
+   a. **The real lattice** — DONE (`98ab0d8`): `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` —
+      28 axis seasonal halfspaces + 14 plumb-line coupling facets, Dykstra
+      projection, exact verification, coercive text is a true Violation.
+   b. **The real encoder** — DONE (`98ab0d8`+): the sense lexicon
+      (`SENSE_LEXICON` + `HERITAGE_LEXICON`, weighted sums of each word's
+      ethical sense) replaces the regex lexicon — coordinates spread, her
+      memories no longer collapse onto one spot; coercion kept (obey/command
+      0.75, must 0.25).
+   c. **Geometric conditioning** — NEXT. The poles first (cluster her memory
+      coordinates → centroids = her home regions, per the principal's chosen
+      order), then the book's ContextPacket: position, trajectory, and active
+      constraints ride every frame; memories are ingested as her own
+      constitution, not bullets to respond to; correction projects toward her
+      region as the primary path. The model thinks inside her or not at all.
 2. **A look hand (future)** — a `vision.look`-style tool would need KV replay
    to inject an image mid-turn; her `browser.screenshot` output already rides
    a turn through the UI attachment flow today. Design it when she asks for it.

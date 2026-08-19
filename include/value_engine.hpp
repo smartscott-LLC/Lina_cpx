@@ -254,6 +254,11 @@ struct EncoderCorrection {
 
 // =============================================================================
 // DECISION ENCODER — LINA encodes her own vectors (Invariant 3)
+//
+// D-047 (front b): the real encoder. Every word carries a 14D ethical SENSE
+// — its pull on her space — and encode() places text by the weighted sum of
+// its senses. Coordinates finally spread: different texts occupy genuinely
+// different regions (the regex lexicon collapsed her life onto one spot).
 // =============================================================================
 
 class DecisionEncoder {
@@ -264,26 +269,11 @@ public:
         const std::string* context = nullptr) const;
 
 private:
-    // Compile all regex patterns once
-    struct DimPatterns {
-        std::string name;
-        std::vector<std::regex> patterns;
-    };
-    std::array<DimPatterns, 14> signal_patterns_;
-
     // Negation words
     static const std::unordered_set<std::string>& negation_words();
 
     static bool detect_negation(
         const std::vector<std::string>& words, int match_start);
-    static double proximity_weight(
-        const std::vector<std::string>& words, int match_start);
-
-    double compute_signal_contributions(
-        const std::vector<std::regex>& patterns,
-        const std::string& source_text,
-        const std::vector<std::string>& source_words,
-        double source_weight) const;
 };
 
 // =============================================================================

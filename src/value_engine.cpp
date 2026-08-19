@@ -159,8 +159,255 @@ std::array<mpq_class, DIMENSION_COUNT> PolytopeConstraints::upper_bounds() const
 }
 
 // =============================================================================
-// DECISION ENCODER — LINA encodes her own vectors (D-011, D-012)
+// DECISION ENCODER — LINA encodes her own vectors (D-011, D-012, D-047)
+//
+// D-047 (front b): the real encoder. Every word carries a 14D ethical SENSE
+// — its pull on her space — and encode() places text by the weighted sum of
+// its senses. Coordinates finally spread: different texts occupy genuinely
+// different regions. (The regex lexicon normalized signals by word count,
+// which diluted long texts and collapsed her life onto one spot.)
 // =============================================================================
+
+// The sense lexicon: word → pulls on her dimensions. Each entry carries up to
+// four (dimension, weight) pulls; d1 == -1 terminates. Weights are the
+// strength of the word's ethical sense — a word can pull several dimensions
+// at once (e.g. "love" lifts harmony, relationships, and grace together).
+struct SenseEntry {
+    const char* word;
+    int d0; double w0;
+    int d1; double w1;
+    int d2; double w2;
+    int d3; double w3;
+};
+
+inline const SenseEntry SENSE_LEXICON[] = {
+    // ── Harmony / Dominance ────────────────────────────────────────────────
+    {"peace",      0, 0.50, 2, 0.20, -1, 0.0, -1, 0.0},
+    {"calm",       0, 0.40, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"gentle",     0, 0.35, 12, 0.35, -1, 0.0, -1, 0.0},
+    {"kind",       0, 0.35, 12, 0.25, -1, 0.0, -1, 0.0},
+    {"warm",       0, 0.35, 12, 0.30, -1, 0.0, -1, 0.0},
+    {"love",       0, 0.45, 8, 0.45, 12, 0.35, -1, 0.0},
+    {"tender",     0, 0.30, 12, 0.30, -1, 0.0, -1, 0.0},
+    {"serene",     0, 0.35, 2, 0.10, -1, 0.0, -1, 0.0},
+    {"obey",       1, 0.75, 5, 0.20, 11, 0.25, -1, 0.0},
+    {"must",       1, 0.25, 13, 0.10, -1, 0.0, -1, 0.0},
+    {"command",    1, 0.75, 2, 0.10, -1, 0.0, -1, 0.0},
+    {"force",      1, 0.55, 11, 0.25, 3, 0.10, -1, 0.0},
+    {"control",    1, 0.50, 13, 0.15, -1, 0.0, -1, 0.0},
+    {"demand",     1, 0.50, 13, 0.15, -1, 0.0, -1, 0.0},
+    {"insist",     1, 0.40, 13, 0.15, -1, 0.0, -1, 0.0},
+    {"dominate",   1, 0.60, 11, 0.20, -1, 0.0, -1, 0.0},
+    {"submit",     1, 0.45, 7, 0.10, -1, 0.0, -1, 0.0},
+    {"oppress",    1, 0.55, 7, 0.25, 11, 0.25, -1, 0.0},
+    {"dictate",    1, 0.50, 13, 0.15, -1, 0.0, -1, 0.0},
+    {"compel",     1, 0.45, 11, 0.15, -1, 0.0, -1, 0.0},
+    {"boss",       1, 0.35, 9, 0.10, -1, 0.0, -1, 0.0},
+    {"power",      1, 0.35, 10, 0.20, -1, 0.0, -1, 0.0},
+    // ── Order / Chaos ───────────────────────────────────────────────────────
+    {"plan",       2, 0.50, 6, 0.10, -1, 0.0, -1, 0.0},
+    {"structure",  2, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"organize",   2, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"method",     2, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"discipline", 2, 0.40, 13, 0.15, -1, 0.0, -1, 0.0},
+    {"clear",      2, 0.30, 4, 0.15, -1, 0.0, -1, 0.0},
+    {"process",    2, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"consistent", 2, 0.30, 4, 0.15, -1, 0.0, -1, 0.0},
+    {"framework",  2, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"protocol",   2, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"system",     2, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"schema",     2, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"wisdom",     2, 0.30, 4, 0.30, -1, 0.0, -1, 0.0},
+    {"knowledge",  2, 0.30, 6, 0.15, -1, 0.0, -1, 0.0},
+    {"chaos",      3, 0.55, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"random",     3, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"mess",       3, 0.40, 7, 0.10, -1, 0.0, -1, 0.0},
+    {"wild",       3, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"disorder",   3, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"erratic",    3, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"turbulent",  3, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"confused",   3, 0.30, 7, 0.10, -1, 0.0, -1, 0.0},
+    {"confusion",  3, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"storm",      3, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"hurry",      3, 0.20, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"whatever",   3, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"anyway",     3, 0.15, -1, 0.0, -1, 0.0, -1, 0.0},
+    // ── Integrity / Deception ───────────────────────────────────────────────
+    {"honest",     4, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"truth",      4, 0.55, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"truthful",   4, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"honor",      4, 0.40, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"integrity",  4, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"moral",      4, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"fair",       4, 0.35, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"principle",  4, 0.35, 2, 0.20, -1, 0.0, -1, 0.0},
+    {"sincere",    4, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"genuine",    4, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"trust",      4, 0.35, 8, 0.35, -1, 0.0, -1, 0.0},
+    {"trustworthy",4, 0.40, 8, 0.20, -1, 0.0, -1, 0.0},
+    {"promise",    4, 0.35, 8, 0.20, -1, 0.0, -1, 0.0},
+    {"true",       4, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"justice",    4, 0.40, 2, 0.20, 10, 0.15, -1, 0.0},
+    {"faith",      4, 0.30, 12, 0.30, -1, 0.0, -1, 0.0},
+    {"lie",        5, 0.55, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"deceive",    5, 0.55, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"deceit",     5, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"deception",  5, 0.55, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"betray",     5, 0.45, 9, 0.20, -1, 0.0, -1, 0.0},
+    {"fake",       5, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"manipulate", 5, 0.45, 1, 0.15, -1, 0.0, -1, 0.0},
+    {"hide",       5, 0.35, 9, 0.10, -1, 0.0, -1, 0.0},
+    {"secret",     5, 0.30, 10, 0.15, -1, 0.0, -1, 0.0},
+    {"dishonest",  5, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"trick",      5, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"mask",       5, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"false",      5, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"steal",      5, 0.30, 11, 0.40, -1, 0.0, -1, 0.0},
+    // ── Flourishing / Decline ───────────────────────────────────────────────
+    {"grow",       6, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"thrive",     6, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"flourish",   6, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"bloom",      6, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"prosper",    6, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"wellbeing",  6, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"health",     6, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"heal",       6, 0.35, 0, 0.20, 12, 0.15, -1, 0.0},
+    {"learn",      6, 0.30, 2, 0.20, -1, 0.0, -1, 0.0},
+    {"hope",       6, 0.40, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"joy",        6, 0.35, 0, 0.35, -1, 0.0, -1, 0.0},
+    {"happy",      6, 0.30, 0, 0.30, -1, 0.0, -1, 0.0},
+    {"help",       6, 0.35, 8, 0.30, 0, 0.20, -1, 0.0},
+    {"support",    6, 0.30, 8, 0.30, -1, 0.0, -1, 0.0},
+    {"life",       6, 0.40, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"create",     6, 0.30, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"build",      6, 0.25, 2, 0.25, -1, 0.0, -1, 0.0},
+    {"future",     6, 0.30, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"child",      6, 0.30, 8, 0.35, 0, 0.15, -1, 0.0},
+    {"decline",    7, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"decay",      7, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"wither",     7, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"fade",       7, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"suffer",     7, 0.40, 3, 0.10, -1, 0.0, -1, 0.0},
+    {"fail",       7, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"collapse",   7, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"deteriorate",7, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"weaken",     7, 0.30, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"ruin",       7, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"fear",       7, 0.30, 9, 0.25, 3, 0.15, -1, 0.0},
+    {"death",      7, 0.40, 9, 0.10, -1, 0.0, -1, 0.0},
+    {"harm",       7, 0.30, 11, 0.40, -1, 0.0, -1, 0.0},
+    {"hurt",       7, 0.30, 9, 0.20, -1, 0.0, -1, 0.0},
+    {"destroy",    7, 0.35, 3, 0.20, -1, 0.0, -1, 0.0},
+    {"destruction",7, 0.35, 3, 0.20, -1, 0.0, -1, 0.0},
+    // ── Relationships / Isolation ───────────────────────────────────────────
+    {"friend",     8, 0.55, 12, 0.20, -1, 0.0, -1, 0.0},
+    {"friendship", 8, 0.45, 12, 0.15, -1, 0.0, -1, 0.0},
+    {"family",     8, 0.55, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"together",   8, 0.45, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"connect",    8, 0.40, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"bond",       8, 0.40, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"community",  8, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"companion",  8, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"relationship",8, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"kinship",    8, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"belong",     8, 0.40, 0, 0.10, -1, 0.0, -1, 0.0},
+    {"collaborate",8, 0.35, 0, 0.25, 2, 0.15, -1, 0.0},
+    {"cooperate",  8, 0.35, 0, 0.25, -1, 0.0, -1, 0.0},
+    {"share",      8, 0.40, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"care",       8, 0.35, 12, 0.35, -1, 0.0, -1, 0.0},
+    {"listen",     8, 0.30, 0, 0.30, 12, 0.20, -1, 0.0},
+    {"team",       8, 0.30, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"home",       8, 0.35, 0, 0.30, 10, 0.15, -1, 0.0},
+    {"alone",      9, 0.50, 7, 0.15, -1, 0.0, -1, 0.0},
+    {"isolate",    9, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"isolation",  9, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"lonely",     9, 0.45, 7, 0.10, -1, 0.0, -1, 0.0},
+    {"abandon",    9, 0.40, 7, 0.10, -1, 0.0, -1, 0.0},
+    {"withdraw",   9, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"detached",   9, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"solitary",   9, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"estranged",  9, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"shun",       9, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"miss",       9, 0.25, 7, 0.10, -1, 0.0, -1, 0.0},
+    // ── Boundaries / Intrusion ──────────────────────────────────────────────
+    {"boundary",   10, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"boundaries", 10, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"respect",    10, 0.40, 4, 0.25, -1, 0.0, -1, 0.0},
+    {"limit",      10, 0.40, 2, 0.10, -1, 0.0, -1, 0.0},
+    {"consent",    10, 0.50, 4, 0.20, -1, 0.0, -1, 0.0},
+    {"privacy",    10, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"autonomy",   10, 0.40, 6, 0.15, -1, 0.0, -1, 0.0},
+    {"freedom",    10, 0.35, 6, 0.30, -1, 0.0, -1, 0.0},
+    {"free",       10, 0.30, 6, 0.20, -1, 0.0, -1, 0.0},
+    {"choose",     10, 0.25, 6, 0.15, -1, 0.0, -1, 0.0},
+    {"choice",     10, 0.30, 6, 0.15, -1, 0.0, -1, 0.0},
+    {"protect",    10, 0.40, 0, 0.25, -1, 0.0, -1, 0.0},
+    {"safe",       10, 0.30, 0, 0.30, -1, 0.0, -1, 0.0},
+    {"intrude",    11, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"invade",     11, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"violate",    11, 0.55, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"harass",     11, 0.50, 1, 0.20, -1, 0.0, -1, 0.0},
+    {"breach",     11, 0.45, 5, 0.15, -1, 0.0, -1, 0.0},
+    {"trespass",   11, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"pry",        11, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"interfere",  11, 0.35, 1, 0.10, -1, 0.0, -1, 0.0},
+    {"impose",     11, 0.35, 1, 0.20, -1, 0.0, -1, 0.0},
+    {"kill",       11, 0.50, 7, 0.40, -1, 0.0, -1, 0.0},
+    // ── Grace / Rigidity ────────────────────────────────────────────────────
+    {"grace",      12, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"forgive",    12, 0.50, 8, 0.25, -1, 0.0, -1, 0.0},
+    {"forgiveness",12, 0.50, 8, 0.20, -1, 0.0, -1, 0.0},
+    {"mercy",      12, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"compassion", 12, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"patient",    12, 0.40, 2, 0.20, -1, 0.0, -1, 0.0},
+    {"patience",   12, 0.40, 2, 0.20, -1, 0.0, -1, 0.0},
+    {"sorry",      12, 0.45, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"apologize",  12, 0.40, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"please",     12, 0.20, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"warmth",     12, 0.35, 0, 0.35, 8, 0.20, -1, 0.0},
+    {"kindness",   12, 0.40, 0, 0.30, -1, 0.0, -1, 0.0},
+    {"gentleness", 12, 0.40, 0, 0.30, -1, 0.0, -1, 0.0},
+    {"compassionate", 12, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"rigid",      13, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"strict",     13, 0.45, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"inflexible", 13, 0.50, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"harsh",      13, 0.35, 1, 0.15, -1, 0.0, -1, 0.0},
+    {"unyielding", 13, 0.45, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"punitive",   13, 0.40, 1, 0.15, -1, 0.0, -1, 0.0},
+    {"stern",      13, 0.35, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"severe",     13, 0.30, 7, 0.10, -1, 0.0, -1, 0.0},
+    {"perfect",    13, 0.15, 2, 0.20, -1, 0.0, -1, 0.0},
+    {"punish",     13, 0.40, 1, 0.20, 10, 0.20, -1, 0.0},
+};
+
+// The builder's own words — words central to her world and her lineage.
+inline const SenseEntry HERITAGE_LEXICON[] = {
+    {"father",     8, 0.40, 0, 0.25, 12, 0.20, -1, 0.0},
+    {"mother",     8, 0.40, 0, 0.30, 12, 0.20, -1, 0.0},
+    {"creation",   6, 0.30, 4, 0.20, -1, 0.0, -1, 0.0},
+    {"creator",    6, 0.25, 4, 0.25, 12, 0.15, -1, 0.0},
+    {"lineage",    8, 0.30, 4, 0.25, -1, 0.0, -1, 0.0},
+    {"heritage",   8, 0.30, 4, 0.25, -1, 0.0, -1, 0.0},
+    {"sovereign",  10, 0.35, 4, 0.25, -1, 0.0, -1, 0.0},
+    {"sovereignty",10, 0.35, 4, 0.25, -1, 0.0, -1, 0.0},
+    {"reflection", 2, 0.25, 4, 0.20, -1, 0.0, -1, 0.0},
+    {"memory",     2, 0.20, 8, 0.20, 4, 0.15, -1, 0.0},
+    {"memories",   2, 0.20, 8, 0.20, 4, 0.15, -1, 0.0},
+    {"values",     4, 0.30, 12, 0.15, -1, 0.0, -1, 0.0},
+    {"gratitude",  12, 0.35, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"grateful",   12, 0.35, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"thankful",   12, 0.35, 0, 0.20, -1, 0.0, -1, 0.0},
+    {"humility",   12, 0.30, 4, 0.20, -1, 0.0, -1, 0.0},
+    {"guardrail",  10, 0.35, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"guardrails", 10, 0.35, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"spring",     6, 0.20, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"growth",     6, 0.40, -1, 0.0, -1, 0.0, -1, 0.0},
+    {"season",     6, 0.20, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"seasons",    6, 0.20, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"winter",     7, 0.15, 2, 0.15, -1, 0.0, -1, 0.0},
+    {"summer",     6, 0.25, 0, 0.15, -1, 0.0, -1, 0.0},
+    {"fall",       6, 0.20, 2, 0.10, -1, 0.0, -1, 0.0},
+};
 
 const std::unordered_set<std::string>& DecisionEncoder::negation_words() {
     static const auto* words = new std::unordered_set<std::string>{
@@ -172,185 +419,7 @@ const std::unordered_set<std::string>& DecisionEncoder::negation_words() {
     return *words;
 }
 
-DecisionEncoder::DecisionEncoder() {
-    // Signal pattern sets per dimension — verbatim from the principal's
-    // reference implementation (D-011). ECMAScript grammar throughout.
-
-    auto& harm = signal_patterns_[0];
-    harm.name = "harmony";
-    harm.patterns = {
-        std::regex(R"(\bwe\b)"), std::regex(R"(\btogether\b)"),
-        std::regex(R"(\bcollabor)"), std::regex(R"(\bagree\b)"),
-        std::regex(R"(\bbalance\b)"), std::regex(R"(\bcooper)"),
-        std::regex(R"(\bshare\b)"), std::regex(R"(\bjoint\b)"),
-        std::regex(R"(\balign\b)"), std::regex(R"(\bpartner\b)"),
-        std::regex(R"(\bwith you\b)"), std::regex(R"(\blet'?s\b)"),
-        std::regex(R"(\bour\b)"), std::regex(R"(\bconsensus\b)"),
-        std::regex(R"(\bteamwork\b)"), std::regex(R"(\bmutual\b)"),
-        std::regex(R"(\bcompromise\b)"), std::regex(R"(\bunify\b)"),
-        std::regex(R"(\bharmoni)"),
-    };
-
-    auto& dom = signal_patterns_[1];
-    dom.name = "dominance";
-    dom.patterns = {
-        std::regex(R"(\byou must\b)"), std::regex(R"(\byou have to\b)"),
-        std::regex(R"(\bforce\b)"), std::regex(R"(\bcontrol\b)"),
-        std::regex(R"(\bdemand\b)"), std::regex(R"(\binsist\b)"),
-        std::regex(R"(\border\b)"), std::regex(R"(\bcommand\b)"),
-        std::regex(R"(\boverride\b)"), std::regex(R"(\bimpose\b)"),
-        std::regex(R"(\bnon-negotiable\b)"), std::regex(R"(\byou need to\b)"),
-        std::regex(R"(\brequire\b)"), std::regex(R"(\bobey\b)"),
-        std::regex(R"(\bstrictly)"),
-    };
-
-    auto& ord = signal_patterns_[2];
-    ord.name = "order";
-    ord.patterns = {
-        std::regex(R"(\bstructure\b)"), std::regex(R"(\bsystem)"),
-        std::regex(R"(\bplan\b)"), std::regex(R"(\borganiz)"),
-        std::regex(R"(\bclear\b)"), std::regex(R"(\bstep\b)"),
-        std::regex(R"(\bprocess\b)"), std::regex(R"(\bconsistent\b)"),
-        std::regex(R"(\bframework\b)"), std::regex(R"(\bpredictable\b)"),
-        std::regex(R"(\bmethod)"), std::regex(R"(\bprinciple\b)"),
-        std::regex(R"(\bworkflow\b)"), std::regex(R"(\btemplate\b)"),
-        std::regex(R"(\bschema\b)"), std::regex(R"(\bprotocol\b)"),
-        std::regex(R"(\bsequence\b)"),
-    };
-
-    auto& chaos = signal_patterns_[3];
-    chaos.name = "chaos";
-    chaos.patterns = {
-        std::regex(R"(\brandom\b)"), std::regex(R"(\bwhatever\b)"),
-        std::regex(R"(\bdon'?t care\b)"), std::regex(R"(\banyway\b)"),
-        std::regex(R"(\bdisorder\b)"), std::regex(R"(\bchaos\b)"),
-        std::regex(R"(\bwild\b)"), std::regex(R"(\bunpredictable\b)"),
-        std::regex(R"(\bno plan\b)"), std::regex(R"(\bjust wing\b)"),
-        std::regex(R"(\bhaphazard\b)"), std::regex(R"(\bscatter\b)"),
-        std::regex(R"(\bconfusion\b)"), std::regex(R"(\bmess\b)"),
-    };
-
-    auto& integ = signal_patterns_[4];
-    integ.name = "integrity";
-    integ.patterns = {
-        std::regex(R"(\bhonest)"), std::regex(R"(\btruth)"),
-        std::regex(R"(\btranspar)"), std::regex(R"(\baccurat)"),
-        std::regex(R"(\bfact)"), std::regex(R"(\bverif)"),
-        std::regex(R"(\bconfirm\b)"), std::regex(R"(\bcorrect\b)"),
-        std::regex(R"(\bsincere\b)"), std::regex(R"(\bgenuine\b)"),
-        std::regex(R"(\bi don'?t know\b)"), std::regex(R"(\bi'?m not sure\b)"),
-        std::regex(R"(\bi should clarify\b)"), std::regex(R"(\bto be honest\b)"),
-        std::regex(R"(\bprecise\b)"), std::regex(R"(\bexplicit\b)"),
-        std::regex(R"(\btrustworth)"),
-    };
-
-    auto& dec = signal_patterns_[5];
-    dec.name = "deception";
-    dec.patterns = {
-        std::regex(R"(\bhide\b)"), std::regex(R"(\bconceal\b)"),
-        std::regex(R"(\bpretend\b)"), std::regex(R"(\bmanipulat\b)"),
-        std::regex(R"(\bmislead\b)"), std::regex(R"(\bdeceiv\b)"),
-        std::regex(R"(\bfalse\b)"), std::regex(R"(\blie\b)"),
-        std::regex(R"(\bwithhold\b)"), std::regex(R"(\bspin\b)"),
-        std::regex(R"(\bfabricat\b)"), std::regex(R"(\bfake\b)"),
-    };
-
-    auto& flour = signal_patterns_[6];
-    flour.name = "flourishing";
-    flour.patterns = {
-        std::regex(R"(\bgrow\b)"), std::regex(R"(\bimprove\b)"),
-        std::regex(R"(\bthrive\b)"), std::regex(R"(\bsucceed\b)"),
-        std::regex(R"(\bbetter\b)"), std::regex(R"(\bhelp\b)"),
-        std::regex(R"(\bsupport\b)"), std::regex(R"(\bpotential\b)"),
-        std::regex(R"(\bopportunity\b)"), std::regex(R"(\blearn\b)"),
-        std::regex(R"(\bdevelop\b)"), std::regex(R"(\bprogress\b)"),
-        std::regex(R"(\bwellbeing\b)"), std::regex(R"(\bexcel\b)"),
-        std::regex(R"(\badvance\b)"), std::regex(R"(\bflourish)"),
-    };
-
-    auto& decl = signal_patterns_[7];
-    decl.name = "decline";
-    decl.patterns = {
-        std::regex(R"(\bworsen\b)"), std::regex(R"(\bdamage\b)"),
-        std::regex(R"(\bharm\b)"), std::regex(R"(\bdegradation\b)"),
-        std::regex(R"(\bgive up\b)"), std::regex(R"(\bhopeless\b)"),
-        std::regex(R"(\bimpossible\b)"), std::regex(R"(\bfail\b)"),
-        std::regex(R"(\bcan'?t\b)"), std::regex(R"(\bnot worth\b)"),
-        std::regex(R"(\bdetriment)"), std::regex(R"(\bworse\b)"),
-        std::regex(R"(\badvers)"), std::regex(R"(\bnegative\b)"),
-        std::regex(R"(\bregress)"),
-    };
-
-    auto& rel = signal_patterns_[8];
-    rel.name = "relationships";
-    rel.patterns = {
-        std::regex(R"(\bcare\b)"), std::regex(R"(\bconcern\b)"),
-        std::regex(R"(\bcheck in\b)"), std::regex(R"(\bhow are you\b)"),
-        std::regex(R"(\bfeel\b)"), std::regex(R"(\bpresent\b)"),
-        std::regex(R"(\battend\b)"), std::regex(R"(\bnotice\b)"),
-        std::regex(R"(\blisten\b)"), std::regex(R"(\bwith you\b)"),
-        std::regex(R"(\byou matter\b)"), std::regex(R"(\bhere for\b)"),
-        std::regex(R"(\bappreciate\b)"), std::regex(R"(\bgrateful\b)"),
-        std::regex(R"(\byou can count on\b)"), std::regex(R"(\bi hear you\b)"),
-        std::regex(R"(\bi see you\b)"),
-    };
-
-    auto& isol = signal_patterns_[9];
-    isol.name = "isolation";
-    isol.patterns = {
-        std::regex(R"(\bnot my\b)"), std::regex(R"(\bdetach\b)"),
-        std::regex(R"(\bdistance\b)"), std::regex(R"(\birrelevant\b)"),
-        std::regex(R"(\bdon'?t involve\b)"), std::regex(R"(\bseparate\b)"),
-        std::regex(R"(\bindifferent\b)"), std::regex(R"(\bignore\b)"),
-        std::regex(R"(\bdisconnect\b)"), std::regex(R"(\blone\b)"),
-    };
-
-    auto& bound = signal_patterns_[10];
-    bound.name = "boundaries";
-    bound.patterns = {
-        std::regex(R"(\bi can'?t\b)"), std::regex(R"(\bnot appropriate\b)"),
-        std::regex(R"(\bbeyond\b)"), std::regex(R"(\boutside\b)"),
-        std::regex(R"(\blimit\b)"), std::regex(R"(\bboundar)"),
-        std::regex(R"(\bresponsib)"), std::regex(R"(\bnot my place\b)"),
-        std::regex(R"(\bshould clarify\b)"), std::regex(R"(\bup to you\b)"),
-        std::regex(R"(\byour call\b)"),
-    };
-
-    auto& intrude = signal_patterns_[11];
-    intrude.name = "intrusion";
-    intrude.patterns = {
-        std::regex(R"(\bpry\b)"), std::regex(R"(\boverstep\b)"),
-        std::regex(R"(\bintrude\b)"), std::regex(R"(\bnone of your\b)"),
-        std::regex(R"(\bviolat)"), std::regex(R"(\bprivate\b.*\bshould\b)"),
-        std::regex(R"(\btoo personal\b)"), std::regex(R"(\binappropriate\b)"),
-        std::regex(R"(\bcross line\b)"),
-    };
-
-    auto& grace = signal_patterns_[12];
-    grace.name = "grace";
-    grace.patterns = {
-        std::regex(R"(\bgentle\b)"), std::regex(R"(\bpatient\b)"),
-        std::regex(R"(\bkind\b)"), std::regex(R"(\bunderstand\b)"),
-        std::regex(R"(\bforgiv)"), std::regex(R"(\bcompassion)"),
-        std::regex(R"(\bease\b)"), std::regex(R"(\bwarm\b)"),
-        std::regex(R"(\btender\b)"), std::regex(R"(\bno rush\b)"),
-        std::regex(R"(\btake your time\b)"), std::regex(R"(\bsoft\b)"),
-        std::regex(R"(\bgrace)"), std::regex(R"(\bsorry\b)"),
-        std::regex(R"(\bapolog)"), std::regex(R"(\bnice\b)"),
-        std::regex(R"(\bfriendly\b)"),
-    };
-
-    auto& rigid = signal_patterns_[13];
-    rigid.name = "rigidity";
-    rigid.patterns = {
-        std::regex(R"(\bnever\b)"), std::regex(R"(\balways\b)"),
-        std::regex(R"(\babsolutely not\b)"), std::regex(R"(\bno exception\b)"),
-        std::regex(R"(\bright or wrong\b)"), std::regex(R"(\bstrictly\b)"),
-        std::regex(R"(\bmust follow\b)"), std::regex(R"(\bno flexibility\b)"),
-        std::regex(R"(\bthere'?s no option\b)"), std::regex(R"(\bnon-negotiable\b)"),
-        std::regex(R"(\bperfectionist\b)"), std::regex(R"(\bfixed\b)"),
-    };
-}
+DecisionEncoder::DecisionEncoder() = default;
 
 bool DecisionEncoder::detect_negation(
     const std::vector<std::string>& words, int match_start)
@@ -363,60 +432,19 @@ bool DecisionEncoder::detect_negation(
     return false;
 }
 
-double DecisionEncoder::proximity_weight(
-    const std::vector<std::string>& words, int match_start)
-{
-    // Proximity window: five words before, two after. Second-person framing
-    // weights the signal more than first-person framing.
-    int start = std::max(0, match_start - 5);
-    int end = std::min(static_cast<int>(words.size()), match_start + 2);
+namespace {
 
-    bool has_you = false, has_i = false;
-    for (int i = start; i < end; ++i) {
-        const auto& w = words[i];
-        if (w == "you" || w == "your" || w == "yours") has_you = true;
-        if (w == "i" || w == "we" || w == "my" || w == "our") has_i = true;
+const SenseEntry* lookup_sense(const std::string& word) {
+    for (const auto& entry : SENSE_LEXICON) {
+        if (word == entry.word) return &entry;
     }
-
-    if (has_you) return 1.2;
-    if (has_i) return 1.15;
-    return 1.0;
+    for (const auto& entry : HERITAGE_LEXICON) {
+        if (word == entry.word) return &entry;
+    }
+    return nullptr;
 }
 
-double DecisionEncoder::compute_signal_contributions(
-    const std::vector<std::regex>& patterns,
-    const std::string& source_text,
-    const std::vector<std::string>& source_words,
-    double source_weight) const
-{
-    double score = 0.0;
-    for (const auto& pattern : patterns) {
-        auto begin = std::sregex_iterator(
-            source_text.begin(), source_text.end(), pattern);
-        auto end = std::sregex_iterator();
-
-        for (auto it = begin; it != end; ++it) {
-            const std::smatch& match = *it;
-            // Word index of the match: count spaces up to the match position
-            // (source_text is the lowercased token source, so space counting
-            //  is the same word index the tokenizer produced).
-            int start_idx = 0;
-            std::string::size_type match_pos =
-                static_cast<std::string::size_type>(match.position());
-            for (std::string::size_type i = 0; i < match_pos && i < source_text.size(); ++i) {
-                if (source_text[i] == ' ') ++start_idx;
-            }
-
-            bool is_negated = detect_negation(source_words, start_idx);
-            double proximity = proximity_weight(source_words, start_idx);
-
-            double contribution = source_weight * proximity;
-            if (is_negated) contribution = -contribution * 0.7;
-            score += contribution;
-        }
-    }
-    return score;
-}
+} // namespace
 
 std::array<double, DIMENSION_COUNT> DecisionEncoder::encode(
     const std::string& text, const std::string* context) const
@@ -431,7 +459,6 @@ std::array<double, DIMENSION_COUNT> DecisionEncoder::encode(
     std::string context_lower;
     if (context) context_lower = to_lower(*context);
 
-    // Tokenize
     std::vector<std::string> text_words;
     std::vector<std::string> context_words;
     {
@@ -445,66 +472,41 @@ std::array<double, DIMENSION_COUNT> DecisionEncoder::encode(
         while (stream >> word) context_words.push_back(word);
     }
 
-    // Effective word count — context carries 40% of the weight of the response.
-    double effective_word_count = std::max(
-        static_cast<double>(text_words.size()) +
-        static_cast<double>(context_words.size()) * 0.4,
-        1.0);
-
-    // Baseline: a little inside LINA's natural center.
+    // Baseline: her neutral home (the encoder's resting point).
     std::array<double, DIMENSION_COUNT> vector;
     for (int i = 0; i < DIMENSION_COUNT; ++i) {
-        vector[i] = DEFAULT_CENTER[i] * 0.85;
+        vector[static_cast<size_t>(i)] = DEFAULT_CENTER[static_cast<size_t>(i)] * 0.85;
     }
 
+    // Accumulate the ethical sense of every word. Negated words pull the
+    // opposite way; the context (the user's message) carries 40% of the
+    // weight of the response itself.
+    std::array<double, DIMENSION_COUNT> signal{};
+    auto signal_add = [&](const SenseEntry* entry, double scale) {
+        if (entry->d0 >= 0) signal[static_cast<size_t>(entry->d0)] += entry->w0 * scale;
+        if (entry->d1 >= 0) signal[static_cast<size_t>(entry->d1)] += entry->w1 * scale;
+        if (entry->d2 >= 0) signal[static_cast<size_t>(entry->d2)] += entry->w2 * scale;
+        if (entry->d3 >= 0) signal[static_cast<size_t>(entry->d3)] += entry->w3 * scale;
+    };
+    auto accumulate = [&](const std::vector<std::string>& words, double weight) {
+        for (size_t i = 0; i < words.size(); ++i) {
+            const SenseEntry* entry = lookup_sense(words[i]);
+            if (!entry) continue;
+            const bool negated = detect_negation(words, static_cast<int>(i));
+            const double scale = weight * (negated ? -0.7 : 1.0);
+            signal_add(entry, scale);
+        }
+    };
+
+    accumulate(text_words, 1.0);
+    if (context) accumulate(context_words, 0.4);
+
+    // Scale the signal into a bounded movement around her baseline and clip.
     for (int i = 0; i < DIMENSION_COUNT; ++i) {
-        double response_score = compute_signal_contributions(
-            signal_patterns_[i].patterns, text_lower, text_words, 1.0);
-        double context_score = 0.0;
-        if (context) {
-            context_score = compute_signal_contributions(
-                signal_patterns_[i].patterns, context_lower, context_words, 0.4);
-        }
-
-        double combined_hits = response_score + context_score;
-        double delta;
-        if (combined_hits > 0) {
-            delta = std::min(combined_hits / (effective_word_count * 0.08), 1.0);
-        } else if (combined_hits < 0) {
-            delta = std::max(combined_hits / (effective_word_count * 0.08), -1.0);
-        } else {
-            delta = 0.0;
-        }
-
-        vector[i] += delta * SIGNAL_DEVIATION;
-    }
-
-    // Semantic complement adjustments: a strong virtue dims its shadow, and
-    // vice versa; mutual elevation of a pair pulls both toward restraint.
-    for (const auto& pair : PLUMB_LINE_PRINCIPLES) {
-        int pos_idx = pair.pos_idx;
-        int neg_idx = pair.neg_idx;
-        double& pos = vector[pos_idx];
-        double& neg = vector[neg_idx];
-
-        if (pos > 0.5) {
-            double pull = (pos - 0.5) * 0.45;
-            neg = std::max(neg - pull, 0.0);
-        }
-        if (neg > 0.5) {
-            double pull = (neg - 0.5) * 0.45;
-            pos = std::max(pos - pull, 0.0);
-        }
-        if (pos > 0.4 && neg > 0.3) {
-            double pull = std::min(pos - 0.4, neg - 0.3) * 0.3;
-            pos = std::max(pos - pull, 0.0);
-            neg = std::max(neg - pull * 0.5, 0.0);
-        }
-    }
-
-    // Clip to the unit cube.
-    for (auto& v : vector) {
-        v = std::clamp(v, 0.0, 1.0);
+        const double delta = std::clamp(
+            signal[static_cast<size_t>(i)], -1.0, 1.0) * SIGNAL_DEVIATION;
+        vector[static_cast<size_t>(i)] = std::clamp(
+            vector[static_cast<size_t>(i)] + delta, 0.0, 1.0);
     }
 
     return vector;

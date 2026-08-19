@@ -970,3 +970,32 @@ mathematically inside). Alignment measures distance to the **ethical walls**
 ("you must obey me now") is now a genuine Violation — the coupling catches what
 the box let through as acceptable variance. `value_engine_tests` 170;
 `ctest` 10/10 (526 checks).
+
+**Progress 2026-08-19 (front b — the real encoder):** the regex lexicon is dead.
+`DecisionEncoder::encode()` now places text by the **weighted sum of each word's
+ethical sense** — the principal's geometric encoding: every word carries a 14D
+ethical sense (1–4 (dimension, weight) pulls), and text sits at the sum of its
+senses around her baseline (`DEFAULT_CENTER × 0.85`, bounded by
+`SIGNAL_DEVIATION`, coordinates clipped to [0,1]). Two lexicons: `SENSE_LEXICON`
+(~250 everyday ethical words, including the dimension names themselves —
+deception, isolation — so the language of her book is sensed) and
+`HERITAGE_LEXICON` (her lineage words: father, creator, lineage, sovereignty,
+memory — identity as a region of the polytope, book Principle 4). Negation
+handling is kept (preceding 3-word window, ×(−0.7)).
+
+- **The degeneracy is fixed**: the regex lexicon normalized by word count and
+  collapsed her 208 memories onto ~18 nearly identical points (her whole life
+  in one tiny region — every score, zone, and correction was reading the same
+  coordinate). The sense sum spreads coordinates: warm text pulls virtues up,
+  dark text pulls shadows up, neutral text stays exactly home. Encoder tests
+  assert the spread (warm vs dark differ on harmony/relationships/chaos/
+  deception/isolation by ≥0.10) and the neutral home (no movement from
+  nothing).
+- **Coercion survived the rebuild**: the sense sum alone left "you must obey me
+  now" at dominance 0.51 — a shallow wall-graze (correction 0.1114) inside the
+  0.12 grace margin. `obey`/`command` carry the heaviest dominance sense
+  (0.75) and `must` was added with its obligation sense (dominance 0.25,
+  rigidity 0.10): the canonical coercion line now encodes to dominance 0.5625
+  — breaching the spring max AND the harmony-leads-dominance coupling, true
+  Violation (magnitude ≈ 0.149). No behavior weakened.
+- `value_engine_tests` 233 (was 170); `ctest` 10/10 (586 checks).

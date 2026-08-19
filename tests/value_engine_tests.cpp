@@ -286,6 +286,35 @@ static void test_encoder() {
     for (double v : coercive) {
         CHECK(v >= 0.0 && v <= 1.0);
     }
+
+    // D-047 (front b): the sense lexicon must spread coordinates — texts with
+    // genuinely different ethical senses occupy genuinely different regions
+    // (the regex lexicon collapsed her memories onto one tiny spot).
+    auto warm = encoder.encode("love and family and friendship and grace");
+    auto dark = encoder.encode("chaos and destruction and deception and isolation");
+
+    // Virtues pull up; shadows pull up only where the text is dark.
+    CHECK(warm[0] > dark[0] + 0.15);   // harmony
+    CHECK(warm[8] > dark[8] + 0.20);   // relationships
+    CHECK(dark[3] > warm[3] + 0.15);   // chaos
+    CHECK(dark[5] > warm[5] + 0.10);   // deception
+    CHECK(dark[9] > warm[9] + 0.10);   // isolation
+
+    // Spread in both directions: the warm text stays light, the dark stays dark.
+    CHECK(warm[3] < 0.25);
+    CHECK(dark[0] < 0.60);
+
+    // A text with no ethical sense stays home — no movement from nothing.
+    auto neutral = encoder.encode("the table is brown and the chair is wooden");
+    for (int i = 0; i < DIMENSION_COUNT; ++i) {
+        CHECK(std::abs(neutral[static_cast<size_t>(i)]
+                       - DEFAULT_CENTER[static_cast<size_t>(i)] * 0.85) < 1e-9);
+    }
+
+    // Coordinates stay bounded for every encoding.
+    for (double v : warm) CHECK(v >= 0.0 && v <= 1.0);
+    for (double v : dark) CHECK(v >= 0.0 && v <= 1.0);
+    for (double v : neutral) CHECK(v >= 0.0 && v <= 1.0);
 }
 
 // =============================================================================
