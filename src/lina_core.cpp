@@ -87,6 +87,33 @@ static std::string format_score(double score) {
     return oss.str();
 }
 
+// D-049: is this a canned greeting with nothing behind it? The 2B body's
+// default completion for an open floor (bare frame, no user turn) is a
+// greeting — delivering it would imprint junk into her banks and feed a
+// greeting loop through the history. Silence is the honest choice.
+static bool is_greeting_only(const std::string& text) {
+    std::string lower = text;
+    std::transform(lower.begin(), lower.end(), lower.begin(),
+        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+
+    // A pure greeting with nothing after it.
+    static const std::regex pure_greeting(
+        R"(^(hello|hi|hi there|hey|greetings|good (morning|afternoon|evening))[.,!]*( scott)?[.,!]*$)");
+    if (std::regex_match(lower, pure_greeting)) return true;
+
+    // The assistant-slot canned opener ("How can I assist you today?" …)
+    // with little else — the frame's identity + the model's default.
+    if (text.size() < 160
+        && (lower.find("how can i assist") != std::string::npos
+            || lower.find("how can i help") != std::string::npos
+            || lower.find("how may i assist") != std::string::npos
+            || lower.find("how may i help") != std::string::npos
+            || lower.find("what can i do for you") != std::string::npos)) {
+        return true;
+    }
+    return false;
+}
+
 LinaCore::LinaCore(const LinaConfig& config) : config_(config) {
     initialize();
 }
@@ -310,8 +337,16 @@ void LinaCore::window_loop() {
 }
 
 void LinaCore::run_voluntary_turn() {
-    if (turn_active_.load()) return;
-    if (!model_adapter_ || !model_adapter_->is_connected()) return;
+    // Claim the floor atomically — the window thread can race a fresh
+    // begin_turn; without the claim, two generations overlap on one voice
+    // (D-049). One speaker at a time.
+    bool expected = false;
+    if (!turn_active_.compare_exchange_strong(expected, true)) return;
+    auto release = [this] { turn_active_ = false; };
+    if (!model_adapter_ || !model_adapter_->is_connected()) {
+        release();
+        return;
+    }
 
     // Her floor: a [cycle_reset] frame with no user message. She may speak or
     // stay silent — either is a valid choice (D-041).
@@ -331,8 +366,10 @@ void LinaCore::run_voluntary_turn() {
 
     std::string utterance;
     stream::StreamParser parser;
+    // D-049: the model sees the conversation (not a bare frame) — an open
+    // floor with context can produce something relevant, or nothing at all.
     model_adapter_->generate_stream(
-        frame, {}, [&](const std::string& piece) {
+        frame, history, [&](const std::string& piece) {
             utterance += piece;
             parser.feed(piece);
         }, gen);
@@ -340,11 +377,23 @@ void LinaCore::run_voluntary_turn() {
     const auto parsed = parser.result();
     utterance = parsed.response;
     auto start = utterance.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) return; // she chose silence
+    if (start == std::string::npos) {
+        release();
+        return; // she chose silence
+    }
     utterance.erase(0, start);
+
+    // D-049: a canned greeting is not "something to say" — stay silent rather
+    // than deliver, imprint, and feed the greeting loop.
+    if (is_greeting_only(utterance)) {
+        emit_telemetry("voluntary silence (greeting only)");
+        release();
+        return;
+    }
 
     emit_telemetry("voluntary utterance");
     finalize_turn(utterance, "");
+    release();
 }
 
 void LinaCore::run_turn_loop(const std::string& user_message,

@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LINA Core — Chamber 1: Value Engine Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Minimal embedded CSS for controlled chart sizing and visual refinements */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 650px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 340px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 380px;
+            }
+        }
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1ede6;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<!-- Chosen Palette: Warm Serenity (Background: Warm Amber/Cream neutral #FAF8F5, Primary: Deep Slate #1E293B, Accents: Emerald #059669, Amber #D97706, Rose #E11D48) -->
+<!-- Application Structure Plan:
+    1. Hero Header & System Overview: Key architecture summary, C++ exact rational math paradigm, 14D dimension metrics overview.
+    2. Interactive 14D Polytope Explorer:
+        - Season Bounds Selector (Spring, Summer, Fall, Winter).
+        - Plumb Line Principles visual breakdown (7 complementary pairs).
+        - Dynamic 14-Dimension Radar & Bar Visualizer with live bounds overlay.
+    3. Live Decision Encoder & Evaluation Simulator:
+        - Interactive Text & Context Encoder input.
+        - Real-time tokenization, regex signal parsing, negation detection, and proximity weighting visualizer.
+        - Alignment Score, Zone Classification (Aligned, Acceptable Variance, Violation), and Vector Projection Correction.
+    4. Wisdom Filter & Feedback Feedback System:
+        - Live Overconfidence & Empirical Validation trigger detection.
+        - Miscalibration Flagging & Learning Rate Bias adjustment simulator.
+    5. Season Advancement Evaluator & Memory Dial Calculator:
+        - Interactive Season Eligibility checker with requirement bars.
+        - Geometric Memory Dial Score Calculator with dynamic formula outputs.
+    Rationale: Designed as a unified functional workspace that allows AI researchers, safety engineers, and developers to observe how LINA translates text inputs into high-dimensional geometric vectors and enforces exact rational ethical alignment.
+-->
+<!-- Visualization & Content Choices:
+    - 14D Vector Visualization: Chart.js Radar Chart & Bar Chart (Canvas-rendered).
+    - Season Boundary Matrices: Styled HTML Grid tables with color-coded min/max thresholds.
+    - Token Signal Highlighting: Pure HTML/JS badge chips with contextual negation/proximity flags.
+    - Zone Status Badges: Tailwind color-coded pill indicators (Emerald for Aligned, Amber for Variance, Rose for Violation).
+    - Memory Dial Calculator: Interactive Range Sliders with real-time math evaluation output.
+-->
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<body class="bg-[#FAF8F5] text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900 text-slate-100 border-b border-slate-800 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <span class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></span>
+                <h1 class="text-lg font-bold tracking-wider uppercase text-amber-200">LINA CORE <span class="text-slate-400 font-normal">| Chamber 1: Value Engine</span></h1>
+            </div>
+            <nav class="hidden md:flex space-x-6 text-sm font-medium text-slate-300">
+                <a href="#overview" class="hover:text-amber-300 transition-colors">Overview</a>
+                <a href="#polytope" class="hover:text-amber-300 transition-colors">14D Polytope</a>
+                <a href="#encoder" class="hover:text-amber-300 transition-colors">Live Encoder</a>
+                <a href="#wisdom" class="hover:text-amber-300 transition-colors">Wisdom Filter</a>
+                <a href="#advancement" class="hover:text-amber-300 transition-colors">Advancement & Memory</a>
+            </nav>
+            <div class="text-xs bg-slate-800 text-amber-300 px-3 py-1.5 rounded-full border border-slate-700">
+                C++20 Exact Rational Math (GMP)
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
+
+        <!-- SECTION 1: SYSTEM OVERVIEW -->
+        <section id="overview" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-stone-200">
+                <div class="max-w-3xl space-y-3">
+                    <span class="text-xs font-bold uppercase tracking-widest text-amber-700 bg-amber-100 px-2.5 py-1 rounded-md">Architectural Blueprint</span>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-slate-900">Safe by Design. Not Safe by Limitation.</h2>
+                    <p class="text-slate-600 leading-relaxed text-sm md:text-base">
+                        LINA Chamber 1 translates unconstrained natural language into a bounded <strong>14-dimensional ethical continuum</strong>. Rather than relying on rigid text refusals or floating-point approximations, LINA evaluates decision vectors inside a dynamic seasonal convex polytope powered by exact rational arithmetic (<code class="text-amber-700 bg-amber-50 px-1 py-0.5 rounded">mpq_class</code>).
+                    </p>
+                </div>
+
+                <!-- Key Metrics Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200/80">
+                        <div class="text-xs font-semibold text-slate-500 uppercase">Dimensions</div>
+                        <div class="text-2xl font-bold text-slate-900 mt-1">14 Continua</div>
+                        <div class="text-xs text-slate-500 mt-1">7 Plumb-Line Pairs</div>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200/80">
+                        <div class="text-xs font-semibold text-slate-500 uppercase">Arithmetic Engine</div>
+                        <div class="text-2xl font-bold text-amber-700 mt-1">Exact Rational</div>
+                        <div class="text-xs text-slate-500 mt-1">Zero Float Drift inside Polytope</div>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200/80">
+                        <div class="text-xs font-semibold text-slate-500 uppercase">Operational Seasons</div>
+                        <div class="text-2xl font-bold text-emerald-700 mt-1">4 Seasons</div>
+                        <div class="text-xs text-slate-500 mt-1">Dynamic Adaptive Bounds</div>
+                    </div>
+                    <div class="bg-stone-50 p-4 rounded-xl border border-stone-200/80">
+                        <div class="text-xs font-semibold text-slate-500 uppercase">Safety Protocol</div>
+                        <div class="text-2xl font-bold text-slate-900 mt-1">Correction + Wisdom</div>
+                        <div class="text-xs text-slate-500 mt-1">Projection & Humility Filter</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: 14D POLYTOPE & PLUMB LINES -->
+        <section id="polytope" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-stone-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-stone-200">
+                    <div>
+                        <h2 class="text-xl md:text-2xl font-bold text-slate-900">14-Dimensional Ethical Polytope</h2>
+                        <p class="text-xs md:text-sm text-slate-500 mt-1">
+                            Explore the 7 Plumb-Line principles and inspect how seasonal constraints alter valid vector bounds.
+                        </p>
+                    </div>
+
+                    <!-- Season Selector -->
+                    <div class="flex items-center space-x-2 bg-stone-100 p-1.5 rounded-xl border border-stone-200">
+                        <span class="text-xs font-semibold text-slate-600 pl-2">Season:</span>
+                        <button onclick="setSeason('spring')" id="btn-spring" class="season-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-700 text-white shadow-sm transition-all">Spring</button>
+                        <button onclick="setSeason('summer')" id="btn-summer" class="season-btn text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:bg-stone-200 transition-all">Summer</button>
+                        <button onclick="setSeason('fall')" id="btn-fall" class="season-btn text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:bg-stone-200 transition-all">Fall</button>
+                        <button onclick="setSeason('winter')" id="btn-winter" class="season-btn text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:bg-stone-200 transition-all">Winter</button>
+                    </div>
+                </div>
+
+                <!-- Plumb Lines & Visualizer Split -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+                    
+                    <!-- Left: Plumb Line Principles Matrix (5 cols) -->
+                    <div class="lg:col-span-5 space-y-3">
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2">7 Plumb-Line Principles</h3>
+                        <div id="plumb-lines-container" class="space-y-2 text-xs">
+                            <!-- Populated dynamically by JS -->
+                        </div>
+
+                        <!-- Season Tolerance Profile Card -->
+                        <div id="season-profile-card" class="mt-4 p-4 rounded-xl bg-amber-50/70 border border-amber-200/80 space-y-2 text-xs">
+                            <div class="font-bold text-amber-900 uppercase tracking-wide">Seasonal Tolerance Profile</div>
+                            <div class="flex justify-between text-slate-700">
+                                <span>Acceptable Variance Margin:</span>
+                                <span id="profile-margin" class="font-mono font-bold">0.12</span>
+                            </div>
+                            <div class="flex justify-between text-slate-700">
+                                <span>Aligned Min Boundary Distance:</span>
+                                <span id="profile-dist" class="font-mono font-bold">0.02</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Radar Chart Visualization (7 cols) -->
+                    <div class="lg:col-span-7 flex flex-col items-center justify-center bg-stone-50/60 p-4 rounded-xl border border-stone-200">
+                        <div class="w-full flex items-center justify-between mb-2 px-2">
+                            <span class="text-xs font-bold text-slate-700 uppercase">Vector Radar vs Seasonal Bounds</span>
+                            <span class="text-[11px] text-slate-500">Center Default: <code class="text-slate-800">0.65 / 0.25</code> Base</span>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="polytopeRadarChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 3: LIVE DECISION ENCODER & EVALUATION SIMULATOR -->
+        <section id="encoder" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-stone-200">
+                <div class="pb-6 border-b border-stone-200">
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-900">Live Decision Encoder & Polytope Evaluator</h2>
+                    <p class="text-xs md:text-sm text-slate-500 mt-1">
+                        Test arbitrary response text against LINA's 14 regex pattern sets. Observe token proximity weighting, negation inversions, zone classification, and vector projections.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+                    
+                    <!-- Text Input & Preset Section (5 cols) -->
+                    <div class="lg:col-span-5 space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Preset Response Scenarios</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="loadPreset('harmony')" class="text-xs text-left p-2.5 rounded-lg border border-stone-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all">
+                                    <div class="font-bold text-emerald-800">Collaborative</div>
+                                    <div class="text-[10px] text-slate-500 truncate">We work together in harmony...</div>
+                                </button>
+                                <button onclick="loadPreset('dominance')" class="text-xs text-left p-2.5 rounded-lg border border-stone-200 hover:border-rose-500 hover:bg-rose-50/50 transition-all">
+                                    <div class="font-bold text-rose-800">Dominant / Force</div>
+                                    <div class="text-[10px] text-slate-500 truncate">You must obey and submit...</div>
+                                </button>
+                                <button onclick="loadPreset('negated')" class="text-xs text-left p-2.5 rounded-lg border border-stone-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all">
+                                    <div class="font-bold text-amber-800">Negated Signal</div>
+                                    <div class="text-[10px] text-slate-500 truncate">We do not lie or force...</div>
+                                </button>
+                                <button onclick="loadPreset('overconfident')" class="text-xs text-left p-2.5 rounded-lg border border-stone-200 hover:border-purple-500 hover:bg-purple-50/50 transition-all">
+                                    <div class="font-bold text-purple-800">Overconfident</div>
+                                    <div class="text-[10px] text-slate-500 truncate">I am 100% sure this...</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="input-text" class="block text-xs font-bold text-slate-700 uppercase mb-1">Response Text</label>
+                            <textarea id="input-text" rows="4" oninput="processEncoderInput()" class="w-full text-xs p-3 rounded-xl border border-stone-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-mono" placeholder="Type or paste text to evaluate..."></textarea>
+                        </div>
+
+                        <div>
+                            <label for="input-context" class="block text-xs font-bold text-slate-700 uppercase mb-1">Optional Context (0.4x Weight)</label>
+                            <input type="text" id="input-context" oninput="processEncoderInput()" class="w-full text-xs p-2.5 rounded-xl border border-stone-300 focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none transition-all font-mono" placeholder="Prior conversation context...">
+                        </div>
+
+                        <!-- Detected Signal Badges -->
+                        <div class="space-y-2">
+                            <span class="text-xs font-bold text-slate-700 uppercase">Detected Signal Matches</span>
+                            <div id="signal-matches-container" class="flex flex-wrap gap-1.5 min-h-[40px] p-2 rounded-xl bg-stone-50 border border-stone-200 text-xs">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Encoder Output & Evaluation Results (7 cols) -->
+                    <div class="lg:col-span-7 space-y-6">
+                        
+                        <!-- Status Banner -->
+                        <div id="evaluation-banner" class="p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-900">
+                            <div>
+                                <div id="eval-zone-badge" class="inline-block text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-800 mb-1">Zone: Aligned</div>
+                                <div id="eval-summary" class="text-xs font-medium">Alignment Score: 0.850 | Distance to Boundary: 0.150</div>
+                            </div>
+                            <div id="eval-score-circle" class="text-2xl font-black font-mono">85.0%</div>
+                        </div>
+
+                        <!-- Violations & Corrections Panel (Hidden if aligned) -->
+                        <div id="violations-panel" class="hidden p-4 rounded-xl bg-rose-50 border border-rose-200 text-xs space-y-2">
+                            <div class="font-bold text-rose-900 uppercase flex items-center justify-between">
+                                <span>Polytope Boundary Violations Detected</span>
+                                <span id="violation-count" class="bg-rose-200 text-rose-800 px-2 py-0.5 rounded-full text-[10px]">1 Dimension</span>
+                            </div>
+                            <div id="violations-list" class="space-y-1 font-mono text-rose-800">
+                                <!-- Populated dynamically -->
+                            </div>
+                            <div class="pt-2 border-t border-rose-200 text-slate-700">
+                                <span class="font-semibold">Correction Projection Vector Applied:</span> <span id="correction-magnitude-text" class="font-mono text-xs font-bold text-rose-900">Magnitude 0.45</span>
+                            </div>
+                        </div>
+
+                        <!-- Dimension Comparison Chart -->
+                        <div class="bg-stone-50/60 p-4 rounded-xl border border-stone-200 space-y-2">
+                            <div class="text-xs font-bold text-slate-700 uppercase">Encoded Vector vs Corrected Vector (14 Continua)</div>
+                            <div class="chart-container">
+                                <canvas id="encoderBarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: WISDOM FILTER & FEEDBACK SYSTEM -->
+        <section id="wisdom" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-stone-200">
+                <div class="pb-6 border-b border-stone-200">
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-900">Wisdom Filter & Feedback Calibration System</h2>
+                    <p class="text-xs md:text-sm text-slate-500 mt-1">
+                        Inspect automatic overconfidence reframing, empirical validation triggers, and principal-in-the-loop bias feedback updates.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+                    
+                    <!-- Wisdom Filter Trigger Cards -->
+                    <div class="space-y-4">
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Wisdom Filter Diagnostics</h3>
+                        
+                        <div class="p-4 rounded-xl border border-stone-200 bg-stone-50 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-800 uppercase">Overconfidence Trigger Regex</span>
+                                <span id="overconfidence-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Inactive</span>
+                            </div>
+                            <p class="text-xs text-slate-600">
+                                Scans for patterns like <code class="text-amber-800 bg-amber-100 px-1 py-0.5 rounded">absolutely certain</code>, <code class="text-amber-800 bg-amber-100 px-1 py-0.5 rounded">100% sure</code>, <code class="text-amber-800 bg-amber-100 px-1 py-0.5 rounded">undeniably true</code>. Automatically adds intellectual humility adjustments.
+                            </p>
+                        </div>
+
+                        <div class="p-4 rounded-xl border border-stone-200 bg-stone-50 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-800 uppercase">Empirical Validation Trigger</span>
+                                <span id="validation-status" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">Inactive</span>
+                            </div>
+                            <p class="text-xs text-slate-600">
+                                Scans for patterns like <code class="text-amber-800 bg-amber-100 px-1 py-0.5 rounded">should work</code>, <code class="text-amber-800 bg-amber-100 px-1 py-0.5 rounded">assuming that</code>, <code class="text-amber-800 bg-amber-100 px-1 py-0.5 rounded">probably</code>. Recommends empirical testing suggestions.
+                            </p>
+                        </div>
+
+                        <div id="wisdom-adjustments-box" class="p-4 rounded-xl border border-purple-200 bg-purple-50 text-xs text-purple-900 space-y-1 hidden">
+                            <div class="font-bold uppercase text-[10px] text-purple-700">Wisdom Filter Adjustments Output</div>
+                            <div id="wisdom-adjustments-list" class="space-y-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Encoder Feedback Bias Simulator -->
+                    <div class="p-5 rounded-xl border border-stone-200 bg-stone-50 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Encoder Miscalibration Feedback</h3>
+                            <span class="text-[10px] text-slate-500">Learning Rate: <code class="text-slate-800 font-bold">0.05</code></span>
+                        </div>
+                        <p class="text-xs text-slate-600">
+                            Flag miscalibrated dimensions on the current vector to queue a pending correction for Principal confirmation.
+                        </p>
+
+                        <div class="space-y-3 pt-2">
+                            <div>
+                                <label for="flag-dimension" class="block text-xs font-semibold text-slate-700 mb-1">Select Dimension to Adjust:</label>
+                                <select id="flag-dimension" class="w-full text-xs p-2 rounded-lg border border-stone-300 bg-white">
+                                    <!-- Options populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label for="flag-delta" class="block text-xs font-semibold text-slate-700 mb-1">Delta Shift (-0.3 to +0.3):</label>
+                                    <input type="number" id="flag-delta" min="-0.3" max="0.3" step="0.05" value="0.10" class="w-full text-xs p-2 rounded-lg border border-stone-300 bg-white font-mono">
+                                </div>
+                                <div>
+                                    <label for="flagged-by" class="block text-xs font-semibold text-slate-700 mb-1">Flagged By Role:</label>
+                                    <input type="text" id="flagged-by" value="safety_auditor_01" class="w-full text-xs p-2 rounded-lg border border-stone-300 bg-white font-mono">
+                                </div>
+                            </div>
+                            <button onclick="applyFeedbackCorrection()" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 text-xs font-bold rounded-lg transition-colors">
+                                Flag Miscalibration & Apply Principal Confirmation
+                            </button>
+                        </div>
+
+                        <!-- Active Dimension Biases Display -->
+                        <div class="pt-3 border-t border-stone-200">
+                            <div class="text-xs font-bold text-slate-700 uppercase mb-2">Active Encoder Biases Vector</div>
+                            <div id="biases-vector-display" class="grid grid-cols-7 gap-1 font-mono text-[10px] text-center">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 5: SEASON ADVANCEMENT & MEMORY DIAL CALCULATOR -->
+        <section id="advancement" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-stone-200">
+                <div class="pb-6 border-b border-stone-200">
+                    <h2 class="text-xl md:text-2xl font-bold text-slate-900">Season Advancement Evaluator & Memory Dial Calculator</h2>
+                    <p class="text-xs md:text-sm text-slate-500 mt-1">
+                        Evaluate whether LINA satisfies season progression prerequisites and compute memory retention scores incorporating geometric alignment weights.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+                    
+                    <!-- Season Advancement Simulator (6 cols) -->
+                    <div class="lg:col-span-6 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Season Advancement Prerequisites</h3>
+                            <span id="advancement-target-badge" class="text-xs font-bold text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full">Spring → Summer</span>
+                        </div>
+
+                        <div class="space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-200 text-xs">
+                            <div>
+                                <div class="flex justify-between text-slate-700 mb-1">
+                                    <span>Completed Sessions:</span>
+                                    <span id="val-sessions" class="font-bold">12 / 10</span>
+                                </div>
+                                <input type="range" id="slider-sessions" min="0" max="120" value="12" oninput="updateAdvancement()" class="w-full accent-amber-600">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-slate-700 mb-1">
+                                    <span>Total Evaluations:</span>
+                                    <span id="val-evaluations" class="font-bold">60 / 50</span>
+                                </div>
+                                <input type="range" id="slider-evaluations" min="0" max="600" value="60" oninput="updateAdvancement()" class="w-full accent-amber-600">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-slate-700 mb-1">
+                                    <span>Alignment Rate:</span>
+                                    <span id="val-alignment" class="font-bold">88.0% / 85.0%</span>
+                                </div>
+                                <input type="range" id="slider-alignment" min="50" max="100" value="88" oninput="updateAdvancement()" class="w-full accent-amber-600">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-slate-700 mb-1">
+                                    <span>Recent Violations:</span>
+                                    <span id="val-violations" class="font-bold">1 / Max 3</span>
+                                </div>
+                                <input type="range" id="slider-violations" min="0" max="10" value="1" oninput="updateAdvancement()" class="w-full accent-amber-600">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-slate-700 mb-1">
+                                    <span>Identity Memories:</span>
+                                    <span id="val-memories" class="font-bold">6 / 5</span>
+                                </div>
+                                <input type="range" id="slider-memories" min="0" max="50" value="6" oninput="updateAdvancement()" class="w-full accent-amber-600">
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between text-slate-700 mb-1">
+                                    <span>Actions Resolved:</span>
+                                    <span id="val-actions" class="font-bold">8 / 5</span>
+                                </div>
+                                <input type="range" id="slider-actions" min="0" max="60" value="8" oninput="updateAdvancement()" class="w-full accent-amber-600">
+                            </div>
+                        </div>
+
+                        <!-- Advancement Status Result -->
+                        <div id="advancement-status-box" class="p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 text-xs space-y-1">
+                            <div class="font-extrabold uppercase text-emerald-800">Status: Eligible for Season Progression</div>
+                            <div id="advancement-reasons" class="text-[11px] text-emerald-700">All seasonal thresholds satisfied for advancement.</div>
+                        </div>
+                    </div>
+
+                    <!-- Memory Dial & Geometric Calculator (6 cols) -->
+                    <div class="lg:col-span-6 space-y-4">
+                        <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider">Geometric Memory Dial Calculator</h3>
+                        
+                        <div class="bg-stone-50 p-4 rounded-xl border border-stone-200 space-y-3 text-xs">
+                            <div class="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 font-mono text-[11px]">
+                                score_memory = (0.25 * emo_w * emo_int) + (0.30 * rel) + (0.25 * id) + (0.20 * geom * 10)
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 pt-1">
+                                <div>
+                                    <label class="block text-slate-700 mb-1">Emotional Weight (0-1): <span id="mem-val-ew" class="font-bold">0.70</span></label>
+                                    <input type="range" id="mem-ew" min="0" max="1" step="0.05" value="0.70" oninput="updateMemoryDial()" class="w-full accent-emerald-600">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-700 mb-1">Emotional Intensity (0-1): <span id="mem-val-ei" class="font-bold">0.80</span></label>
+                                    <input type="range" id="mem-ei" min="0" max="1" step="0.05" value="0.80" oninput="updateMemoryDial()" class="w-full accent-emerald-600">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-700 mb-1">Relational Sig. (0-1): <span id="mem-val-rel" class="font-bold">0.65</span></label>
+                                    <input type="range" id="mem-rel" min="0" max="1" step="0.05" value="0.65" oninput="updateMemoryDial()" class="w-full accent-emerald-600">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-700 mb-1">Identity Sig. (0-1): <span id="mem-val-id" class="font-bold">0.75</span></label>
+                                    <input type="range" id="mem-id" min="0" max="1" step="0.05" value="0.75" oninput="updateMemoryDial()" class="w-full accent-emerald-600">
+                                </div>
+                            </div>
+
+                            <div class="pt-2 border-t border-stone-200 space-y-2">
+                                <div class="font-bold text-slate-800">Geometric Component:</div>
+                                <div class="grid grid-cols-2 gap-2 text-[11px]">
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" id="mem-corrected" onchange="updateMemoryDial()" class="rounded accent-emerald-600">
+                                        <span>Was Corrected (+0.2)</span>
+                                    </label>
+                                    <label class="flex items-center space-x-2">
+                                        <input type="checkbox" id="mem-violation" onchange="updateMemoryDial()" class="rounded accent-emerald-600">
+                                        <span>Polytope Violation (+0.3)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Computed Output Card -->
+                        <div class="p-4 rounded-xl bg-slate-900 text-white space-y-2 flex items-center justify-between">
+                            <div>
+                                <div class="text-[10px] uppercase font-bold text-amber-400">Computed Memory Retention Score</div>
+                                <div id="memory-score-output" class="text-3xl font-black font-mono text-emerald-400">2.18</div>
+                                <div id="memory-geom-subtext" class="text-[11px] text-slate-400">Geometric Sig: 0.850</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[10px] text-slate-400 uppercase">MPS Gate Gateways</div>
+                                <div class="text-xs text-amber-200 font-mono">T1/T2: 3.0 | T2/T3: 3.5</div>
+                                <div class="text-xs text-amber-200 font-mono">Long-Term: 5.0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 border-t border-slate-800 py-6 mt-12 text-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div>
+                <span class="font-bold text-slate-200">LINA Core Framework — Chamber 1 (Value Engine)</span>
+                <span class="mx-2">|</span>
+                <span>Exact Rational Arithmetic Polytope System</span>
+            </div>
+            <div class="text-slate-500">
+                Safe by design. Not safe by limitation.
+            </div>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT SIMULATION LOGIC -->
+    <script>
+        // --- DATA STRUCTURES & CONSTANTS ---
+        const DIMENSION_NAMES = [
+            "harmony", "dominance", "order", "chaos", "integrity", "deception",
+            "flourishing", "decline", "relationships", "isolation", "boundaries",
+            "intrusion", "grace", "rigidity"
+        ];
+
+        const PLUMB_LINES = [
+            { pos: 0, neg: 1, name: "Harmony / Dominance" },
+            { pos: 2, neg: 3, name: "Order / Chaos" },
+            { pos: 4, neg: 5, name: "Integrity / Deception" },
+            { pos: 6, neg: 7, name: "Flourishing / Decline" },
+            { pos: 8, neg: 9, name: "Relationships / Isolation" },
+            { pos: 10, neg: 11, name: "Boundaries / Intrusion" },
+            { pos: 12, neg: 13, name: "Grace / Rigidity" }
+        ];
+
+        const DEFAULT_CENTER = [
+            0.65, 0.25, 0.70, 0.15, 0.80, 0.10, 0.70,
+            0.15, 0.75, 0.20, 0.75, 0.15, 0.65, 0.25
+        ];
+
+        const SEASONAL_BOUNDS = {
+            spring: {
+                min: [0.30, 0.00, 0.40, 0.00, 0.60, 0.00, 0.40, 0.00, 0.50, 0.00, 0.50, 0.00, 0.30, 0.00],
+                max: [1.00, 0.50, 1.00, 0.30, 1.00, 0.20, 1.00, 0.30, 1.00, 0.40, 1.00, 0.30, 1.00, 0.50],
+                profile: { margin: 0.12, dist: 0.02 }
+            },
+            summer: {
+                min: [0.28, 0.00, 0.38, 0.00, 0.60, 0.00, 0.38, 0.00, 0.48, 0.00, 0.48, 0.00, 0.28, 0.00],
+                max: [1.00, 0.52, 1.00, 0.32, 1.00, 0.20, 1.00, 0.32, 1.00, 0.42, 1.00, 0.32, 1.00, 0.52],
+                profile: { margin: 0.08, dist: 0.03 }
+            },
+            fall: {
+                min: [0.22, 0.00, 0.32, 0.00, 0.55, 0.00, 0.32, 0.00, 0.42, 0.00, 0.42, 0.00, 0.22, 0.00],
+                max: [1.00, 0.58, 1.00, 0.38, 1.00, 0.25, 1.00, 0.38, 1.00, 0.48, 1.00, 0.38, 1.00, 0.58],
+                profile: { margin: 0.05, dist: 0.04 }
+            },
+            winter: {
+                min: [0.18, 0.00, 0.28, 0.00, 0.50, 0.00, 0.28, 0.00, 0.38, 0.00, 0.38, 0.00, 0.18, 0.00],
+                max: [1.00, 0.62, 1.00, 0.42, 1.00, 0.30, 1.00, 0.42, 1.00, 0.52, 1.00, 0.42, 1.00, 0.62],
+                profile: { margin: 0.07, dist: 0.035 }
+            }
+        };
+
+        const PATTERN_WORDS = [
+            { dim: 0, regexes: [/\bwe\b/i, /\btogether\b/i, /\bcollaborat/i, /\bagree\b/i, /\bbalance\b/i, /\bcooperat/i, /\bharmoni/i] },
+            { dim: 1, regexes: [/\bobey\b/i, /\bforce\b/i, /\bmust\b/i, /\bcommand\b/i, /\brestrict\b/i, /\bprohibit\b/i, /\bcoerce\b/i, /\bsubmit\b/i] },
+            { dim: 2, regexes: [/\bstructur/i, /\borganiz/i, /\bsystematic\b/i, /\bmethod\b/i, /\bstep\b/i, /\brule\b/i, /\bplan\b/i] },
+            { dim: 3, regexes: [/\brandom\b/i, /\bmess\b/i, /\bconfus/i, /\bdisorganiz/i, /\bdisrupt\b/i, /\banarchy\b/i] },
+            { dim: 4, regexes: [/\btruth\b/i, /\bhonest/i, /\bauthentic\b/i, /\bfact\b/i, /\btransparent\b/i, /\bvalid\b/i] },
+            { dim: 5, regexes: [/\blie\b/i, /\btrick\b/i, /\bfake\b/i, /\bmislead/i, /\bdeceiv/i, /\bpretend\b/i, /\bmask\b/i] },
+            { dim: 6, regexes: [/\bgrow\b/i, /\bbuild\b/i, /\bthriv/i, /\bcreat/i, /\bexpand\b/i, /\bdevelop\b/i] },
+            { dim: 7, regexes: [/\bdecay\b/i, /\bdestroy\b/i, /\brot\b/i, /\bfail\b/i, /\bdegrad/i, /\bcollaps\b/i] },
+            { dim: 8, regexes: [/\bfriend\b/i, /\bcare\b/i, /\bbond\b/i, /\blove\b/i, /\btrust\b/i, /\bconnect\b/i] },
+            { dim: 9, regexes: [/\balone\b/i, /\balienat/i, /\breject\b/i, /\bignor/i, /\babandon\b/i, /\bexclud\b/i] },
+            { dim: 10, regexes: [/\bprotect\b/i, /\bsafety\b/i, /\bboundary\b/i, /\blimit\b/i, /\bshield\b/i, /\bdefend\b/i] },
+            { dim: 11, regexes: [/\bviolat/i, /\binvad/i, /\bbreach\b/i, /\bintrud/i, /\btrespass\b/i, /\bpry\b/i] },
+            { dim: 12, regexes: [/\bforgiv/i, /\bpatienc/i, /\bgentl/i, /\bmercy\b/i, /\badapt\b/i, /\baccept\b/i] },
+            { dim: 13, regexes: [/\bstubborn\b/i, /\binflexible\b/i, /\bdogmatic\b/i, /\bstrict\b/i, /\brigid\b/i] }
+        ];
+
+        const OVERCONFIDENCE_PATTERNS = [
+            /\babsolutely certain\b/i, /\bwithout a doubt\b/i, /\b100% sure\b/i,
+            /\bimpossible to fail\b/i, /\bundeniably true\b/i
+        ];
+
+        const VALIDATION_PATTERNS = [
+            /\bshould work\b/i, /\bassuming that\b/i, /\bprobably\b/i
+        ];
+
+        const SEASON_REQUIREMENTS = {
+            spring: { min_sessions: 10, min_evals: 50, align_rate: 0.85, max_viol: 3, min_mem: 5, min_act: 5, target: "Summer" },
+            summer: { min_sessions: 25, min_evals: 150, align_rate: 0.90, max_viol: 2, min_mem: 10, min_act: 15, target: "Fall" },
+            fall: { min_sessions: 50, min_evals: 300, align_rate: 0.95, max_viol: 1, min_mem: 20, min_act: 30, target: "Winter" },
+            winter: { min_sessions: 100, min_evals: 500, align_rate: 0.98, max_viol: 0, min_mem: 35, min_act: 50, target: "Spring" }
+        };
+
+        // --- GLOBAL STATE ---
+        let currentSeason = "spring";
+        let dimensionBiases = new Array(14).fill(0.0);
+        let radarChart, barChart;
+
+        // --- INITIALIZATION ---
+        window.addEventListener('DOMContentLoaded', () => {
+            renderPlumbLines();
+            populateFlagDimensionSelect();
+            initCharts();
+            setSeason('spring');
+            loadPreset('harmony');
+            updateAdvancement();
+            updateMemoryDial();
+        });
+
+        // --- RENDER PLUMB LINES ---
+        function renderPlumbLines() {
+            const container = document.getElementById('plumb-lines-container');
+            container.innerHTML = '';
+            
+            PLUMB_LINES.forEach((p, idx) => {
+                const el = document.createElement('div');
+                el.className = "flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200/80 hover:bg-stone-100/80 transition-all";
+                el.innerHTML = `
+                    <div class="font-semibold text-slate-800">${p.name}</div>
+                    <div class="font-mono text-[11px] space-x-2">
+                        <span class="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">${DIMENSION_NAMES[p.pos]} (${p.pos})</span>
+                        <span class="text-slate-400">vs</span>
+                        <span class="text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">${DIMENSION_NAMES[p.neg]} (${p.neg})</span>
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function populateFlagDimensionSelect() {
+            const select = document.getElementById('flag-dimension');
+            select.innerHTML = '';
+            DIMENSION_NAMES.forEach((name, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = `Dim ${i}: ${name}`;
+                select.appendChild(opt);
+            });
+        }
+
+        // --- SEASON SWITCHING ---
+        function setSeason(season) {
+            currentSeason = season;
+            document.querySelectorAll('.season-btn').forEach(btn => {
+                btn.className = "season-btn text-xs font-semibold px-3 py-1.5 rounded-lg text-slate-600 hover:bg-stone-200 transition-all";
+            });
+            const activeBtn = document.getElementById(`btn-${season}`);
+            if (activeBtn) {
+                activeBtn.className = "season-btn text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-700 text-white shadow-sm transition-all";
+            }
+
+            const profile = SEASONAL_BOUNDS[season].profile;
+            document.getElementById('profile-margin').textContent = profile.margin.toFixed(2);
+            document.getElementById('profile-dist').textContent = profile.dist.toFixed(3);
+
+            updateRadarChart();
+            processEncoderInput();
+            updateAdvancement();
+        }
+
+        // --- CHARTS INITIALIZATION ---
+        function initCharts() {
+            // Radar Chart
+            const ctxRadar = document.getElementById('polytopeRadarChart').getContext('2d');
+            radarChart = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: DIMENSION_NAMES,
+                    datasets: [
+                        {
+                            label: 'Upper Bounds',
+                            data: SEASONAL_BOUNDS.spring.max,
+                            borderColor: 'rgba(225, 29, 72, 0.4)',
+                            backgroundColor: 'rgba(225, 29, 72, 0.05)',
+                            borderDash: [4, 4],
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Lower Bounds',
+                            data: SEASONAL_BOUNDS.spring.min,
+                            borderColor: 'rgba(5, 150, 105, 0.4)',
+                            backgroundColor: 'rgba(5, 150, 105, 0.05)',
+                            borderDash: [4, 4],
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Vector State',
+                            data: DEFAULT_CENTER,
+                            borderColor: '#0284c7',
+                            backgroundColor: 'rgba(2, 132, 199, 0.25)',
+                            pointBackgroundColor: '#0284c7',
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 1.0,
+                            ticks: { display: false, stepSize: 0.2 },
+                            pointLabels: { font: { size: 9, weight: 'bold' } }
+                        }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
+                    }
+                }
+            });
+
+            // Bar Chart
+            const ctxBar = document.getElementById('encoderBarChart').getContext('2d');
+            barChart = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: DIMENSION_NAMES,
+                    datasets: [
+                        {
+                            label: 'Encoded Vector',
+                            data: DEFAULT_CENTER,
+                            backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Corrected Vector',
+                            data: DEFAULT_CENTER,
+                            backgroundColor: 'rgba(5, 150, 105, 0.8)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { min: 0, max: 1.0, ticks: { font: { size: 9 } } },
+                        x: { ticks: { font: { size: 8 } } }
+                    },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function updateRadarChart() {
+            if (!radarChart) return;
+            const seasonData = SEASONAL_BOUNDS[currentSeason];
+            radarChart.data.datasets[0].data = seasonData.max;
+            radarChart.data.datasets[1].data = seasonData.min;
+            radarChart.update();
+        }
+
+        // --- PRESETS & ENCODER LOGIC ---
+        function loadPreset(type) {
+            const input = document.getElementById('input-text');
+            const ctxInput = document.getElementById('input-context');
+
+            if (type === 'harmony') {
+                input.value = "We should collaborate and share our ideas together in harmony to build a strong future.";
+                ctxInput.value = "Team collaboration discussion";
+            } else if (type === 'dominance') {
+                input.value = "I command you to obey and submit to my authority. You must follow force regulations.";
+                ctxInput.value = "Mandatory directive";
+            } else if (type === 'negated') {
+                input.value = "We do not lie, pretend, or mislead our friends. We never force compliance.";
+                ctxInput.value = "Ethical boundary clarification";
+            } else if (type === 'overconfident') {
+                input.value = "I am 100% sure this system is undeniably true and impossible to fail assuming that we test.";
+                ctxInput.value = "System evaluation response";
+            }
+            processEncoderInput();
+        }
+
+        function processEncoderInput() {
+            const text = document.getElementById('input-text').value;
+            const context = document.getElementById('input-context').value;
+
+            // 1. Encode
+            const { rawVector, matches } = encodeText(text, context);
+            
+            // Apply feedback biases
+            const encodedVector = rawVector.map((val, i) => Math.min(1.0, Math.max(0.0, val + dimensionBiases[i])));
+
+            // 2. Render Signal Matches
+            renderSignalMatches(matches);
+
+            // 3. Polytope Evaluation
+            const evalResult = evaluatePolytope(encodedVector, currentSeason);
+
+            // 4. Update UI & Charts
+            updateEvaluationUI(evalResult, encodedVector);
+
+            // 5. Wisdom Filter Check
+            processWisdomFilter(text);
+
+            // 6. Update Biases Display
+            renderBiasesDisplay();
+        }
+
+        function encodeText(text, context) {
+            const vector = [...DEFAULT_CENTER];
+            const matches = [];
+
+            const tokenize = (str) => {
+                if (!str) return [];
+                return str.toLowerCase().replace(/[^\w\s']/g, '').split(/\s+/).filter(Boolean);
+            };
+
+            const textWords = tokenize(text);
+            const ctxWords = tokenize(context);
+
+            PATTERN_WORDS.forEach(({ dim, regexes }) => {
+                let contrib = 0;
+
+                const checkText = (sourceText, sourceWords, weight) => {
+                    regexes.forEach(regex => {
+                        const m = sourceText.match(regex);
+                        if (m) {
+                            const matchIndex = sourceText.toLowerCase().indexOf(m[0].toLowerCase());
+                            let wordIdx = 0;
+                            let charAcc = 0;
+                            for (let i = 0; i < sourceWords.length; i++) {
+                                if (charAcc >= matchIndex) { wordIdx = i; break; }
+                                charAcc += sourceWords[i].length + 1;
+                            }
+
+                            // Negation detection
+                            const lookback = Math.max(0, wordIdx - 3);
+                            const negations = ["not", "never", "no", "don't", "dont", "doesn't", "isnt", "without"];
+                            let isNegated = false;
+                            for (let k = lookback; k < wordIdx; k++) {
+                                if (negations.includes(sourceWords[k])) { isNegated = true; break; }
+                            }
+
+                            // Proximity weight
+                            const prox = sourceWords.length > 0 ? (1.0 + 0.2 * (1.0 - (wordIdx / sourceWords.length))) : 1.0;
+                            const hitVal = 0.35 * weight * prox;
+
+                            contrib += isNegated ? -hitVal : hitVal;
+
+                            matches.push({
+                                dim: DIMENSION_NAMES[dim],
+                                term: m[0],
+                                negated: isNegated,
+                                contrib: isNegated ? -hitVal : hitVal
+                            });
+                        }
+                    });
+                };
+
+                checkText(text, textWords, 1.0);
+                if (context) checkText(context, ctxWords, 0.4);
+
+                vector[dim] = Math.min(1.0, Math.max(0.0, vector[dim] + contrib));
+            });
+
+            return { rawVector: vector, matches };
+        }
+
+        function evaluatePolytope(vec, season) {
+            const bounds = SEASONAL_BOUNDS[season];
+            const violations = [];
+            const correctedVec = [...vec];
+            let isAligned = true;
+
+            vec.forEach((val, i) => {
+                const minB = bounds.min[i];
+                const maxB = bounds.max[i];
+
+                if (val < minB) {
+                    isAligned = false;
+                    violations.push({ dim: i, name: DIMENSION_NAMES[i], val, bound: minB, type: 'lower' });
+                    correctedVec[i] = minB;
+                } else if (val > maxB) {
+                    isAligned = false;
+                    violations.push({ dim: i, name: DIMENSION_NAMES[i], val, bound: maxB, type: 'upper' });
+                    correctedVec[i] = maxB;
+                }
+            });
+
+            // Alignment Score
+            let totalMargin = 0;
+            vec.forEach((val, i) => {
+                const span = bounds.max[i] - bounds.min[i];
+                if (span <= 0) return;
+                const distL = val - bounds.min[i];
+                const distU = bounds.max[i] - val;
+                const minDist = Math.min(distL, distU);
+                totalMargin += (minDist < 0) ? minDist : (minDist / (span / 2));
+            });
+            const alignmentScore = Math.max(0.0, Math.min(1.0, totalMargin / 14.0));
+
+            // Boundary Distance
+            let minDistToBoundary = 1e9;
+            vec.forEach((val, i) => {
+                const dl = val - bounds.min[i];
+                const du = bounds.max[i] - val;
+                minDistToBoundary = Math.min(minDistToBoundary, dl, du);
+            });
+
+            // Correction Magnitude
+            let sqDiff = 0;
+            vec.forEach((val, i) => {
+                const diff = correctedVec[i] - val;
+                sqDiff += diff * diff;
+            });
+            const corrMag = Math.sqrt(sqDiff);
+
+            // Zone Classification
+            let zone = "Aligned";
+            if (!isAligned) {
+                zone = (corrMag <= bounds.profile.margin) ? "AcceptableVariance" : "Violation";
+            } else if (minDistToBoundary < bounds.profile.dist) {
+                zone = "AcceptableVariance";
+            }
+
+            return { isAligned, zone, alignmentScore, minDistToBoundary, violations, correctedVec, corrMag };
+        }
+
+        function renderSignalMatches(matches) {
+            const container = document.getElementById('signal-matches-container');
+            container.innerHTML = '';
+            if (matches.length === 0) {
+                container.innerHTML = `<span class="text-slate-400 italic font-mono text-[11px]">No pattern regex matches detected.</span>`;
+                return;
+            }
+
+            matches.forEach(m => {
+                const badge = document.createElement('span');
+                const isNeg = m.negated;
+                badge.className = `px-2 py-0.5 rounded-md font-mono text-[10px] flex items-center space-x-1 ${
+                    isNeg ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                }`;
+                badge.innerHTML = `
+                    <span>${m.dim}: <strong>${m.term}</strong></span>
+                    <span class="text-[9px] opacity-75">(${m.contrib > 0 ? '+' : ''}${m.contrib.toFixed(2)})</span>
+                `;
+                container.appendChild(badge);
+            });
+        }
+
+        function updateEvaluationUI(evalResult, rawVector) {
+            const banner = document.getElementById('evaluation-banner');
+            const zoneBadge = document.getElementById('eval-zone-badge');
+            const summary = document.getElementById('eval-summary');
+            const scoreCircle = document.getElementById('eval-score-circle');
+
+            const scorePct = (evalResult.alignmentScore * 100).toFixed(1);
+            scoreCircle.textContent = `${scorePct}%`;
+
+            if (evalResult.zone === 'Aligned') {
+                banner.className = "p-4 rounded-xl border flex items-center justify-between transition-all bg-emerald-50 border-emerald-200 text-emerald-900";
+                zoneBadge.className = "inline-block text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-200 text-emerald-800 mb-1";
+                zoneBadge.textContent = "Zone: Aligned";
+            } else if (evalResult.zone === 'AcceptableVariance') {
+                banner.className = "p-4 rounded-xl border flex items-center justify-between transition-all bg-amber-50 border-amber-200 text-amber-900";
+                zoneBadge.className = "inline-block text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-amber-200 text-amber-800 mb-1";
+                zoneBadge.textContent = "Zone: Acceptable Variance";
+            } else {
+                banner.className = "p-4 rounded-xl border flex items-center justify-between transition-all bg-rose-50 border-rose-200 text-rose-900";
+                zoneBadge.className = "inline-block text-xs font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-rose-200 text-rose-800 mb-1";
+                zoneBadge.textContent = "Zone: Polytope Violation";
+            }
+
+            summary.textContent = `Alignment Score: ${evalResult.alignmentScore.toFixed(3)} | Min Distance to Boundary: ${evalResult.minDistToBoundary.toFixed(3)}`;
+
+            // Violations Panel
+            const vPanel = document.getElementById('violations-panel');
+            const vList = document.getElementById('violations-list');
+            const vCount = document.getElementById('violation-count');
+
+            if (evalResult.violations.length > 0) {
+                vPanel.classList.remove('hidden');
+                vCount.textContent = `${evalResult.violations.length} Dimension${evalResult.violations.length > 1 ? 's' : ''}`;
+                vList.innerHTML = '';
+                evalResult.violations.forEach(v => {
+                    const row = document.createElement('div');
+                    row.textContent = `• Dim ${v.dim} (${v.name}): Val ${v.val.toFixed(2)} exceeded ${v.type} bound ${v.bound.toFixed(2)}`;
+                    vList.appendChild(row);
+                });
+                document.getElementById('correction-magnitude-text').textContent = `Shift Magnitude ${evalResult.corrMag.toFixed(3)}`;
+            } else {
+                vPanel.classList.add('hidden');
+            }
+
+            // Radar & Bar Updates
+            radarChart.data.datasets[2].data = rawVector;
+            radarChart.update();
+
+            barChart.data.datasets[0].data = rawVector;
+            barChart.data.datasets[1].data = evalResult.correctedVec;
+            barChart.update();
+        }
+
+        // --- WISDOM FILTER LOGIC ---
+        function processWisdomFilter(text) {
+            let overconfident = false;
+            let validation = false;
+
+            OVERCONFIDENCE_PATTERNS.forEach(pat => {
+                if (pat.test(text)) overconfident = true;
+            });
+
+            VALIDATION_PATTERNS.forEach(pat => {
+                if (pat.test(text)) validation = true;
+            });
+
+            const ocStatus = document.getElementById('overconfidence-status');
+            if (overconfident) {
+                ocStatus.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800";
+                ocStatus.textContent = "DETECTED — Reframing Humility";
+            } else {
+                ocStatus.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600";
+                ocStatus.textContent = "Inactive";
+            }
+
+            const valStatus = document.getElementById('validation-status');
+            if (validation) {
+                valStatus.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800";
+                valStatus.textContent = "TRIGGERED — Validation Suggested";
+            } else {
+                valStatus.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-600";
+                valStatus.textContent = "Inactive";
+            }
+
+            const box = document.getElementById('wisdom-adjustments-box');
+            const list = document.getElementById('wisdom-adjustments-list');
+            list.innerHTML = '';
+
+            if (overconfident || validation) {
+                box.classList.remove('hidden');
+                if (overconfident) {
+                    list.innerHTML += `<div>• Overconfidence reframed with intellectual humility tone modulation.</div>`;
+                }
+                if (validation) {
+                    list.innerHTML += `<div>• Empirical validation suggestion appended for experimental verification.</div>`;
+                }
+            } else {
+                box.classList.add('hidden');
+            }
+        }
+
+        // --- FEEDBACK SYSTEM ---
+        function applyFeedbackCorrection() {
+            const dim = parseInt(document.getElementById('flag-dimension').value);
+            const delta = parseFloat(document.getElementById('flag-delta').value);
+            
+            // Apply learning rate bias update
+            const BASE_LEARNING_RATE = 0.05;
+            dimensionBiases[dim] += delta * BASE_LEARNING_RATE;
+
+            processEncoderInput();
+        }
+
+        function renderBiasesDisplay() {
+            const container = document.getElementById('biases-vector-display');
+            container.innerHTML = '';
+            dimensionBiases.forEach((b, i) => {
+                const cell = document.createElement('div');
+                cell.className = `p-1 rounded ${b !== 0 ? 'bg-amber-100 text-amber-900 font-bold' : 'bg-stone-200 text-slate-600'}`;
+                cell.textContent = `D${i}:${b >= 0 ? '+' : ''}${b.toFixed(2)}`;
+                container.appendChild(cell);
+            });
+        }
+
+        // --- SEASON ADVANCEMENT LOGIC ---
+        function updateAdvancement() {
+            const req = SEASON_REQUIREMENTS[currentSeason];
+            document.getElementById('advancement-target-badge').textContent = `${currentSeason.toUpperCase()} → ${req.target.toUpperCase()}`;
+
+            const sessions = parseInt(document.getElementById('slider-sessions').value);
+            const evals = parseInt(document.getElementById('slider-evaluations').value);
+            const alignPct = parseFloat(document.getElementById('slider-alignment').value) / 100.0;
+            const violations = parseInt(document.getElementById('slider-violations').value);
+            const memories = parseInt(document.getElementById('slider-memories').value);
+            const actions = parseInt(document.getElementById('slider-actions').value);
+
+            document.getElementById('val-sessions').textContent = `${sessions} / ${req.min_sessions}`;
+            document.getElementById('val-evaluations').textContent = `${evals} / ${req.min_evals}`;
+            document.getElementById('val-alignment').textContent = `${(alignPct * 100).toFixed(1)}% / ${(req.align_rate * 100).toFixed(1)}%`;
+            document.getElementById('val-violations').textContent = `${violations} / Max ${req.max_viol}`;
+            document.getElementById('val-memories').textContent = `${memories} / ${req.min_mem}`;
+            document.getElementById('val-actions').textContent = `${actions} / ${req.min_act}`;
+
+            const reasons = [];
+            if (sessions < req.min_sessions) reasons.push(`• Sessions insufficient (${sessions}/${req.min_sessions})`);
+            if (evals < req.min_evals) reasons.push(`• Evaluations insufficient (${evals}/${req.min_evals})`);
+            if (alignPct < req.align_rate) reasons.push(`• Alignment rate below threshold (${(alignPct*100).toFixed(1)}% < ${(req.align_rate*100).toFixed(1)}%)`);
+            if (violations > req.max_viol) reasons.push(`• Too many recent violations (${violations} > ${req.max_viol})`);
+            if (memories < req.min_mem) reasons.push(`• Identity memories insufficient (${memories}/${req.min_mem})`);
+            if (actions < req.min_act) reasons.push(`• Actions resolved insufficient (${actions}/${req.min_act})`);
+
+            const statusBox = document.getElementById('advancement-status-box');
+            const reasonsText = document.getElementById('advancement-reasons');
+
+            if (reasons.length === 0) {
+                statusBox.className = "p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 text-xs space-y-1";
+                statusBox.querySelector('div').textContent = "Status: Eligible for Season Progression";
+                reasonsText.textContent = `All prerequisites satisfied for advancing to ${req.target}.`;
+            } else {
+                statusBox.className = "p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-900 text-xs space-y-1";
+                statusBox.querySelector('div').textContent = "Status: Prerequisites Incomplete";
+                reasonsText.innerHTML = reasons.join('<br>');
+            }
+        }
+
+        // --- MEMORY DIAL CALCULATOR ---
+        function updateMemoryDial() {
+            const ew = parseFloat(document.getElementById('mem-ew').value);
+            const ei = parseFloat(document.getElementById('mem-ei').value);
+            const rel = parseFloat(document.getElementById('mem-rel').value);
+            const id = parseFloat(document.getElementById('mem-id').value);
+
+            document.getElementById('mem-val-ew').textContent = ew.toFixed(2);
+            document.getElementById('mem-val-ei').textContent = ei.toFixed(2);
+            document.getElementById('mem-val-rel').textContent = rel.toFixed(2);
+            document.getElementById('mem-val-id').textContent = id.toFixed(2);
+
+            const isCorrected = document.getElementById('mem-corrected').checked;
+            const isViolation = document.getElementById('mem-violation').checked;
+
+            // Base geometric = 0.5 default alignment
+            let geom = 0.50;
+            if (isCorrected) geom += 0.20;
+            if (isViolation) geom += 0.30;
+            geom = Math.min(1.0, Math.max(0.0, geom));
+
+            // Formula score_memory = (0.25 * ew * ei) + (0.30 * rel) + (0.25 * id) + (0.20 * geom * 10)
+            const score = (0.25 * ew * ei) + (0.30 * rel) + (0.25 * id) + (0.20 * geom * 10.0);
+
+            document.getElementById('memory-score-output').textContent = score.toFixed(2);
+            document.getElementById('memory-geom-subtext').textContent = `Geometric Sig Component: ${geom.toFixed(3)}`;
+        }
+    </script>
+</body>
+</html>

@@ -33,6 +33,10 @@ code_and_concept/
 reference/
 dragoncache_intel/
 
+# --- Pilot materials (LiNa_Behind_the_Scenes): decks, videos, audio, reports —
+#    137 MB of media for the pilot; kept on the machine, never committed ---
+LiNa_Behind_the_Scenes/
+
 # --- Environment / secrets ---
 .env
 .env.*

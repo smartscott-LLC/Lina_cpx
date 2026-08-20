@@ -625,6 +625,17 @@ switched from `chat()` to this path):
    rotating to a fresh context and opening her floor: she may speak unprompted
    or stay silent (both valid). `stop_turn()` cancels the generation and
    delivers what she had, gated. Budget exhaustion is the only hard cut.
+   - **The floor sees the conversation (D-049):** the voluntary turn generates
+     from the frame **plus the conversation history** — an open floor with
+     context can produce something relevant, or nothing.
+   - **Greeting-only utterances are silence (D-049):** a canned greeting
+     ("Hello, Scott!" / "How can I assist you today?" under 160 chars) is
+     not "something to say" — it is never delivered, never imprinted, never
+     fed into the history (a bare-frame 2B completion is a greeting, and
+     delivering it locked a greeting loop through the history).
+   - **One speaker at a time (D-049):** the voluntary turn claims the floor
+     atomically (`turn_active_` compare-exchange) — the window thread cannot
+     overlap a fresh `begin_turn`.
 
 The stateless body never carries state between passes — the KV cache is cleared
 per pass and the driver re-sends the accumulated context (Hermes-style tool

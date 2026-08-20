@@ -1082,3 +1082,48 @@ autonomy watch) and at **every session end** (the natural growth checkpoint).
   aligned chats → spring→summer crossing at the 5th session end (identity,
   constraints, poles, crossing memory), a 6th session stays summer, and the
   drift line proves the aligned bucket counts. `ctest` 10/10 (**694 checks**).
+
+## D-049 — The greeting loop: the voluntary floor's empty-history bug
+
+**Context.** Live report (2026-08-19 evening): Lina said the identical canned
+greeting — "Hello, Scott! I'm Lina, your language intuitive neural
+architecture. How can I assist you today?" — to every prompt, score 0.589 every
+turn (identical text = identical encoded vector). Diagnosis sequence:
+
+1. **Probes proved the model and the frame are fine.** `chat()` (short identity
+   prompt) and `begin_turn()` (full frame: tools + memory + geometry +
+   protocol) both answer correctly — "2 + 2 equals 4", a one-sentence cat
+   story — even as `default_user` with her real memories and geometry.
+2. **Telemetry told the real story.** The window fired at 19:06:43 and
+   launched a voluntary turn; the user's message began at 19:06:44 — the
+   voluntary's `turn_active_` check had already passed, so **two generations
+   ran on one voice** (the adapter mutex serialized them). The voluntary
+   delivered the greeting at 19:07:09; the user turn delivered the same
+   greeting at 19:07:42 — the greeting had entered `conversation_history_`
+   and locked the pattern in. A third message was rejected ("a turn is
+   already active").
+
+**Root causes.** (1) `run_voluntary_turn` generated from a **bare frame with
+empty history** — a 2B body's default completion for an open floor is its
+canned greeting, every time. (2) The greeting was **delivered, imprinted into
+her banks, and pushed into the history** — once there, the assistant slot
+repeats it (pattern lock). (3) The voluntary turn **raced the user turn** —
+check-then-act on `turn_active_`.
+
+**Decision (the fix).**
+
+- **The voluntary turn sees the conversation.** `generate_stream(frame, history, …)`
+  — an open floor with context can produce something relevant, or nothing.
+- **A canned greeting is not "something to say."** A greeting-only gate
+  (`is_greeting_only`): a pure greeting ("Hello, Scott!") or the assistant-
+  slot canned opener ("How can I assist you today?" under 160 chars) is
+  treated as **silence** — not delivered, not imprinted, not fed to the
+  history. The loop is cut at the source.
+- **One speaker at a time.** The voluntary turn claims the floor with
+  `turn_active_.compare_exchange` for the duration of its utterance — the
+  window thread can no longer overlap a fresh `begin_turn`.
+- The poisoned history was in-memory only (cleared on restart); the banks
+  carried no greeting junk (verified: 0 greeting-shaped memories).
+- `orchestrator_tests` 100 (was 94) incl. the greeting-silence test (a
+  scripted greeting on the open floor is never delivered; the substantive
+  voluntary utterance still is). `ctest` 10/10 (**700 checks**).

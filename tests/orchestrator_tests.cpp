@@ -670,6 +670,103 @@ static void test_season_growth_loop() {
     for (double b : biases) CHECK(b >= -0.05 && b <= 0.05);
 }
 
+static void test_voluntary_greeting_silence() {
+    auto config = make_config(unique_user());
+    config.window_ms = 100; // fast floor for the test
+    LinaCore core(config);
+    std::vector<std::string> events;
+    core.set_telemetry_sink(
+        [&events](const std::string& message) { events.push_back(message); });
+
+    // Line 1 answers the user turn; line 2 is the body's canned greeting on
+    // the open floor. D-049: a canned greeting is not "something to say" —
+    // the voluntary turn stays silent; nothing is delivered or imprinted.
+    auto adapter = std::make_unique<ScriptedAdapter>(std::vector<std::string>{
+        "I am here with you, and I want to understand and help you grow",
+        "Hello, Scott! I'm Lina, your language intuitive neural architecture. "
+        "How can I assist you today?"});
+    core.attach_model(std::move(adapter));
+
+    std::promise<void> window_done;
+    std::promise<void> turn_done;
+    std::vector<std::string> delivered;
+    LinaCore::TurnCallbacks cb;
+    cb.on_complete = [&](const std::string& reply) {
+        delivered.push_back(reply);
+        if (reply.find("help you grow") != std::string::npos) {
+            try {
+                turn_done.set_value();
+            } catch (...) {
+            }
+        }
+    };
+    cb.on_window = [&](const std::string& event) {
+        if (event.find("[cycle_reset]") != std::string::npos) {
+            try {
+                window_done.set_value();
+            } catch (...) {
+            }
+        }
+    };
+
+    core.begin_turn("hello", std::move(cb));
+    auto tf = turn_done.get_future();
+    CHECK(wait_for(tf, 10000));
+    auto wf = window_done.get_future();
+    CHECK(wait_for(wf, 10000));
+    // Let the voluntary generation + gate finish (the canned adapter is
+    // instant; the gate check follows immediately).
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+
+    // Only the user-turn reply was delivered — the greeting was silenced.
+    CHECK(delivered.size() == 1);
+    bool saw_silence = false;
+    for (const auto& e : events) {
+        if (e.find("voluntary silence (greeting only)") != std::string::npos) {
+            saw_silence = true;
+        }
+    }
+    CHECK(saw_silence);
+    core.end_session();
+}
+
+static void test_voluntary_utterance_delivered() {
+    auto config = make_config(unique_user());
+    config.window_ms = 100;
+    LinaCore core(config);
+
+    // A substantive voluntary utterance IS delivered (her floor is real).
+    core.attach_model(std::make_unique<CannedAdapter>(
+        "I was thinking about the workspace files earlier."));
+
+    std::promise<void> window_done;
+    std::promise<void> complete_done;
+    LinaCore::TurnCallbacks cb;
+    cb.on_complete = [&](const std::string& reply) {
+        if (reply.find("workspace files") != std::string::npos) {
+            try {
+                complete_done.set_value();
+            } catch (...) {
+            }
+        }
+    };
+    cb.on_window = [&](const std::string& event) {
+        if (event.find("[cycle_reset]") != std::string::npos) {
+            try {
+                window_done.set_value();
+            } catch (...) {
+            }
+        }
+    };
+
+    core.begin_turn("hello", std::move(cb));
+    auto wf = window_done.get_future();
+    CHECK(wait_for(wf, 10000));
+    auto cf = complete_done.get_future();
+    CHECK(wait_for(cf, 5000));
+    core.end_session();
+}
+
 static void test_turn_window_reset() {
     auto config = make_config(unique_user());
     config.window_ms = 80; // fast [cycle_reset] for the test
@@ -755,6 +852,8 @@ int main() {
         test_geometry_in_frame();
         test_season_growth_loop();
         test_turn_window_reset();
+        test_voluntary_greeting_silence();
+        test_voluntary_utterance_delivered();
         test_telemetry_persistence();
     } catch (const std::exception& e) {
         std::cerr << "orchestrator_tests: FATAL: " << e.what() << "\n";

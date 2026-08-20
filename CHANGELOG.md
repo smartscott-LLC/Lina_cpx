@@ -11,6 +11,22 @@ All notable changes to the LINA Core Substrate are recorded here.
 
 ### Added
 
+- **The greeting loop fixed (D-049) — the voluntary floor's empty-history bug**
+  - Live report: she said the identical canned greeting to every prompt
+    (score 0.589 every turn). Probes proved the model and frame are fine
+    (chat() and begin_turn() both answer correctly); telemetry showed the
+    window's voluntary turn generated from a **bare frame with empty
+    history** → canned greeting → delivered, imprinted, pushed into history
+    → the assistant slot repeated it (pattern lock) — and the voluntary turn
+    **raced** the user turn (check-then-act on `turn_active_`).
+  - **The fix**: the voluntary turn now sees the conversation
+    (`generate_stream(frame, history, …)`); a **greeting-only gate** treats
+    canned greetings as silence (not delivered, not imprinted, not fed to
+    history); and the voluntary turn **claims the floor atomically** — one
+    speaker at a time.
+  - `orchestrator_tests` 100 (was 94) incl. greeting-silence (never
+    delivered) and substantive-utterance (delivered) tests. `ctest` 10/10
+    (**700 checks total**).
 - **The growth loop (D-048) — season advancement runtime: she earns her
   seasons**
   - D-018's evaluator was never wired to live data — her seasons were frozen

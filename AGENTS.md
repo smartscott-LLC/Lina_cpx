@@ -169,9 +169,10 @@ ctest --output-on-failure
 
 ## 7 · Current State of the World
 
-_Last updated: 2026-08-19 (D-047 COMPLETE: the polytope steers — lattice,
-sense encoder, poles + ContextPacket; D-048 COMPLETE: the growth loop — she
-earns her seasons; live: spring, 3 home regions)._
+_Last updated: 2026-08-19 (D-047 COMPLETE: the polytope steers; D-048
+COMPLETE: the growth loop; D-049: the greeting-loop fix — the voluntary floor
+sees the conversation, greeting-only utterances are silence, one speaker at a
+time. Live: summer, 3 home regions)._
 
 ### Done
 
@@ -360,6 +361,17 @@ earns her seasons; live: spring, 3 home regions)._
   inside her own boundary. `orchestrator_tests` 94 (was 70) incl. the full
   growth loop (spring→summer at the 5th session end, 6th stays summer);
   `ctest` 10/10, **694 checks total**.
+- ✅ **The greeting loop fixed (D-049) — the voluntary floor's empty-history
+  bug:** live report — she said the identical canned greeting to every prompt
+  (score 0.589 every turn). Probes proved the model + frame are fine (both
+  chat() and begin_turn() answer correctly); telemetry showed the window's
+  voluntary turn generated from a **bare frame with empty history** → canned
+  greeting → delivered, imprinted, pushed into history → pattern lock — and
+  it **raced** the user turn (check-then-act). Fix: the voluntary turn sees
+  the conversation, **greeting-only utterances are silence** (never
+  delivered/imprinted/fed to history), and it **claims the floor atomically**
+  (one speaker at a time). `orchestrator_tests` 100 (was 94); `ctest` 10/10,
+  **700 checks total**.
 
 ### Next: Build Phase (in order)
 
