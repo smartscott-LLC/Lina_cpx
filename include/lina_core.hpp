@@ -15,6 +15,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -22,6 +23,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "approval_gate.hpp"
@@ -29,7 +31,6 @@
 #include "host_model_adapter.hpp"
 #include "memory_module.hpp"
 #include "storage_backend.hpp"
-#include "stream_parser.hpp"
 #include "tool_engine.hpp"
 #include "value_engine.hpp"
 
@@ -65,6 +66,11 @@ public:
     explicit LinaCore(const LinaConfig& config);
     ~LinaCore();
 
+    LinaCore(const LinaCore&) = delete;
+    LinaCore& operator=(const LinaCore&) = delete;
+    LinaCore(LinaCore&&) = delete;
+    LinaCore& operator=(LinaCore&&) = delete;
+
     // Main chat interface. image_path (D-046): an image riding this turn —
     // empty = text-only. The image is decoded into the multimodal prompt at
     // the frame boundary; the transcript records it honestly.
@@ -77,11 +83,18 @@ public:
 
     // Direct access
     value_engine::ValueEngine& value_engine() { return *value_engine_; }
+    const value_engine::ValueEngine& value_engine() const { return *value_engine_; }
     memory_module::MemoryModule& memory_module() { return *memory_module_; }
+    const memory_module::MemoryModule& memory_module() const { return *memory_module_; }
     storage::StorageBackend& storage() { return *storage_; }
+    const storage::StorageBackend& storage() const { return *storage_; }
     model::HostModelAdapter& model() { return *model_adapter_; }
+    const model::HostModelAdapter& model() const { return *model_adapter_; }
+    bool has_model() const { return model_adapter_ != nullptr; }
     tools::ToolEngine& tool_engine() { return *tool_engine_; }
+    const tools::ToolEngine& tool_engine() const { return *tool_engine_; }
     dragoncache::Hub& dragoncache() { return *dragoncache_; }
+    const dragoncache::Hub& dragoncache() const { return *dragoncache_; }
 
     // D-040: execute a tool through the approval gate, recording the action
     // in the ledger (lina_actions — telemetry, never memory).
@@ -92,7 +105,7 @@ public:
     void run_ui(); // Qt6 UI (if enabled)
 
     // Status
-    bool is_ready() const { return ready_; }
+    bool is_ready() const { return ready_.load(); }
     std::string get_status() const;
 
     // D-033: attach the symbiote driver — providers plug in from outside.
@@ -158,12 +171,13 @@ public:
 
 private:
     LinaConfig config_;
-    bool ready_{false};
+    std::atomic<bool> ready_{false};
 
     std::shared_ptr<storage::StorageBackend> storage_; // owns the backend (D-005)
     // Shared with the memory module (D-005) — one engine, one heart.
     std::shared_ptr<value_engine::ValueEngine> value_engine_;
     std::unique_ptr<memory_module::MemoryModule> memory_module_;
+    mutable std::mutex model_mutex_;
     std::unique_ptr<model::HostModelAdapter> model_adapter_;
     std::unique_ptr<tools::ToolEngine> tool_engine_; // her hands (D-040)
     std::unique_ptr<dragoncache::Hub> dragoncache_;  // her spoke (the carve)
@@ -171,6 +185,7 @@ private:
     std::string current_session_id_;
     std::vector<std::pair<std::string, std::string>> conversation_history_;
 
+    mutable std::mutex approval_mutex_;
     ApprovalHandler approval_handler_;
     TelemetrySink telemetry_sink_;
     std::mutex sink_mutex_;
@@ -241,12 +256,12 @@ private:
     // Returns a summary line ("" when there is nothing to cross).
     std::string apply_season_advance();
     std::string build_system_prompt() const;
-    std::string build_user_prompt(const std::string& message);
+    std::string build_user_prompt(const std::string& message) const;
     // D-037: builds the violation report fed back to the body for revision.
     std::string build_reflection_prompt(
         const std::string& draft,
         const std::vector<value_engine::ViolationInfo>& violations,
-        const std::array<double, value_engine::DIMENSION_COUNT>& correction) const;
+        const std::array<double, static_cast<std::size_t>(value_engine::DIMENSION_COUNT)>& correction) const;
 };
 
 } // namespace lina

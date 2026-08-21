@@ -20,6 +20,7 @@
 
 #include "postgres_backend.hpp"
 #include "browser_driver.hpp"
+#include "stream_parser.hpp"
 
 #if defined(LINA_ENABLE_UI)
 #include "lina_ui.hpp"
@@ -185,10 +186,29 @@ static bool is_flagged_response(
 }
 
 LinaCore::LinaCore(const LinaConfig& config) : config_(config) {
-    initialize();
+    try {
+        initialize();
+    } catch (...) {
+        stop_turn();
+        if (turn_thread_.joinable()) turn_thread_.join();
+        {
+            std::lock_guard<std::mutex> lock(window_mutex_);
+            window_stop_ = true;
+        }
+        window_cv_.notify_all();
+        if (window_thread_.joinable()) window_thread_.join();
+        {
+            std::lock_guard<std::mutex> lock(telemetry_mutex_);
+            telemetry_stop_ = true;
+        }
+        telemetry_cv_.notify_all();
+        if (telemetry_writer_.joinable()) telemetry_writer_.join();
+        throw;
+    }
 }
 
 LinaCore::~LinaCore() {
+    ready_ = false;
     // Drop the observers first: no callbacks fire into dead state while we
     // wind down (the sink/handler belong to whoever attached them).
     {
@@ -199,7 +219,10 @@ LinaCore::~LinaCore() {
         std::lock_guard<std::mutex> lock(turn_mutex_);
         turn_callbacks_ = TurnCallbacks{};
     }
-    approval_handler_ = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(approval_mutex_);
+        approval_handler_ = nullptr;
+    }
 
     // Release the spoke before the threads wind down.
     if (dragoncache_) {
@@ -227,15 +250,23 @@ LinaCore::~LinaCore() {
 }
 
 void LinaCore::attach_model(std::unique_ptr<model::HostModelAdapter> adapter) {
-    model_adapter_ = std::move(adapter);
-    if (model_adapter_) {
-        emit_telemetry("driver attached name=" + model_adapter_->driver_name());
+    std::string name;
+    {
+        std::lock_guard<std::mutex> lock(model_mutex_);
+        model_adapter_ = std::move(adapter);
+        if (model_adapter_) {
+            name = model_adapter_->driver_name();
+        }
+    }
+    if (!name.empty()) {
+        emit_telemetry("driver attached name=" + name);
     } else {
         emit_telemetry("driver detached");
     }
 }
 
 void LinaCore::set_approval_handler(ApprovalHandler handler) {
+    std::lock_guard<std::mutex> lock(approval_mutex_);
     approval_handler_ = std::move(handler);
 }
 
@@ -304,14 +335,19 @@ void LinaCore::persist_telemetry(const std::string& subsystem,
 }
 
 ApprovalDecision LinaCore::request_approval(const ApprovalRequest& request) {
-    if (!approval_handler_) {
+    ApprovalHandler handler;
+    {
+        std::lock_guard<std::mutex> lock(approval_mutex_);
+        handler = approval_handler_;
+    }
+    if (!handler) {
         emit_telemetry("approval id=" + request.action_id
                        + " tool=" + request.tool_name + " no-handler -> denied");
         return ApprovalDecision::Denied;
     }
     emit_telemetry("approval id=" + request.action_id
                    + " tool=" + request.tool_name + " waiting");
-    auto decision = approval_handler_(request);
+    auto decision = handler(request);
     const char* label = decision == ApprovalDecision::Approved ? "approved"
                        : decision == ApprovalDecision::Denied  ? "denied"
                                                                : "timed-out";
@@ -330,13 +366,16 @@ void LinaCore::begin_turn(const std::string& user_message,
         if (callbacks.on_error) callbacks.on_error("a turn is already active");
         return;
     }
-    if (!ready_) {
+    if (!ready_.load()) {
         if (callbacks.on_error) callbacks.on_error("core not ready");
         return;
     }
-    if (!model_adapter_ || !model_adapter_->is_connected()) {
-        if (callbacks.on_error) callbacks.on_error("no voice attached (D-033)");
-        return;
+    {
+        std::lock_guard<std::mutex> lock(model_mutex_);
+        if (!model_adapter_ || !model_adapter_->is_connected()) {
+            if (callbacks.on_error) callbacks.on_error("no voice attached (D-033)");
+            return;
+        }
     }
     {
         std::lock_guard<std::mutex> lock(turn_mutex_);
@@ -378,6 +417,7 @@ void LinaCore::stop_turn() {
 void LinaCore::set_window_ms(int64_t ms) {
     std::lock_guard<std::mutex> lock(window_mutex_);
     window_ms_ = ms;
+    config_.window_ms = ms;
 }
 
 void LinaCore::start_window_thread() {
@@ -802,8 +842,6 @@ void LinaCore::initialize() {
     }
 
     window_ms_ = config_.window_ms;
-    start_window_thread();
-    start_telemetry_writer();
 
     // D-047 (front c): her home regions — cluster her memories into poles at
     // boot. Fresh encodings through the current sense lexicon (stored
@@ -815,6 +853,9 @@ void LinaCore::initialize() {
     if (check_season_progress().first) {
         apply_season_advance();
     }
+
+    start_window_thread();
+    start_telemetry_writer();
 
     ready_ = true;
 }
@@ -848,7 +889,7 @@ tools::ToolResult LinaCore::execute_tool(const tools::ToolRequest& request) {
 
 std::string LinaCore::chat(const std::string& user_message,
                            const std::string& image_path) {
-    if (!ready_) return "Error: LINA core not ready";
+    if (!ready_.load()) return "Error: LINA core not ready";
 
     // 1. Build the system prompt (identity + seasonal context — D-039).
     auto system_prompt = build_system_prompt();
@@ -1151,7 +1192,7 @@ std::string LinaCore::build_system_prompt() const {
     return oss.str();
 }
 
-std::string LinaCore::build_user_prompt(const std::string& message) {
+std::string LinaCore::build_user_prompt(const std::string& message) const {
     return message;
 }
 
@@ -1351,13 +1392,16 @@ void LinaCore::run_ui() {
 }
 
 std::string LinaCore::get_status() const {
-    if (!ready_) return "NOT READY";
+    if (!ready_.load()) return "NOT READY";
     std::ostringstream oss;
     oss << "LINA Core Ready\n";
-    if (model_adapter_) {
-        oss << "Model: " << model_adapter_->driver_name() << "\n";
-    } else {
-        oss << "Model: none (no driver attached — see D-033)\n";
+    {
+        std::lock_guard<std::mutex> lock(model_mutex_);
+        if (model_adapter_) {
+            oss << "Model: " << model_adapter_->driver_name() << "\n";
+        } else {
+            oss << "Model: none (no driver attached — see D-033)\n";
+        }
     }
     oss << "Season: " << value_engine_->constraints().season << "\n";
     oss << "Memory: " << memory_module_->store()->fetch_by_status("active").size()

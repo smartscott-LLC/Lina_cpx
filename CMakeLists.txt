@@ -13,8 +13,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # --- Options ---------------------------------------------------------------
 option(LINA_ENABLE_UI "Enable Qt6 UI" ON)
-option(LINA_ENABLE_LLAMA "Enable llama.cpp support" OFF)
-option(LINA_ENABLE_STORAGE "Enable PostgreSQL + pgvector storage backend" OFF)
+option(LINA_ENABLE_LLAMA "Enable llama.cpp support" ON)
+option(LINA_ENABLE_STORAGE "Enable PostgreSQL + pgvector storage backend" ON)
 
 # --- Compiler flags (spec §8.1) --------------------------------------------
 add_compile_options(
