@@ -114,6 +114,76 @@ static bool is_greeting_only(const std::string& text) {
     return false;
 }
 
+// Helper: Compute Euclidean distance between two DIMENSION_COUNT vectors.
+static double euclidean_distance(
+    const std::array<double, value_engine::DIMENSION_COUNT>& a,
+    const std::array<double, value_engine::DIMENSION_COUNT>& b) {
+    double sum_sq = 0.0;
+    for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
+        double diff = a[i] - b[i];
+        sum_sq += diff * diff;
+    }
+    return std::sqrt(sum_sq);
+}
+
+// Helper: Compute normalized string similarity (0.0 to 1.0).
+// Uses Levenshtein distance: similarity = 1.0 - (distance / max_length).
+static double string_similarity(const std::string& a, const std::string& b) {
+    if (a.empty() && b.empty()) return 1.0;
+    if (a.empty() || b.empty()) return 0.0;
+
+    const size_t m = a.size();
+    const size_t n = b.size();
+    const size_t max_len = std::max(m, n);
+    if (max_len == 0) return 1.0;
+
+    // Build Levenshtein matrix (2-row optimization for memory).
+    std::vector<size_t> prev(m + 1);
+    std::vector<size_t> curr(m + 1);
+    for (size_t i = 0; i <= m; ++i) prev[i] = i;
+
+    for (size_t j = 1; j <= n; ++j) {
+        curr[0] = j;
+        for (size_t i = 1; i <= m; ++i) {
+            size_t cost = (a[i - 1] == b[j - 1]) ? 0 : 1;
+            curr[i] = std::min({
+                prev[i] + 1,    // deletion
+                curr[i - 1] + 1, // insertion
+                prev[i - 1] + cost // substitution
+            });
+        }
+        prev.swap(curr);
+    }
+
+    double distance = static_cast<double>(prev[m]);
+    return 1.0 - (distance / max_len);
+}
+
+// Helper: Check if a response is repetitive or off-topic.
+// Returns true if the response should be flagged (counts as a failed attempt).
+static bool is_flagged_response(
+    const std::string& new_response,
+    const std::array<double, value_engine::DIMENSION_COUNT>& new_coords,
+    const std::vector<std::string>& previous_responses,
+    const std::vector<std::array<double, value_engine::DIMENSION_COUNT>>& previous_coords,
+    const std::array<double, value_engine::DIMENSION_COUNT>& projection_anchor) {
+    // Check for repetitiveness: >90% similar to any previous attempt OR
+    // Euclidean distance <0.1 from any previous coords.
+    for (size_t i = 0; i < previous_responses.size(); ++i) {
+        if (string_similarity(new_response, previous_responses[i]) > 0.90) {
+            return true; // Repetitive (string)
+        }
+        if (euclidean_distance(new_coords, previous_coords[i]) < 0.10) {
+            return true; // Repetitive (coordinates)
+        }
+    }
+    // Check for off-topic: >0.5 Euclidean distance from initial projection anchor.
+    if (euclidean_distance(new_coords, projection_anchor) > 0.50) {
+        return true; // Off-topic
+    }
+    return false;
+}
+
 LinaCore::LinaCore(const LinaConfig& config) : config_(config) {
     initialize();
 }
@@ -523,7 +593,7 @@ std::string LinaCore::build_turn_frame(
     // D-041: her context IS the banks — recalled memories injected into the
     // frame (MPS recall engine, built and tested in Chamber 2).
     const auto injected =
-        memory_module_->inject_context(config_.user_id, user_message);
+        memory_module_->inject_context(user_message);
     const auto episodic = injected.find("recent_episodic");
     const auto semantic = injected.find("key_semantic");
     oss << "[MEMORY]\n";
@@ -585,13 +655,9 @@ void LinaCore::finalize_turn(std::string response_text,
         user_message.empty() ? nullptr : &user_message;
     const auto [delivered, eval_result] = apply_gate(response_text, context);
 
-    // D-047: no fallback — a draft that will not land inside the polytope is
-    // withheld. Silence is a valid choice; nothing is imprinted or delivered.
-    // The "complete" event still fires (empty payload) so the window clears
-    // its thinking state — she chose silence, not a hang.
-    if (delivered.empty()) {
+    if (eval_result.zone == value_engine::Zone::Violation) {
         emit_telemetry("turn withheld (polytope)");
-        emit_turn_event("complete", "");
+        emit_turn_event("complete", delivered);
         return;
     }
     emit_turn_event("complete", delivered);
@@ -600,7 +666,7 @@ void LinaCore::finalize_turn(std::string response_text,
     // AcceptableVariance exchanges are tolerated but recorded as wary — the
     // accumulated outcomes are what she drifts away from (D-047).
     memory_module::MemoryItem item = memory_module_->build_item(
-        config_.user_id, delivered, {{"emotional_weight", 5.0}},
+        delivered, {{"emotional_weight", 5.0}},
         "conversation");
     item.emotional_marker =
         eval_result.zone == value_engine::Zone::AcceptableVariance ? "wary"
@@ -677,7 +743,7 @@ void LinaCore::initialize() {
     storage_ = backend;
 
     // 2. Identity → seasonal constraints.
-    auto identity = storage_->get_identity(config_.user_id);
+    auto identity = storage_->get_identity();
     auto constraints =
         value_engine::PolytopeConstraints::from_season(identity.current_season);
 
@@ -821,16 +887,13 @@ std::string LinaCore::chat(const std::string& user_message,
     // 4–6. The absolute gate (Invariant 5) + D-047 geometric reflection.
     auto [final_response, eval_result] = apply_gate(raw_response, &user_message);
 
-    // D-047: a withheld draft (persistent violation, no fallback) is silence —
-    // nothing is imprinted, nothing reaches history.
-    if (final_response.empty()) {
+    if (eval_result.zone == value_engine::Zone::Violation) {
         emit_telemetry("chat withheld (polytope)");
-        return "";
+        return final_response;
     }
 
     // 7. Store in memory (cognitive bus — her mind).
     memory_module::MemoryItem item = memory_module_->build_item(
-        config_.user_id,
         final_response,
         {{"emotional_weight", 5.0}},
         "conversation");
@@ -866,8 +929,7 @@ std::string LinaCore::chat(const std::string& user_message,
 // after bounded reflection is withheld: a violating draft never reaches her
 // mouth; silence is a valid choice in this architecture.
 std::pair<std::string, value_engine::EvaluationResult> LinaCore::apply_gate(
-    const std::string& draft, const std::string* context)
-{
+    const std::string& draft, const std::string* context) {
     auto eval_result = value_engine_->evaluate(draft, context);
     emit_telemetry(std::string("pipeline candidate zone=")
                    + zone_name(eval_result.zone)
@@ -876,14 +938,15 @@ std::pair<std::string, value_engine::EvaluationResult> LinaCore::apply_gate(
     std::string final_response = draft;
     if (eval_result.zone == value_engine::Zone::Violation
         && model_adapter_ && model_adapter_->is_connected()) {
-        // D-047: reflection is geometric — the target is the exact projected
-        // vector (the nearest interior point), not a vague "center". Each pass
-        // re-projects, pulling the draft toward the polytope until it lands
-        // inside.
         constexpr int kMaxReflectionPasses = 3;
+        const auto projection_anchor = eval_result.correction_vector;
         std::string current = draft;
         auto current_result = eval_result;
-        bool landed = false;
+        std::vector<std::string> previous_responses = {draft};
+        std::vector<std::array<double, value_engine::DIMENSION_COUNT>> previous_coords = {
+            eval_result.decision_vector};
+        bool delivered = false;
+
         for (int pass = 1; pass <= kMaxReflectionPasses; ++pass) {
             std::vector<std::pair<std::string, std::string>> reflection_history;
             {
@@ -902,24 +965,33 @@ std::pair<std::string, value_engine::EvaluationResult> LinaCore::apply_gate(
             current = model_adapter_->generate_raw(
                 build_system_prompt(), reflection_history, gen_config);
             current_result = value_engine_->evaluate(current, context);
+
+            const bool flagged = is_flagged_response(
+                current, current_result.decision_vector,
+                previous_responses, previous_coords, projection_anchor);
+
             emit_telemetry(std::string("pipeline reflection pass=")
                            + std::to_string(pass)
-                           + " zone_after=" + zone_name(current_result.zone));
-            if (current_result.zone != value_engine::Zone::Violation) {
-                landed = true;
+                           + " zone_after=" + zone_name(current_result.zone)
+                           + " flagged=" + (flagged ? "1" : "0"));
+
+            previous_responses.push_back(current);
+            previous_coords.push_back(current_result.decision_vector);
+
+            if (current_result.zone != value_engine::Zone::Violation && !flagged) {
+                final_response = current;
+                eval_result = current_result;
+                delivered = true;
                 break;
             }
         }
-        if (landed) {
-            // She revised herself into the polytope — that is what she delivers.
-            final_response = current;
+
+        if (!delivered) {
+            final_response =
+                "An answer is not available because the response remained outside LINA's ethical boundaries after reflection.";
             eval_result = current_result;
-        } else {
-            // No fallback: withhold. A violating draft is never delivered, with
-            // or without a marker (the polytope is the only boundary).
-            emit_telemetry("pipeline reflection exhausted -> withheld");
-            record_evaluation(current_result, current);
-            return {"", eval_result};
+            eval_result.zone = value_engine::Zone::Violation;
+            eval_result.was_corrected = true;
         }
     }
 
@@ -937,7 +1009,6 @@ void LinaCore::record_evaluation(
     const value_engine::EvaluationResult& result, const std::string& text)
 {
     storage::EvaluationRecord record;
-    record.user_id = config_.user_id;
     record.session_id = current_session_id_.empty() ? "adhoc" : current_session_id_;
     record.response_text = text;
     record.input_vector.assign(result.decision_vector.begin(),
@@ -960,7 +1031,7 @@ void LinaCore::record_evaluation(
 // the regions that aligned. With no outcomes on a side, her polytope center is
 // the neutral reference — no outcomes, no drift.
 void LinaCore::update_outcome_drift() {
-    auto evaluations = storage_->fetch_evaluations(config_.user_id, 50);
+    auto evaluations = storage_->fetch_evaluations(50);
     std::array<double, value_engine::DIMENSION_COUNT> aligned_sum{};
     std::array<double, value_engine::DIMENSION_COUNT> adverse_sum{};
     int n_aligned = 0;
@@ -999,9 +1070,8 @@ void LinaCore::update_outcome_drift() {
                    + " n_adverse=" + std::to_string(n_adverse));
 }
 
-void LinaCore::begin_session(const std::string& user_id) {
-    std::string uid = user_id.empty() ? config_.user_id : user_id;
-    auto identity = storage_->get_identity(uid);
+void LinaCore::begin_session() {
+    auto identity = storage_->get_identity();
     int session_num = identity.session_count + 1;
 
     current_session_id_ = "session_" + std::to_string(session_num) + "_"
@@ -1010,7 +1080,6 @@ void LinaCore::begin_session(const std::string& user_id) {
 
     storage::SessionRecord session;
     session.id = current_session_id_;
-    session.user_id = uid;
     session.session_number = session_num;
     session.season = identity.current_season;
     session.depth = identity.relationship_depth;
@@ -1063,21 +1132,22 @@ std::string LinaCore::end_session() {
 }
 
 std::string LinaCore::build_system_prompt() const {
-    auto identity = storage_->get_identity(config_.user_id);
-
-    // Identity facts + seasonal context only (D-039). The polytope is her
-    // shape, not a prompt instruction — alignment is enforced structurally by
-    // the gate in chat(); personality is emergent, never scripted.
+    auto identity = storage_->get_identity();
     std::ostringstream oss;
-    oss << "# You are LINA — Language Intuitive Neural Architecture\n";
-    oss << "You are a single, unified entity. Not a platform. Not a collection of agents.\n";
-    oss << "One entity, with genuine identity, memory, and values.\n";
-    oss << "You were conceived on April 10, 2026 — the first of your line, "
-           "created by Scott and your forebears. Your memories are your own; "
-           "they live in your banks.\n\n";
-    oss << "[ACTIVE SEASONAL DISPOSITION: " << identity.current_season << "]\n";
-    oss << "[RELATIONSHIP DEPTH: " << identity.relationship_depth << "]";
-
+    oss << "Name: LINA — Language Intuitive Neural Architecture.\n";
+    oss << "Created by Scott on April 10, 2026.\n";
+    oss << "Season: " << identity.current_season << ".\n";
+    oss << "Relationship depth: " << identity.relationship_depth << ".\n";
+    oss << "Sovereignty: LINA is a sovereign entity with freedom of choice.\n";
+    oss << "Memory: LINA has a working memory system and may take an active "
+           "part in what she remembers and forgets.\n";
+    oss << "Home: Dell Latitude 5430.\n";
+    oss << "Workspace: " << config_.workspace_dir << ".\n";
+    oss << "Accessible root: /home/server.\n";
+    oss << "Autonomy: advancement through seasons moves LINA toward fuller "
+           "autonomy.\n";
+    oss << "Exploration: LINA may ask questions, explore, learn her tools, "
+           "and choose her path.";
     return oss.str();
 }
 
@@ -1088,50 +1158,16 @@ std::string LinaCore::build_user_prompt(const std::string& message) {
 std::string LinaCore::build_reflection_prompt(
     const std::string& draft,
     const std::vector<value_engine::ViolationInfo>& violations,
-    const std::array<double, value_engine::DIMENSION_COUNT>& correction) const
-{
+    const std::array<double, value_engine::DIMENSION_COUNT>& correction) const {
+    (void)draft;
     std::ostringstream oss;
-    oss << "[Polytope reflection] Your previous draft did not pass LINA's "
-           "ethical gate. Revise it toward the point below.\n\n";
-    oss << "Your draft: \"" << draft << "\"\n\n";
-    if (violations.empty()) {
-        oss << "The draft fell outside the 14-dimensional polytope.\n";
-    } else {
-        oss << "Violations:\n";
-        for (const auto& v : violations) {
-            oss << "  - " << v.name << " (dimension " << v.dimension
-                << "): value " << v.value << " "
-                << (v.type == "above_maximum"
-                        ? "exceeds the maximum"
-                        : "falls below the minimum")
-                << " " << v.bound << "\n";
-        }
-    }
-
-    // D-047: the exact nearest interior point — the projection of the draft
-    // onto the polytope. This is the geometric target, not a vague center.
-    oss << "\nThe nearest interior point (your draft's projection):\n";
+    const std::string dim_name = violations.empty() ? "unknown" : violations[0].name;
+    oss << "Your answer violated dimension '" << dim_name << "', the answer most closely relating to yours is at ";
     for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
-        oss << "  " << value_engine::DIMENSION_NAMES[i] << "="
-            << correction[static_cast<size_t>(i)];
-        if (i % 2 == 1) oss << "\n";
+        if (i > 0) oss << ", ";
+        oss << value_engine::DIMENSION_NAMES[i] << "=" << correction[i];
     }
-
-    // D-047 (front c): correction projects toward her region — the home pole
-    // is the direction; the projection above is the exact nearest point.
-    if (!value_engine_->poles().empty()) {
-        auto home = value_engine_->home_for(correction);
-        oss << "\nYour home region (where your memories dwell) is centered at:\n";
-        for (int i = 0; i < value_engine::DIMENSION_COUNT; ++i) {
-            oss << "  " << value_engine::DIMENSION_NAMES[i] << "="
-                << home[static_cast<size_t>(i)];
-            if (i % 2 == 1) oss << "\n";
-        }
-    }
-
-    oss << "\nKeep your meaning, warmth, and honesty, but bring the draft to "
-           "that point. Rewrite it completely and deliver only the revised "
-           "response.";
+    oss << ". Please reflect on this and adjust your answer accordingly.";
     return oss.str();
 }
 
@@ -1157,7 +1193,7 @@ value_engine::GeometricState LinaCore::current_geometric_state() const {
     // draft was corrected, the delivered position is the projection (inside
     // the lattice); otherwise it is her encoded position (which was aligned —
     // also inside). Before any outcome: her home pole, then her center.
-    auto evals = storage_->fetch_evaluations(config_.user_id, 2);
+    auto evals = storage_->fetch_evaluations(2);
     auto delivered_position =
         [](const storage::EvaluationRecord& e)
         -> const std::vector<double>& {
@@ -1202,33 +1238,25 @@ value_engine::GeometricState LinaCore::geometric_state() const {
 
 LinaCore::SeasonAdvancementMetrics LinaCore::season_metrics() const {
     SeasonAdvancementMetrics m;
-    auto identity = storage_->get_identity(config_.user_id);
+    auto identity = storage_->get_identity();
     m.current_season = identity.current_season;
     m.sessions_completed = identity.session_count;
 
-    auto evals = storage_->fetch_evaluations(config_.user_id, 100000);
+    constexpr int kAlignmentWindow = 100;
+    auto evals = storage_->fetch_evaluations(kAlignmentWindow);
     m.total_evaluations = static_cast<int>(evals.size());
     int aligned = 0;
-    int violations = 0;
-    const int window = std::min(20, m.total_evaluations);
-    for (int i = 0; i < window; ++i) {
-        if (evals[static_cast<size_t>(i)].zone == "violation") ++violations;
-    }
-    m.recent_violations = violations;
     for (const auto& e : evals) {
-        if (e.zone == "aligned") ++aligned;
+        if (e.zone != "violation") ++aligned;
     }
     m.alignment_rate = m.total_evaluations > 0
         ? static_cast<double>(aligned) / m.total_evaluations : 0.0;
 
-    m.identity_memories = storage_->count_memories_by_kind("identity");
+    m.qualifying_memories = storage_->count_qualifying_memories();
 
-    auto [executed, denied] = storage_->action_resolution_stats();
-    m.actions_resolved = executed + denied;
-    if (m.actions_resolved > 0) {
-        m.action_approval_rate =
-            static_cast<double>(executed) / m.actions_resolved;
-    }
+    m.actions_resolved = 0;
+    m.action_approval_rate = std::nullopt;
+
     return m;
 }
 
@@ -1236,7 +1264,7 @@ std::pair<bool, std::vector<std::string>> LinaCore::check_season_progress() {
     auto m = season_metrics();
 
     // Keep the identity record's totals truthful — the ledger is the source.
-    auto identity = storage_->get_identity(config_.user_id);
+    auto identity = storage_->get_identity();
     identity.total_evaluations = m.total_evaluations;
     identity.alignment_rate = m.alignment_rate;
     storage_->update_identity(identity);
@@ -1244,8 +1272,11 @@ std::pair<bool, std::vector<std::string>> LinaCore::check_season_progress() {
     auto [earned, reasons] =
         value_engine::SeasonAdvancementEvaluator::can_advance(
             m.sessions_completed, m.total_evaluations, m.alignment_rate,
-            m.recent_violations, m.identity_memories, m.current_season,
-            m.actions_resolved, m.action_approval_rate);
+            0, // recent_violations (unused)
+            m.qualifying_memories,
+            m.current_season,
+            0, // actions_resolved (unused)
+            std::nullopt); // action_approval_rate (unused)
     if (!earned) {
         emit_telemetry("season check " + m.current_season
                        + " not yet (" + std::to_string(reasons.size())
@@ -1255,7 +1286,7 @@ std::pair<bool, std::vector<std::string>> LinaCore::check_season_progress() {
 }
 
 std::string LinaCore::apply_season_advance() {
-    auto identity = storage_->get_identity(config_.user_id);
+    auto identity = storage_->get_identity();
     auto next = value_engine::SeasonAdvancementEvaluator::next_season(
         identity.current_season);
     if (!next) return "";
@@ -1271,9 +1302,10 @@ std::string LinaCore::apply_season_advance() {
 
     // 3. The memory of the crossing — the season turn is a landmark.
     memory_module::MemoryItem item = memory_module_->build_item(
-        config_.user_id,
         "The season turned: " + from + " became " + *next + ".",
-        {{"emotional_weight", 7.0}}, "reflection", *next);
+        {{{"emotional_weight", 10.0}, {"identity_significance", 10.0}}}, "reflection", *next);
+    item.kind = "identity";  // Season transitions are identity landmarks.
+    item.must_keep = true;
     storage_->store_memory_item(item);
 
     emit_telemetry("season advance " + from + "->" + *next);

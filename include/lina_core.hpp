@@ -45,7 +45,6 @@ struct LinaConfig {
     std::string model_path{"./models/llama.gguf"};
     std::string api_endpoint{""};
     std::string api_key{""};
-    std::string user_id{"default_user"};
     bool headless{false};
     bool enable_ui{true};
     int max_tokens{2048};
@@ -72,8 +71,8 @@ public:
     std::string chat(const std::string& user_message,
                      const std::string& image_path = "");
 
-    // Session management
-    void begin_session(const std::string& user_id = "");
+    // Session management (Lina is one entity — no user state, D-050)
+    void begin_session();
     std::string end_session();
 
     // Direct access
@@ -114,7 +113,7 @@ public:
         int total_evaluations = 0;
         double alignment_rate = 0.0;
         int recent_violations = 0;
-        int identity_memories = 0;
+        int qualifying_memories = 0;
         int actions_resolved = 0;
         std::optional<double> action_approval_rate;
     };

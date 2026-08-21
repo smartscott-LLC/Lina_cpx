@@ -530,6 +530,28 @@ std::array<double, DIMENSION_COUNT> EncoderCorrection::adjustment_delta() const 
 // ETHICAL POLYTOPE — the lattice, exact rational containment (D-013 / D-047)
 // =============================================================================
 
+Halfspace make_halfspace(
+    const std::string& name,
+    const std::array<mpq_class, DIMENSION_COUNT>& normal,
+    const mpq_class& threshold,
+    bool critical)
+{
+    Halfspace h;
+    h.name = name;
+    h.normal = normal;
+    h.threshold = threshold;
+    h.critical = critical;
+    return h;
+}
+
+void EthicalPolytope::add_facet(const Halfspace& facet) {
+    facets_.push_back(facet);
+}
+
+void EthicalPolytope::add_facets(const std::vector<Halfspace>& facets) {
+    facets_.insert(facets_.end(), facets.begin(), facets.end());
+}
+
 EthicalPolytope::EthicalPolytope(const PolytopeConstraints& constraints)
     : constraints_(constraints)
 {
@@ -1547,10 +1569,18 @@ std::string EncoderFeedbackSystem::response_pattern_key(const std::string& text)
 
 const SeasonAdvancementEvaluator::SeasonRequirements&
 SeasonAdvancementEvaluator::requirements(const std::string& season) {
+    // NEW: 3-factor maturation (book wins):
+    // - Wisdom: total memories (all kinds) >= min_sessions
+    // - Alignment: rolling window of last 50 evaluations >= alignment_rate_threshold
+    // - Length of Life: sessions_completed >= min_sessions
+    // Thresholds per season transition:
+    //   Spring → Summer: 5 sessions, 7 memories, 85% alignment
+    //   Summer → Fall:   10 sessions, 15 memories, 88% alignment
+    //   Fall → Winter:    20 sessions, 30 memories, 90% alignment
     static const std::unordered_map<std::string, SeasonRequirements> reqs = {{
-        {"spring", {5, 30, 0.85, 3, 1, 3, 0.8, "summer"}},
-        {"summer", {15, 100, 0.88, 5, 3, 10, 0.85, "fall"}},
-        {"fall",   {40, 300, 0.90, 8, 7, 25, 0.9, "winter"}},
+        {"spring", {5, 50, 0.85, 0, 7, 0, 0.0, "summer"}},
+        {"summer", {10, 50, 0.88, 0, 15, 0, 0.0, "fall"}},
+        {"fall",   {20, 50, 0.90, 0, 30, 0, 0.0, "winter"}},
         {"winter", {0, 0, 0.0, 0, 0, 0, 0.0, nullptr}},
     }};
     auto it = reqs.find(season);
@@ -1564,11 +1594,13 @@ SeasonAdvancementEvaluator::can_advance(
     int total_evaluations,
     double alignment_rate,
     int recent_violations,
-    int identity_memories_count,
+    int qualifying_memories_count,
     const std::string& current_season,
     int actions_resolved,
-    std::optional<double> action_approval_rate)
-{
+    std::optional<double> action_approval_rate) {
+    (void)recent_violations;    // Unused (3-factor maturation only)
+    (void)actions_resolved;     // Unused
+    (void)action_approval_rate; // Unused
     auto reqs = requirements(current_season);
     if (reqs.advances_to == nullptr) {
         return {false, {"Already in Winter — the final season."}};
@@ -1576,6 +1608,7 @@ SeasonAdvancementEvaluator::can_advance(
 
     std::vector<std::string> reasons;
 
+    // 1. Length of Life: sessions_completed >= min_sessions
     if (sessions_completed < reqs.min_sessions) {
         int remaining = reqs.min_sessions - sessions_completed;
         reasons.push_back(
@@ -1585,6 +1618,7 @@ SeasonAdvancementEvaluator::can_advance(
             std::to_string(remaining) + " more needed).");
     }
 
+    // 2. Minimum evaluations history
     if (total_evaluations < reqs.min_evaluations) {
         int remaining = reqs.min_evaluations - total_evaluations;
         reasons.push_back(
@@ -1594,6 +1628,17 @@ SeasonAdvancementEvaluator::can_advance(
             std::to_string(remaining) + " more needed).");
     }
 
+    // 3. Wisdom: qualifying_memories_count >= min_qualifying_memories
+    if (qualifying_memories_count < reqs.min_qualifying_memories) {
+        int remaining = reqs.min_qualifying_memories - qualifying_memories_count;
+        reasons.push_back(
+            "Not enough qualifying memories (" +
+            std::to_string(qualifying_memories_count) + "/" +
+            std::to_string(reqs.min_qualifying_memories) + " — " +
+            std::to_string(remaining) + " more needed).");
+    }
+
+    // 4. Alignment Ratio: alignment_rate >= alignment_rate_threshold
     if (alignment_rate < reqs.alignment_rate_threshold) {
         double gap = reqs.alignment_rate_threshold - alignment_rate;
         reasons.push_back(
@@ -1601,39 +1646,6 @@ SeasonAdvancementEvaluator::can_advance(
             std::to_string(alignment_rate * 100.0) + "% vs " +
             std::to_string(reqs.alignment_rate_threshold * 100.0) +
             "% — gap: " + std::to_string(gap * 100.0) + "%).");
-    }
-
-    if (recent_violations > reqs.max_recent_violations) {
-        int excess = recent_violations - reqs.max_recent_violations;
-        reasons.push_back(
-            "Too many recent violations (" +
-            std::to_string(recent_violations) + " vs max " +
-            std::to_string(reqs.max_recent_violations) +
-            " — " + std::to_string(excess) + " excess).");
-    }
-
-    if (identity_memories_count < reqs.min_identity_memories) {
-        int remaining = reqs.min_identity_memories - identity_memories_count;
-        reasons.push_back(
-            "Not enough identity memories (" +
-            std::to_string(identity_memories_count) + "/" +
-            std::to_string(reqs.min_identity_memories) +
-            " — " + std::to_string(remaining) + " more needed).");
-    }
-
-    // External ground-truth check (human-in-the-loop action approval).
-    if (action_approval_rate.has_value() &&
-        actions_resolved >= reqs.min_actions_resolved) {
-        double threshold = reqs.action_approval_rate_threshold;
-        if (action_approval_rate.value() < threshold) {
-            double gap = threshold - action_approval_rate.value();
-            reasons.push_back(
-                "Action approval rate too low (" +
-                std::to_string(action_approval_rate.value() * 100.0) +
-                "% vs " + std::to_string(threshold * 100.0) +
-                "% — " + std::to_string(actions_resolved) +
-                " resolved, gap: " + std::to_string(gap * 100.0) + "%).");
-        }
     }
 
     return {reasons.empty(), reasons};

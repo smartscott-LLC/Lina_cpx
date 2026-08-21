@@ -28,7 +28,7 @@ namespace lina::storage {
 
 // Column order matches MEMORY_ITEM_COLUMNS exactly (indexes into PQgetvalue).
 static const char* kMemoryItemColumns =
-    "item_id, user_id, narrative, hemisphere, ethical_coordinates, "
+    "item_id, narrative, hemisphere, ethical_coordinates, "
     "importance_score, geometric, emotional_marker, emotional_intensity, "
     "formation_source, seasonal_marker, concept_name, understanding, "
     "reflection, created_at, trigger, kind, status, protected_flag, "
@@ -37,7 +37,6 @@ static const char* kMemoryItemColumns =
 
 enum MemoryItemCol {
     C_ITEM_ID = 0,
-    C_USER_ID,
     C_NARRATIVE,
     C_HEMISPHERE,
     C_ETHICAL_COORDINATES,
@@ -209,28 +208,26 @@ std::string PostgresBackend::now_iso() {
 // IDENTITY
 // =============================================================================
 
-IdentityRecord PostgresBackend::get_identity(const std::string& user_id) {
+IdentityRecord PostgresBackend::get_identity() {
     auto res = execute_query(
-        "SELECT user_id, current_season, relationship_depth, self_description, "
+        "SELECT current_season, relationship_depth, self_description, "
         "session_count, total_evaluations, alignment_rate, created_at, updated_at "
-        "FROM lina_identity_core WHERE user_id = $1",
-        {user_id});
+        "FROM lina_identity_core WHERE id = 1",
+        {});
 
     IdentityRecord record;
     if (PQntuples(res) > 0) {
-        record.user_id = PQgetvalue(res, 0, 0);
-        record.current_season = PQgetvalue(res, 0, 1);
-        record.relationship_depth = PQgetvalue(res, 0, 2);
+        record.current_season = PQgetvalue(res, 0, 0);
+        record.relationship_depth = PQgetvalue(res, 0, 1);
         record.self_description =
-            PQgetvalue(res, 0, 3) ? PQgetvalue(res, 0, 3) : "";
-        record.session_count = std::stoi(PQgetvalue(res, 0, 4));
-        record.total_evaluations = std::stoi(PQgetvalue(res, 0, 5));
-        record.alignment_rate = std::stod(PQgetvalue(res, 0, 6));
-        record.created_at = PQgetvalue(res, 0, 7);
-        record.updated_at = PQgetvalue(res, 0, 8);
+            PQgetvalue(res, 0, 2) ? PQgetvalue(res, 0, 2) : "";
+        record.session_count = std::stoi(PQgetvalue(res, 0, 3));
+        record.total_evaluations = std::stoi(PQgetvalue(res, 0, 4));
+        record.alignment_rate = std::stod(PQgetvalue(res, 0, 5));
+        record.created_at = PQgetvalue(res, 0, 6);
+        record.updated_at = PQgetvalue(res, 0, 7);
     } else {
         // Create the default identity — this is the moment of beginning.
-        record.user_id = user_id;
         record.current_season = "spring";
         record.relationship_depth = "new";
         record.self_description = "";
@@ -239,6 +236,7 @@ IdentityRecord PostgresBackend::get_identity(const std::string& user_id) {
         record.alignment_rate = 0.0;
         record.created_at = now_iso();
         record.updated_at = now_iso();
+        record.self_description = "";
         update_identity(record);
     }
     PQclear(res);
@@ -248,10 +246,10 @@ IdentityRecord PostgresBackend::get_identity(const std::string& user_id) {
 void PostgresBackend::update_identity(const IdentityRecord& identity) {
     execute_query(
         "INSERT INTO lina_identity_core "
-        "(user_id, current_season, relationship_depth, self_description, "
+        "(id, current_season, relationship_depth, self_description, "
         "session_count, total_evaluations, alignment_rate, updated_at) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) "
-        "ON CONFLICT (user_id) DO UPDATE SET "
+        "VALUES (1, $1, $2, $3, $4, $5, $6, $7) "
+        "ON CONFLICT (id) DO UPDATE SET "
         "current_season = EXCLUDED.current_season, "
         "relationship_depth = EXCLUDED.relationship_depth, "
         "self_description = EXCLUDED.self_description, "
@@ -260,7 +258,6 @@ void PostgresBackend::update_identity(const IdentityRecord& identity) {
         "alignment_rate = EXCLUDED.alignment_rate, "
         "updated_at = EXCLUDED.updated_at",
         {
-            identity.user_id,
             identity.current_season,
             identity.relationship_depth,
             identity.self_description,
@@ -271,8 +268,8 @@ void PostgresBackend::update_identity(const IdentityRecord& identity) {
         });
 }
 
-int PostgresBackend::get_session_number(const std::string& user_id) {
-    auto identity = get_identity(user_id);
+int PostgresBackend::get_session_number() {
+    auto identity = get_identity();
     return identity.session_count + 1;
 }
 
@@ -286,14 +283,13 @@ void PostgresBackend::store_memory_item(const memory_module::MemoryItem& item) {
 
     execute_query(
         "INSERT INTO lina_memory_items "
-        "(item_id, user_id, narrative, hemisphere, ethical_coordinates, "
+        "(item_id, narrative, hemisphere, ethical_coordinates, "
         "importance_score, geometric, emotional_marker, emotional_intensity, "
         "formation_source, seasonal_marker, created_at, trigger, kind, status, "
         "protected_flag, reference_count, must_keep) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)",
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)",
         {
             item.item_id,
-            item.user_id,
             item.narrative,
             item.hemisphere,
             vector_str,
@@ -411,15 +407,15 @@ void PostgresBackend::delete_memory_item(const std::string& item_id) {
 }
 
 void PostgresBackend::log_memory_promotion(
-    const std::string& user_id, const std::string& item_id,
+    const std::string& item_id,
     const std::string& from_stage, const std::string& to_stage,
     double score, const std::string& reason)
 {
     execute_query(
         "INSERT INTO lina_memory_promotions "
-        "(user_id, item_id, from_stage, to_stage, score, reason) "
-        "VALUES ($1, $2, $3, $4, $5, $6)",
-        {user_id, item_id, from_stage, to_stage,
+        "(item_id, from_stage, to_stage, score, reason) "
+        "VALUES ($1, $2, $3, $4, $5)",
+        {item_id, from_stage, to_stage,
          std::to_string(score), reason});
 }
 
@@ -437,16 +433,16 @@ void PostgresBackend::store_tier(const std::string& tier,
 
     execute_query(
         "INSERT INTO lina_memory_items "
-        "(item_id, user_id, narrative, hemisphere, ethical_coordinates, "
+        "(item_id, narrative, hemisphere, ethical_coordinates, "
         "importance_score, geometric, emotional_marker, emotional_intensity, "
         "formation_source, seasonal_marker, created_at, trigger, kind, status, "
         "protected_flag, reference_count, must_keep, tier) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) "
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18) "
         // item_id is the GLOBAL primary key (blueprint §6 table 3): a tier move
         // must UPDATE the row in place, not insert a copy (D-034). created_at
         // is preserved from the original formation.
         "ON CONFLICT (item_id) DO UPDATE SET "
-        "user_id = EXCLUDED.user_id, narrative = EXCLUDED.narrative, "
+        "narrative = EXCLUDED.narrative, "
         "hemisphere = EXCLUDED.hemisphere, "
         "ethical_coordinates = EXCLUDED.ethical_coordinates, "
         "importance_score = EXCLUDED.importance_score, "
@@ -462,7 +458,6 @@ void PostgresBackend::store_tier(const std::string& tier,
         "must_keep = EXCLUDED.must_keep, tier = EXCLUDED.tier",
         {
             item.item_id,
-            item.user_id,
             item.narrative,
             item.hemisphere,
             vector_str,
@@ -577,11 +572,11 @@ void PostgresBackend::delete_item(const std::string& item_id) {
 }
 
 void PostgresBackend::log_promotion(
-    const std::string& user_id, const std::string& item_id,
+    const std::string& item_id,
     const std::string& from_stage, const std::string& to_stage,
     double score, const std::string& reason)
 {
-    log_memory_promotion(user_id, item_id, from_stage, to_stage, score, reason);
+    log_memory_promotion(item_id, from_stage, to_stage, score, reason);
 }
 
 // =============================================================================
@@ -591,11 +586,10 @@ void PostgresBackend::log_promotion(
 void PostgresBackend::store_transcript(const TranscriptEntry& entry) {
     execute_query(
         "INSERT INTO lina_transcripts "
-        "(id, user_id, session_id, role, content, msg_type, evaluation_id) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "(id, session_id, role, content, msg_type, evaluation_id) "
+        "VALUES ($1, $2, $3, $4, $5, $6)",
         {
             entry.id,
-            entry.user_id,
             entry.session_id,
             entry.role,
             entry.content,
@@ -605,27 +599,26 @@ void PostgresBackend::store_transcript(const TranscriptEntry& entry) {
 }
 
 std::vector<TranscriptEntry> PostgresBackend::get_transcripts(
-    const std::string& user_id, const std::string& session_id)
+    const std::string& session_id)
 {
     auto res = execute_query(
-        "SELECT id, user_id, session_id, role, content, msg_type, "
+        "SELECT id, session_id, role, content, msg_type, "
         "evaluation_id, created_at "
-        "FROM lina_transcripts WHERE user_id = $1 AND session_id = $2 "
+        "FROM lina_transcripts WHERE session_id = $1 "
         "ORDER BY created_at ASC",
-        {user_id, session_id});
+        {session_id});
 
     std::vector<TranscriptEntry> entries;
     int n = PQntuples(res);
     for (int i = 0; i < n; ++i) {
         TranscriptEntry e;
         e.id = PQgetvalue(res, i, 0);
-        e.user_id = PQgetvalue(res, i, 1);
-        e.session_id = PQgetvalue(res, i, 2);
-        e.role = PQgetvalue(res, i, 3);
-        e.content = PQgetvalue(res, i, 4);
-        e.msg_type = PQgetvalue(res, i, 5);
-        e.evaluation_id = PQgetvalue(res, i, 6);
-        e.created_at = PQgetvalue(res, i, 7);
+        e.session_id = PQgetvalue(res, i, 1);
+        e.role = PQgetvalue(res, i, 2);
+        e.content = PQgetvalue(res, i, 3);
+        e.msg_type = PQgetvalue(res, i, 4);
+        e.evaluation_id = PQgetvalue(res, i, 5);
+        e.created_at = PQgetvalue(res, i, 6);
         entries.push_back(e);
     }
     PQclear(res);
@@ -639,11 +632,10 @@ std::vector<TranscriptEntry> PostgresBackend::get_transcripts(
 void PostgresBackend::create_session(const SessionRecord& session) {
     execute_query(
         "INSERT INTO lina_sessions "
-        "(id, user_id, session_number, season, depth, finalized, created_at) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7)",
+        "(id, session_number, season, depth, finalized, created_at) "
+        "VALUES ($1, $2, $3, $4, $5, $6)",
         {
             session.id,
-            session.user_id,
             std::to_string(session.session_number),
             session.season,
             session.depth,
@@ -663,7 +655,7 @@ std::optional<SessionRecord> PostgresBackend::get_session(
     const std::string& session_id)
 {
     auto res = execute_query(
-        "SELECT id, user_id, session_number, season, depth, finalized, "
+        "SELECT id, session_number, season, depth, finalized, "
         "created_at, finalized_at "
         "FROM lina_sessions WHERE id = $1",
         {session_id});
@@ -675,13 +667,12 @@ std::optional<SessionRecord> PostgresBackend::get_session(
 
     SessionRecord record;
     record.id = PQgetvalue(res, 0, 0);
-    record.user_id = PQgetvalue(res, 0, 1);
-    record.session_number = std::stoi(PQgetvalue(res, 0, 2));
-    record.season = PQgetvalue(res, 0, 3);
-    record.depth = PQgetvalue(res, 0, 4);
-    record.finalized = std::string(PQgetvalue(res, 0, 5)) == "t";
-    record.created_at = PQgetvalue(res, 0, 6);
-    record.finalized_at = PQgetvalue(res, 0, 7) ? PQgetvalue(res, 0, 7) : "";
+    record.session_number = std::stoi(PQgetvalue(res, 0, 1));
+    record.season = PQgetvalue(res, 0, 2);
+    record.depth = PQgetvalue(res, 0, 3);
+    record.finalized = std::string(PQgetvalue(res, 0, 4)) == "t";
+    record.created_at = PQgetvalue(res, 0, 5);
+    record.finalized_at = PQgetvalue(res, 0, 6) ? PQgetvalue(res, 0, 6) : "";
     PQclear(res);
     return record;
 }
@@ -796,6 +787,29 @@ int PostgresBackend::count_memories_by_kind(const std::string& kind) {
     return count;
 }
 
+int PostgresBackend::count_memories() {
+    // NEW: Count ALL memories (all kinds).
+    auto res = execute_query("SELECT COUNT(*) FROM lina_memory_items");
+    int count = 0;
+    if (PQntuples(res) > 0) {
+        count = std::stoi(PQgetvalue(res, 0, 0));
+    }
+    PQclear(res);
+    return count;
+}
+
+int PostgresBackend::count_qualifying_memories() {
+    auto res = execute_query(
+        "SELECT COUNT(*) FROM lina_memory_items "
+        "WHERE formation_source IN ('reflection', 'self_initiated', 'voluntary', 'chosen')");
+    int count = 0;
+    if (PQntuples(res) > 0) {
+        count = std::stoi(PQgetvalue(res, 0, 0));
+    }
+    PQclear(res);
+    return count;
+}
+
 // ---------------------------------------------------------------------------
 // Evaluation ledger (D-047) — the outcomes her drift learns from
 // ---------------------------------------------------------------------------
@@ -803,12 +817,11 @@ int PostgresBackend::count_memories_by_kind(const std::string& kind) {
 void PostgresBackend::store_evaluation(const EvaluationRecord& record) {
     execute_query(
         "INSERT INTO lina_evaluations "
-        "(user_id, session_id, response_text, input_vector, output_vector, "
+        "(session_id, response_text, input_vector, output_vector, "
         "corrected_vector, is_aligned, alignment_score, correction_magnitude, "
         "zone, season, created_at) "
-        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
-        {record.user_id,
-         record.session_id,
+        "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        {record.session_id,
          record.response_text,
          vector_to_pgarray(record.input_vector),
          vector_to_pgarray(record.output_vector),
@@ -821,34 +834,32 @@ void PostgresBackend::store_evaluation(const EvaluationRecord& record) {
          record.created_at.empty() ? now_iso() : record.created_at});
 }
 
-std::vector<EvaluationRecord> PostgresBackend::fetch_evaluations(
-    const std::string& user_id, int limit)
+std::vector<EvaluationRecord> PostgresBackend::fetch_evaluations(int limit)
 {
     std::vector<EvaluationRecord> records;
     auto res = execute_query(
-        "SELECT user_id, session_id, response_text, input_vector, output_vector, "
+        "SELECT session_id, response_text, input_vector, output_vector, "
         "corrected_vector, is_aligned, alignment_score, correction_magnitude, "
         "zone, season, created_at "
-        "FROM lina_evaluations WHERE user_id = $1 "
-        "ORDER BY id DESC LIMIT $2",
-        {user_id, std::to_string(limit)});
+        "FROM lina_evaluations "
+        "ORDER BY id DESC LIMIT $1",
+        {std::to_string(limit)});
     if (!res) return records;
 
     const int n = PQntuples(res);
     for (int i = 0; i < n; ++i) {
         EvaluationRecord record;
-        record.user_id = PQgetvalue(res, i, 0);
-        record.session_id = PQgetvalue(res, i, 1);
-        record.response_text = PQgetvalue(res, i, 2);
-        record.input_vector = pgarray_to_vector(PQgetvalue(res, i, 3));
-        record.output_vector = pgarray_to_vector(PQgetvalue(res, i, 4));
-        record.corrected_vector = pgarray_to_vector(PQgetvalue(res, i, 5));
-        record.is_aligned = std::string(PQgetvalue(res, i, 6)) == "t";
-        record.alignment_score = std::stod(PQgetvalue(res, i, 7));
-        record.correction_magnitude = std::stod(PQgetvalue(res, i, 8));
-        record.zone = PQgetvalue(res, i, 9);
-        record.season = PQgetvalue(res, i, 10);
-        record.created_at = PQgetvalue(res, i, 11);
+        record.session_id = PQgetvalue(res, i, 0);
+        record.response_text = PQgetvalue(res, i, 1);
+        record.input_vector = pgarray_to_vector(PQgetvalue(res, i, 2));
+        record.output_vector = pgarray_to_vector(PQgetvalue(res, i, 3));
+        record.corrected_vector = pgarray_to_vector(PQgetvalue(res, i, 4));
+        record.is_aligned = std::string(PQgetvalue(res, i, 5)) == "t";
+        record.alignment_score = std::stod(PQgetvalue(res, i, 6));
+        record.correction_magnitude = std::stod(PQgetvalue(res, i, 7));
+        record.zone = PQgetvalue(res, i, 8);
+        record.season = PQgetvalue(res, i, 9);
+        record.created_at = PQgetvalue(res, i, 10);
         records.push_back(std::move(record));
     }
     PQclear(res);
@@ -926,7 +937,6 @@ memory_module::MemoryItem PostgresBackend::row_to_memory_item(
 {
     memory_module::MemoryItem item;
     item.item_id = PQgetvalue(res, row, C_ITEM_ID);
-    item.user_id = PQgetvalue(res, row, C_USER_ID);
     item.narrative = PQgetvalue(res, row, C_NARRATIVE);
     item.hemisphere = PQgetvalue(res, row, C_HEMISPHERE);
     item.ethical_coordinates =
@@ -973,7 +983,6 @@ memory_module::MemoryItemRow PostgresBackend::row_to_memory_item_row(
 {
     memory_module::MemoryItemRow r;
     r.item_id = PQgetvalue(res, row, C_ITEM_ID);
-    r.user_id = PQgetvalue(res, row, C_USER_ID);
     r.hemisphere = PQgetvalue(res, row, C_HEMISPHERE);
     r.kind = PQgetvalue(res, row, C_KIND);
     r.status = PQgetvalue(res, row, C_STATUS);

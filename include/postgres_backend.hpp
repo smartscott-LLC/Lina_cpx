@@ -44,10 +44,10 @@ public:
     PostgresBackend(const PostgresBackend&) = delete;
     PostgresBackend& operator=(const PostgresBackend&) = delete;
 
-    // --- StorageBackend: Identity ---
-    IdentityRecord get_identity(const std::string& user_id) override;
+    // --- StorageBackend: Identity (Lina is one entity — no user state, D-050) ---
+    IdentityRecord get_identity() override;
     void update_identity(const IdentityRecord& identity) override;
-    int get_session_number(const std::string& user_id) override;
+    int get_session_number() override;
 
     // --- StorageBackend: Memory Vectors ---
     void store_memory_item(const memory_module::MemoryItem& item) override;
@@ -62,7 +62,6 @@ public:
     void update_memory_item(const memory_module::MemoryItemRow& row) override;
     void delete_memory_item(const std::string& item_id) override;
     void log_memory_promotion(
-        const std::string& user_id,
         const std::string& item_id,
         const std::string& from_stage,
         const std::string& to_stage,
@@ -72,7 +71,7 @@ public:
     // --- StorageBackend: Transcripts ---
     void store_transcript(const TranscriptEntry& entry) override;
     std::vector<TranscriptEntry> get_transcripts(
-        const std::string& user_id, const std::string& session_id) override;
+        const std::string& session_id) override;
 
     // --- StorageBackend: Sessions ---
     void create_session(const SessionRecord& session) override;
@@ -89,11 +88,12 @@ public:
     std::vector<ActionRecord> get_pending_actions() override;
     std::pair<int, int> action_resolution_stats() override;
     int count_memories_by_kind(const std::string& kind) override;
+    int count_memories() override;  // NEW: Count ALL memories (all kinds)
+    int count_qualifying_memories() override;
 
     // --- StorageBackend: Evaluation ledger (D-047) ---
     void store_evaluation(const EvaluationRecord& record) override;
-    std::vector<EvaluationRecord> fetch_evaluations(
-        const std::string& user_id, int limit) override;
+    std::vector<EvaluationRecord> fetch_evaluations(int limit) override;
 
     // --- StorageBackend: Telemetry (D-043) ---
     void append_telemetry_log(
@@ -122,8 +122,7 @@ public:
         const std::string& status) override;
     void update_item(const memory_module::MemoryItemRow& row) override;
     void delete_item(const std::string& item_id) override;
-    void log_promotion(const std::string& user_id,
-                       const std::string& item_id,
+    void log_promotion(const std::string& item_id,
                        const std::string& from_stage,
                        const std::string& to_stage,
                        double score,

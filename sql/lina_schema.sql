@@ -16,7 +16,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- 1. lina_identity_core — user identity, season, founding context
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_identity_core (
-    user_id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id = 1), -- Lina is ONE entity (D-050)
     current_season VARCHAR(20) DEFAULT 'spring',
     relationship_depth VARCHAR(20) DEFAULT 'new',
     self_description TEXT,
@@ -26,6 +26,7 @@ CREATE TABLE lina_identity_core (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+INSERT INTO lina_identity_core (id) VALUES (1);
 
 -- ---------------------------------------------------------------------------
 -- 2. lina_polytope_constraints — 14D seasonal boundary definitions (seeded)
@@ -55,7 +56,6 @@ CREATE TABLE lina_polytope_constraints (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_memory_items (
     item_id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     narrative TEXT NOT NULL,
     hemisphere VARCHAR(20) DEFAULT 'personal',
     ethical_coordinates vector(14),
@@ -93,7 +93,6 @@ CREATE INDEX idx_memory_ethical ON lina_memory_items
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_transcripts (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     session_id TEXT NOT NULL,
     role VARCHAR(20) NOT NULL,
     content TEXT NOT NULL,
@@ -107,7 +106,6 @@ CREATE TABLE lina_transcripts (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_sessions (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     session_number INTEGER NOT NULL,
     season VARCHAR(20) DEFAULT 'spring',
     depth VARCHAR(20) DEFAULT 'new',
@@ -135,7 +133,6 @@ CREATE TABLE lina_actions (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_memory_promotions (
     id SERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     item_id TEXT NOT NULL,
     from_stage VARCHAR(20) NOT NULL,
     to_stage VARCHAR(20) NOT NULL,
@@ -149,7 +146,6 @@ CREATE TABLE lina_memory_promotions (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_evaluations (
     id SERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     session_id TEXT NOT NULL,
     response_text TEXT,
     input_vector vector(14),
@@ -168,7 +164,6 @@ CREATE TABLE lina_evaluations (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_season_transitions (
     id SERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     from_season VARCHAR(20),
     to_season VARCHAR(20),
     trigger_event TEXT,
@@ -180,7 +175,6 @@ CREATE TABLE lina_season_transitions (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_wisdom_filters (
     id SERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     filter_name VARCHAR(100) NOT NULL,
     transform_pattern TEXT,
     active BOOLEAN DEFAULT TRUE,
@@ -204,7 +198,6 @@ CREATE TABLE lina_working_memory (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_fallout_buffer (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     narrative TEXT NOT NULL,
     importance_score DECIMAL(5,2),
     entered_fallout_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -216,7 +209,6 @@ CREATE TABLE lina_fallout_buffer (
 -- ---------------------------------------------------------------------------
 CREATE TABLE lina_standing_grants (
     id SERIAL PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES lina_identity_core(user_id),
     tool_pattern VARCHAR(100) NOT NULL,
     path_pattern VARCHAR(255) NOT NULL,
     granted BOOLEAN DEFAULT TRUE,

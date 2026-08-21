@@ -337,7 +337,6 @@ std::chrono::system_clock::time_point MemoryModule::parse_time_or_now(
 // =============================================================================
 
 MemoryItem MemoryModule::build_item(
-    const std::string& user_id,
     const std::string& narrative,
     const std::unordered_map<std::string, double>& factors,
     const std::string& source,
@@ -346,7 +345,6 @@ MemoryItem MemoryModule::build_item(
 {
     MemoryItem item;
     item.item_id = generate_item_id();
-    item.user_id = user_id;
     item.narrative = narrative;
     item.hemisphere = "personal";
     item.formation_source = source;
@@ -422,7 +420,6 @@ MemoryItem MemoryModule::build_item(
 }
 
 std::tuple<int, int, int> MemoryModule::form_items(
-    const std::string& user_id,
     const std::vector<MemoryItem>& moments,
     const std::string& source,
     const std::optional<std::string>& season,
@@ -441,7 +438,7 @@ std::tuple<int, int, int> MemoryModule::form_items(
         factors["emotional_intensity"] = moment.emotional_intensity;
 
         auto item = build_item(
-            user_id, moment.narrative, factors, source, season, trigger);
+            moment.narrative, factors, source, season, trigger);
 
         auto route = route_item(item);
 
@@ -461,7 +458,6 @@ std::tuple<int, int, int> MemoryModule::form_items(
 }
 
 std::optional<MemoryItem> MemoryModule::ingest_trigger(
-    const std::string& user_id,
     const std::string& narrative,
     const std::string& kind,
     const std::optional<std::string>& season,
@@ -489,12 +485,12 @@ std::optional<MemoryItem> MemoryModule::ingest_trigger(
     }
 
     auto item = build_item(
-        user_id, trimmed, default_factors, kind, season, true);
+        trimmed, default_factors, kind, season, true);
 
     auto route = route_item(item);
     store_->store_long_term(item, route.status);
     store_->log_promotion(
-        user_id, item.item_id, "formation", route.status,
+        item.item_id, "formation", route.status,
         item.importance_score,
         "Triggered - score " + std::to_string(item.importance_score));
 
@@ -534,7 +530,7 @@ SweepCounts MemoryModule::run_sweep() {
                     try {
                         store_->store_long_term(item, "active");
                         store_->log_promotion(
-                            item.user_id, item.item_id, "t3", "active",
+                            item.item_id, "t3", "active",
                             score,
                             "48h sweep - score " + std::to_string(score)
                             + " (earned permanence)");
@@ -550,7 +546,7 @@ SweepCounts MemoryModule::run_sweep() {
                     store_->store_tier(next_tier, item);
                     store_->delete_tier(tier, item.item_id);
                     store_->log_promotion(
-                        item.user_id, item.item_id, tier, next_tier,
+                        item.item_id, tier, next_tier,
                         score,
                         "Sweep - score " + std::to_string(score)
                         + " >= gate " + std::to_string(gate));
@@ -586,7 +582,7 @@ SweepCounts MemoryModule::run_sweep() {
             store_->store_tier("t1", item);
             store_->delete_tier("fallout", item.item_id);
             store_->log_promotion(
-                item.user_id, item.item_id, "fallout", "t1",
+                item.item_id, "fallout", "t1",
                 score,
                 "Repurposed - score " + std::to_string(score)
                 + " >= gate " + std::to_string(gate));
@@ -621,7 +617,7 @@ MaintenanceCounts MemoryModule::run_maintenance(
         if (decision.log_entry) {
             auto [from_s, to_s, reason] = *decision.log_entry;
             store_->log_promotion(
-                row.user_id, row.item_id, from_s, to_s,
+                row.item_id, from_s, to_s,
                 decision.score, reason);
             if (to_s == "subconscious") counts.to_subconscious++;
             else counts.to_legacy++;
@@ -668,7 +664,7 @@ ReviewCounts MemoryModule::run_legacy_review(
         if (decision.log_entry) {
             auto [from_s, to_s, reason] = *decision.log_entry;
             store_->log_promotion(
-                row.user_id, row.item_id, from_s, to_s,
+                row.item_id, from_s, to_s,
                 decision.score, reason);
             counts.demoted++;
         }
@@ -689,7 +685,6 @@ ReviewCounts MemoryModule::run_legacy_review(
 // =============================================================================
 
 std::vector<MemoryItemRow> MemoryModule::recall(
-    const std::string& user_id,
     const std::string& query,
     const std::optional<std::string>& hemisphere,
     int limit,
@@ -722,7 +717,6 @@ std::vector<MemoryItemRow> MemoryModule::recall(
     // Score each candidate.
     std::vector<std::pair<double, MemoryItemRow*>> scored;
     for (auto& row : candidates) {
-        if (row.user_id != user_id) continue;
         if (hemisphere && row.hemisphere != *hemisphere) continue;
 
         std::optional<std::vector<double>> row_embedding;
@@ -759,15 +753,14 @@ std::vector<MemoryItemRow> MemoryModule::recall(
 
 std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>>
 MemoryModule::inject_context(
-    const std::string& user_id,
     const std::string& query,
     int personal_limit,
     int wisdom_limit)
 {
     std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>> result;
 
-    auto personal = recall(user_id, query, "personal", personal_limit, false);
-    auto wisdom = recall(user_id, query, "impersonal", wisdom_limit, false);
+    auto personal = recall(query, "personal", personal_limit, false);
+    auto wisdom = recall(query, "impersonal", wisdom_limit, false);
 
     std::vector<std::unordered_map<std::string, std::string>> recent_episodic;
     for (const auto& row : personal) {

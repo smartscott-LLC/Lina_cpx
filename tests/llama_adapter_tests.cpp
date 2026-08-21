@@ -38,12 +38,8 @@ static int g_failures = 0;
 
 static std::string test_conn_string() {
     const char* env = std::getenv("LINA_TEST_DB");
-    return env ? std::string(env) : "postgresql://lina:lina@localhost:5433/lina";
-}
-
-static std::string unique_user() {
-    auto now = std::chrono::system_clock::now().time_since_epoch().count();
-    return "itest_llama_" + std::to_string(now);
+    // Dedicated test world (D-050) — the suite must not write into her live banks.
+    return env ? std::string(env) : "postgresql://lina:lina@localhost:5433/lina_test";
 }
 
 static std::string model_path() {
@@ -217,7 +213,6 @@ int main() {
         // --- End-to-end through her gate (D-035): LinaCore + real voice. ---
         LinaConfig lconfig;
         lconfig.db_connection = test_conn_string();
-        lconfig.user_id = unique_user();
         lconfig.headless = true;
         LinaCore core(lconfig);
         core.attach_model(std::move(adapter));

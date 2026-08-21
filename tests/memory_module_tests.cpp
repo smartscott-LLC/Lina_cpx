@@ -120,7 +120,6 @@ public:
             if (item.status != status) continue;
             MemoryItemRow row;
             row.item_id = item.item_id;
-            row.user_id = item.user_id;
             row.hemisphere = item.hemisphere;
             row.kind = item.kind;
             row.status = item.status;
@@ -189,10 +188,10 @@ public:
     void delete_item(const std::string& item_id) override {
         long_term_.erase(item_id);
     }
-    void log_promotion(const std::string& user_id, const std::string& item_id,
+    void log_promotion(const std::string& item_id,
                        const std::string& from_stage, const std::string& to_stage,
                        double score, const std::string& reason) override {
-        promotion_log_.emplace_back(user_id, item_id, from_stage, to_stage,
+        promotion_log_.emplace_back(item_id, from_stage, to_stage,
                                     score, reason);
     }
 
@@ -202,13 +201,13 @@ public:
     }
     size_t long_term_size() const { return long_term_.size(); }
     size_t promotion_count() const { return promotion_log_.size(); }
-    std::vector<std::tuple<std::string, std::string, std::string, std::string, double, std::string>>
+    std::vector<std::tuple<std::string, std::string, std::string, double, std::string>>
         promotion_log() const { return promotion_log_; }
 
 private:
     std::unordered_map<std::string, std::unordered_map<std::string, MemoryItem>> tiers_;
     std::unordered_map<std::string, MemoryItem> long_term_;
-    std::vector<std::tuple<std::string, std::string, std::string, std::string, double, std::string>>
+    std::vector<std::tuple<std::string, std::string, std::string, double, std::string>>
         promotion_log_;
 };
 
@@ -275,7 +274,7 @@ static void test_build_item() {
     MemoryModule module(engine, nullptr, store);
 
     auto item = module.build_item(
-        "u1", "we collaborated and built something together",
+        "we collaborated and built something together",
         {{"emotional_weight", 5.0},
          {"relational_significance", 5.0},
          {"identity_significance", 3.0},
@@ -283,7 +282,6 @@ static void test_build_item() {
         "conversation", "spring", false);
 
     CHECK(!item.item_id.empty());
-    CHECK(item.user_id == "u1");
     CHECK(item.hemisphere == "personal");
     CHECK(item.emotional_marker == "care");
     CHECK(item.ethical_coordinates.size() == DIMENSION_COUNT);
@@ -292,7 +290,7 @@ static void test_build_item() {
 
     // Trigger: retention floor applies.
     auto trig = module.build_item(
-        "u1", "a small but important moment",
+        "a small but important moment",
         {{"emotional_weight", 1.0}}, "conversation", std::nullopt, true);
     CHECK(trig.importance_score >= TRIGGER_RETENTION_FLOOR);
 }
@@ -307,7 +305,7 @@ static void test_form_items() {
     moments[1].narrative = "she chose to trust the process";
     moments[2].narrative = "a quiet evening conversation";
 
-    auto [t1, lt, crown] = module.form_items("u1", moments, "session", "spring", false);
+    auto [t1, lt, crown] = module.form_items(moments, "session", "spring", false);
     CHECK(t1 == 3);
     CHECK(lt == 0);
     CHECK(crown == 0);
@@ -320,7 +318,7 @@ static void test_ingest_trigger() {
     MemoryModule module(engine, nullptr, store);
 
     auto item = module.ingest_trigger(
-        "u1", "  this moment matters — remember it  ", "identity");
+        "  this moment matters — remember it  ", "identity");
     CHECK(item.has_value());
     CHECK(item->narrative == "this moment matters — remember it"); // trimmed
     CHECK(item->emotional_marker == "care");                      // default factor
@@ -329,7 +327,7 @@ static void test_ingest_trigger() {
     CHECK(store->promotion_count() >= 1);
 
     // Empty narrative → nullopt.
-    CHECK(!module.ingest_trigger("u1", "   ", "identity").has_value());
+    CHECK(!module.ingest_trigger("   ", "identity").has_value());
 }
 
 // =============================================================================
@@ -346,10 +344,10 @@ static void test_sweep() {
     // C: t3 score 6.0 → long-term active (gate 5.0).
     // D: t1 score 2.0 → falls out to the 48h buffer (below gate 3.0).
     MemoryItem a, b, c, d;
-    a.item_id = "a"; a.user_id = "u1"; a.narrative = "A"; a.importance_score = 4.0;
-    b.item_id = "b"; b.user_id = "u1"; b.narrative = "B"; b.importance_score = 4.0;
-    c.item_id = "c"; c.user_id = "u1"; c.narrative = "C"; c.importance_score = 6.0;
-    d.item_id = "d"; d.user_id = "u1"; d.narrative = "D"; d.importance_score = 2.0;
+    a.item_id = "a"; a.narrative = "A"; a.importance_score = 4.0;
+    b.item_id = "b"; b.narrative = "B"; b.importance_score = 4.0;
+    c.item_id = "c"; c.narrative = "C"; c.importance_score = 6.0;
+    d.item_id = "d"; d.narrative = "D"; d.importance_score = 2.0;
     store->store_tier("t1", a);
     store->store_tier("t2", b);
     store->store_tier("t3", c);
@@ -394,13 +392,13 @@ static void test_sweep_fallout_48h() {
     // F: in fallout for 49h, score 1.0 < gate 3.0 → purged.
     // G: in fallout for 1h → still in grace, untouched.
     MemoryItem e, f, g;
-    e.item_id = "e"; e.user_id = "u1"; e.narrative = "E";
+    e.item_id = "e"; e.narrative = "E";
     e.importance_score = 4.0; e.failed_gate = 3.0;
     e.entered_fallout_at = iso_offset(49.0 / 24.0);
-    f.item_id = "f"; f.user_id = "u1"; f.narrative = "F";
+    f.item_id = "f"; f.narrative = "F";
     f.importance_score = 1.0; f.failed_gate = 3.0;
     f.entered_fallout_at = iso_offset(49.0 / 24.0);
-    g.item_id = "g"; g.user_id = "u1"; g.narrative = "G";
+    g.item_id = "g"; g.narrative = "G";
     g.importance_score = 2.0; g.failed_gate = 3.0;
     g.entered_fallout_at = iso_offset(1.0 / 24.0);
 
@@ -427,7 +425,6 @@ static MemoryItemRow make_row(const std::string& id, const std::string& status,
 {
     MemoryItemRow row;
     row.item_id = id;
-    row.user_id = "u1";
     row.hemisphere = "personal";
     row.kind = "episodic";
     row.status = status;
@@ -446,7 +443,7 @@ static void test_maintenance() {
 
     // 1. Score 9.5, referenced 30+ times, recent creation → rises to legacy.
     MemoryItem legacy;
-    legacy.item_id = "l1"; legacy.user_id = "u1"; legacy.narrative = "crown";
+    legacy.item_id = "l1"; legacy.narrative = "crown";
     legacy.importance_score = 9.5; legacy.status = "active";
     legacy.reference_count = 30;
     legacy.created_at = iso_from(now, 10);
@@ -454,28 +451,28 @@ static void test_maintenance() {
 
     // 2. Score 3.0 → slips below the subconscious line.
     MemoryItem sub;
-    sub.item_id = "s1"; sub.user_id = "u1"; sub.narrative = "fading";
+    sub.item_id = "s1"; sub.narrative = "fading";
     sub.importance_score = 3.0; sub.status = "active";
     sub.created_at = iso_from(now, 10);
     store->store_long_term(sub, "active");
 
     // 3. Score 6.0 → stays active.
     MemoryItem stay;
-    stay.item_id = "st1"; stay.user_id = "u1"; stay.narrative = "steady";
+    stay.item_id = "st1"; stay.narrative = "steady";
     stay.importance_score = 6.0; stay.status = "active";
     stay.created_at = iso_from(now, 10);
     store->store_long_term(stay, "active");
 
     // 4. Subconscious, decay started 100 days ago → decays toward gone.
     MemoryItem decay;
-    decay.item_id = "d1"; decay.user_id = "u1"; decay.narrative = "slope";
+    decay.item_id = "d1"; decay.narrative = "slope";
     decay.importance_score = 6.0; decay.status = "subconscious";
     decay.decay_started_at = iso_from(now, 100);
     store->store_long_term(decay, "subconscious");
 
     // 5. Subconscious, decay started 800 days ago → forgotten.
     MemoryItem gone;
-    gone.item_id = "g1"; gone.user_id = "u1"; gone.narrative = "gone";
+    gone.item_id = "g1"; gone.narrative = "gone";
     gone.importance_score = 6.0; gone.status = "subconscious";
     gone.decay_started_at = iso_from(now, 800);
     store->store_long_term(gone, "subconscious");
@@ -542,7 +539,7 @@ static void test_legacy_review() {
 
     // Protected legacy item holds even below the floor.
     MemoryItem protected_item;
-    protected_item.item_id = "p1"; protected_item.user_id = "u1";
+    protected_item.item_id = "p1";
     protected_item.narrative = "protected"; protected_item.status = "legacy";
     protected_item.importance_score = 7.0; protected_item.protected_flag = true;
     protected_item.created_at = iso_from(now, 10);
@@ -550,7 +547,7 @@ static void test_legacy_review() {
 
     // Unprotected legacy item below the floor → demoted.
     MemoryItem demote;
-    demote.item_id = "d1"; demote.user_id = "u1"; demote.narrative = "demote";
+    demote.item_id = "d1"; demote.narrative = "demote";
     demote.status = "legacy"; demote.importance_score = 7.0;
     demote.created_at = iso_from(now, 10);
     store->store_long_term(demote, "legacy");
@@ -586,9 +583,9 @@ static void test_recall() {
 
     // Two identical-narrative items (semantic match 1.0), different importance.
     MemoryItem hi, lo;
-    hi.item_id = "hi"; hi.user_id = "u1"; hi.hemisphere = "personal";
+    hi.item_id = "hi"; hi.hemisphere = "personal";
     hi.narrative = "the same remembered moment"; hi.importance_score = 9.0;
-    lo.item_id = "lo"; lo.user_id = "u1"; lo.hemisphere = "personal";
+    lo.item_id = "lo"; lo.hemisphere = "personal";
     lo.narrative = "the same remembered moment"; lo.importance_score = 3.0;
 
     auto coords_hi = encode_coordinates(*engine, hi.narrative);
@@ -598,18 +595,14 @@ static void test_recall() {
     store->store_long_term(hi, "active");
     store->store_long_term(lo, "active");
 
-    auto results = module.recall("u1", "the same remembered moment", "personal", 2, false);
+    auto results = module.recall("the same remembered moment", "personal", 2, false);
     CHECK(results.size() == 2);
     CHECK(results[0].item_id == "hi");  // higher importance ranks first
     CHECK(results[1].item_id == "lo");
 
     // Hemisphere filter excludes impersonal wisdom.
-    auto filtered = module.recall("u1", "the same remembered moment", "impersonal", 5, false);
+    auto filtered = module.recall("the same remembered moment", "impersonal", 5, false);
     CHECK(filtered.empty());
-
-    // Unknown user gets nothing.
-    auto other = module.recall("u2", "the same remembered moment", std::nullopt, 5, false);
-    CHECK(other.empty());
 }
 
 static void test_inject_context() {
@@ -619,19 +612,19 @@ static void test_inject_context() {
     MemoryModule module(engine, embedder, store);
 
     MemoryItem personal;
-    personal.item_id = "pers"; personal.user_id = "u1";
+    personal.item_id = "pers";
     personal.hemisphere = "personal"; personal.narrative = "a personal memory";
     personal.importance_score = 8.0;
     store->store_long_term(personal, "active");
 
     MemoryItem wisdom;
-    wisdom.item_id = "wise"; wisdom.user_id = "u1";
+    wisdom.item_id = "wise";
     wisdom.hemisphere = "impersonal"; wisdom.narrative = "a hard-won lesson";
     wisdom.importance_score = 9.5; wisdom.kind = "identity";
     wisdom.concept_name = "patience";
     store->store_long_term(wisdom, "legacy");
 
-    auto ctx = module.inject_context("u1", "a personal memory", 5, 8);
+    auto ctx = module.inject_context("a personal memory", 5, 8);
     CHECK(ctx["recent_episodic"].size() == 1);
     CHECK(ctx["recent_episodic"][0]["narrative"] == "a personal memory");
     CHECK(ctx["key_semantic"].size() == 1);

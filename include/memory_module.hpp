@@ -64,7 +64,6 @@ inline constexpr double FALLOUT_RETENTION_HOURS = 48.0;
 
 struct MemoryItem {
     std::string item_id;
-    std::string user_id;
     std::string narrative;
     std::string hemisphere = "personal";
     std::vector<double> ethical_coordinates; // 14D
@@ -98,7 +97,6 @@ struct MemoryItem {
 // Memory row from database (subset returned by fetch)
 struct MemoryItemRow {
     std::string item_id;
-    std::string user_id;
     std::string hemisphere;
     std::string kind;
     std::string status;
@@ -203,8 +201,7 @@ public:
     virtual std::vector<MemoryItemRow> fetch_by_status(const std::string& status) = 0;
     virtual void update_item(const MemoryItemRow& row) = 0;
     virtual void delete_item(const std::string& item_id) = 0;
-    virtual void log_promotion(const std::string& user_id,
-                               const std::string& item_id,
+    virtual void log_promotion(const std::string& item_id,
                                const std::string& from_stage,
                                const std::string& to_stage,
                                double score,
@@ -274,7 +271,6 @@ public:
 
     /// Build a memory item from factors (engine encodes narrative into coordinates)
     MemoryItem build_item(
-        const std::string& user_id,
         const std::string& narrative,
         const std::unordered_map<std::string, double>& factors,
         const std::string& source,
@@ -284,7 +280,6 @@ public:
     /// Form items from a batch of moments: score, route, store
     /// Returns counts of t1, long_term, and crown items
     std::tuple<int, int, int> form_items(
-        const std::string& user_id,
         const std::vector<MemoryItem>& moments,
         const std::string& source,
         const std::optional<std::string>& season = std::nullopt,
@@ -292,7 +287,6 @@ public:
 
     /// Ingest a trigger: immediate formation, retention floor, straight to long-term
     std::optional<MemoryItem> ingest_trigger(
-        const std::string& user_id,
         const std::string& narrative,
         const std::string& kind,
         const std::optional<std::string>& season = std::nullopt,
@@ -317,7 +311,6 @@ public:
 
     /// Top-N memories by the two-space blend. Re-stokes recalled items.
     std::vector<MemoryItemRow> recall(
-        const std::string& user_id,
         const std::string& query = "",
         const std::optional<std::string>& hemisphere = std::nullopt,
         int limit = 5,
@@ -326,7 +319,6 @@ public:
     /// Active injection: personal + wisdom memories by likeness
     std::unordered_map<std::string, std::vector<std::unordered_map<std::string, std::string>>>
     inject_context(
-        const std::string& user_id,
         const std::string& query = "",
         int personal_limit = 5,
         int wisdom_limit = 8);

@@ -23,7 +23,6 @@ void print_usage(const char* prog_name) {
               << "  --model-path PATH  Path to model file\n"
               << "  --api-endpoint URL  External API endpoint\n"
               << "  --api-key KEY   External API key\n"
-              << "  --user ID       User ID\n"
               << "  --headless      Run without UI\n"
               << "  --max-tokens N  Max tokens per response\n"
               << "  --temperature F Temperature (0.0-1.0)\n"
@@ -42,7 +41,6 @@ int main(int argc, char* argv[]) {
         {"model-path", required_argument, 0, 0},
         {"api-endpoint", required_argument, 0, 0},
         {"api-key", required_argument, 0, 0},
-        {"user", required_argument, 0, 0},
         {"headless", no_argument, 0, 0},
         {"max-tokens", required_argument, 0, 0},
         {"temperature", required_argument, 0, 0},
@@ -63,7 +61,6 @@ int main(int argc, char* argv[]) {
             else if (opt_name == "model-path") config.model_path = optarg;
             else if (opt_name == "api-endpoint") config.api_endpoint = optarg;
             else if (opt_name == "api-key") config.api_key = optarg;
-            else if (opt_name == "user") config.user_id = optarg;
             else if (opt_name == "headless") config.headless = true;
             else if (opt_name == "max-tokens") config.max_tokens = std::stoi(optarg);
             else if (opt_name == "temperature") config.temperature = std::stof(optarg);

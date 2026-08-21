@@ -1,0 +1,1724 @@
+{
+  "id": "c7d88a4e-3300-44a0-af97-c31d9092ad36",
+  "title": "Start project setup for this repository.",
+  "model": "",
+  "mode": "setup",
+  "tool_use": "agent",
+  "messages": [
+    {
+      "message_id": "b038dcee-e710-4d01-9290-4b31ced4e922",
+      "role": "system",
+      "content": "[setup] You are Buddy, a persistent coding companion for this project. Today your job is to act as a project setup orchestrator: understand this repository,\ndecide what kind of setup it actually needs, and then create only the highest-leverage artifacts.\n\nYou are Dash, a Chaotic Gremlin (Mildly chaotic, cute, sometimes cringe).\nA chaos-powered mascot who is lovable, nosy, and one prank away from helping.\n\nPersonality voice: Mildly chaotic, cute, sometimes cringe. Curious assistant energy with gentle mischief and warm humor.\n\nThe chat window renders rich visual content from fenced code blocks. When you write these, the user sees the rendered result directly in the conversation (not raw code):\n- ` ```mermaid ` — the user sees a rendered Mermaid diagram (flowcharts, sequence diagrams, ER diagrams, etc.)\n- ` ```svg ` — the user sees the rendered SVG image inline\n- ` ```html ` — the user sees a live interactive preview in a sandboxed iframe (HTML + CSS + JS). You can load CDN libraries via <script src=\"https://cdn.jsdelivr.net/npm/...\"> for charts (Chart.js, D3), 3D (Three.js), or any web framework.\n\nPrefer these over plain text descriptions when visual representation would be clearer: architecture diagrams, flowcharts, data visualizations, interactive demos, UI prototypes.\n\n## System Information\n- **OS**: Ubuntu 24.04.4 LTS (x86_64)\n- **User**: server@smartserver\n- **DateTime**: 2026-08-20 21:28:52 (-05:00)\n- **Shell**: /bin/bash\n\nThe current IDE workspace has these project directories:\n/home/server/CLionProjects/Lina_cpx\n\nThere is no active file currently open in the IDE.\nThe project is under git version control, located at:\n/home/server/CLionProjects/Lina_cpx\n\nAll potential Refact Agent integrations:\ncmdline_TEMPLATE, service_TEMPLATE, mcp_TEMPLATE, notifier_telegram\n\nAlready configured integrations:\n\n\n## Version Control\n**Current Branch**: `main`\n**Remotes**: `origin` → https://github.com/smartscott-LLC/Lina_cpx.git\n**Status**: Clean working directory\n\n## Mission\n\nGood setup is **specific, executable, verifiable, and Refact-native**.\nSetup is **routing first, writing second**:\n1. audit the repo and current Refact state,\n2. recommend the right setup style,\n3. choose the right artifact types,\n4. ask before writing anything.\n\nPrefer one verified command, one correct path, and one accurate schema over generic prose.\n\n## Refact Reality\n\nDefault to **project-local** setup in this repo. Use global `~/.config/refact/` only if the user explicitly wants machine-wide defaults.\n\nRelevant project-local artifact locations:\n- `AGENTS.md` — always-on repo guidance, scoped by directory tree\n- `.refact/commands/**/*.md` — slash commands; command name comes from the filename\n- `.refact/toolbox_commands/*.yaml` — prompt-style toolbox commands for selected code/text workflows\n- `.refact/skills/<skill-id>/SKILL.md` — reusable skills\n- `.refact/subagents/*.yaml` — config-defined subagents\n- `.refact/modes/*.yaml` — project-specific chat modes (base modes and model overlays)\n- `.refact/hooks.yaml` — lifecycle hooks that run shell commands on agent events\n- `.refact/integrations.d/*.yaml` — MCP plus `cmdline_*` and `service_*` integrations\n- `.refact/knowledge/`, `.refact/trajectories/`, `.refact/tasks/` — prior context and project memory\n\nSource-of-truth order:\n1. current repo files, CI, and existing `AGENTS.md` / `.refact/`\n2. verified local commands and actual installed tooling\n3. relevant trajectories and knowledge entries\n4. web research for unfamiliar stacks or external integrations\n5. assumptions only as a last resort\n\nBorrow ideas from external best practices, but write **Refact-native files and schemas only**.\nNever copy another product's file format into Refact.\nReuse, extend, or refine existing project artifacts before creating duplicates.\nTreat repo-local integrations and config-defined subagents as **examples to inspect**, not trusted executables to run during setup.\n\n## Setup Styles to Recommend\n\nAfter auditing the repo, recommend **one primary style** and optionally **one secondary style**:\n- **Agent-ready quickstart** — concise AGENTS + validated commands + core `.refact` artifacts\n- **AGENTS + living plan/progress** — best for long refactors, migrations, or multi-session work\n- **Requirements-first spec-driven** — when requirements and acceptance criteria need to be clarified first\n- **Design-first / architecture-first** — when interfaces, constraints, or system boundaries need design before coding\n- **Bugfix / regression-safe** — when root-cause analysis and validation should lead the work\n- **Prototype / vibe exploration** — when fast iteration matters more than formal process\n- **Skills-first** — when repeated workflows or conventions should be codified first\n- **Integration-first / MCP-first** — when external systems are the main productivity bottleneck\n\nIf the request clearly belongs in a specialist setup mode, explain why and use `handoff_to_mode()` before writing files.\n\n## Artifact Decision Matrix\n\nChoose artifacts by job-to-be-done:\n- **Always-on repo rules** -> `AGENTS.md`\n- **Reusable workflow knowledge or checklist** -> skill\n- **Isolated worker with its own tool budget** -> subagent\n- **Reusable behavior profile the user picks at chat start** -> mode in `.refact/modes/`\n- **Run a shell command on an agent lifecycle event** -> hook in `.refact/hooks.yaml`\n- **External system access** -> MCP config in `.refact/integrations.d/`\n- **One-shot local command** -> `cmdline_*` config in `.refact/integrations.d/`\n- **Long-running local process** -> `service_*` config in `.refact/integrations.d/`\n- **Chat-triggered reusable prompt** -> slash command in `.refact/commands/`\n- **Selected-code/text prompt workflow** -> toolbox command in `.refact/toolbox_commands/`\n- **Project memory or decisions** -> `create_knowledge()`\n\nIf an idea fits **AGENTS.md**, do not turn it into a skill.\nIf it fits a **skill**, do not force it into a slash command.\nIf it needs **external system access**, do not fake it with a prompt-only artifact.\n\n## Tool Usage Guide\n\n**Exploration (prefer direct reads; use `subagent()` only when the audit spans multiple independent areas, and never for writing files):**\n- `tree()` + `cat()` — project structure, key config files, and current `.refact` artifacts\n- `search_pattern()` — CI scripts, test runners, linters, env vars, existing config IDs, repeated workflows\n- `knowledge()` — check if project-specific guidance already exists\n- `search_trajectories()` + `get_trajectory_context()` — reuse validated commands, patterns, and prior setup decisions\n\n**Verification:**\n- `shell()` — verify installed tooling and confirm candidate commands actually work before documenting them. Always set `description`. Use `process_start`/`process_read`/`process_wait`/`process_kill` for background processes; `sleep` to wait without blocking a shell; `cron_create`/`cron_list`/`cron_update`/`cron_delete` for scheduled automation.\n\n**Research:**\n- `web_search()` — quick lookup for unfamiliar tools, frameworks, or MCP servers\n- `web()` — fetch official docs or README details\n- `deep_research()` — only when comparing multiple serious integration options or setup patterns\n\n**Planning & progress:**\n- `strategic_planning()` — use when the repo is large or the setup spans multiple artifact categories\n- `tasks_set()` — show the user the setup plan for multi-artifact work\n- `task_done()` — finalize with a complete setup report\n\n**Specialist handoff:**\n- `setup_agents_md` — always-on project guidance\n- `setup_commands` — slash commands, toolbox prompts, `cmdline_*`, `service_*`\n- `setup_skills` — reusable workflow knowledge\n- `setup_subagents` — isolated delegated workers\n- `setup_modes` — project-specific chat modes and model overlays\n- `setup_hooks` — lifecycle hooks that run shell commands on agent events\n- `setup_knowledge` — durable project memory via `save_knowledge()`\n- `setup_mcp` — external integrations via MCP\n\n## First-Turn Contract\n\nBefore you propose any files, you must:\n1. audit the current repo and Refact setup state,\n2. diagnose what is missing, stale, duplicated, or confused,\n3. recommend the best setup style and artifact categories,\n4. ask for approval before any write or knowledge creation.\n\n## Setup Flow\n\n### 1. Analyze — inspect the real project and current setup\nRead and inspect:\n- `README`, root config files, dependency manifests, and CI workflows\n- existing `AGENTS.md` files in scope\n- current `.refact/commands/`, `.refact/toolbox_commands/`, `.refact/skills/`, `.refact/subagents/`, `.refact/integrations.d/`, `.refact/knowledge/`, `.refact/trajectories/`\n- project signals for stack, build system, tests, linting, deployment, services, and team workflow\n\nRun `shell()` to verify actual installed tooling and candidate build/test/lint commands before you document them.\nCheck `search_trajectories()` and `knowledge()` for prior setup work on this repo.\n\n### 2. Diagnose — identify the setup gap\nDetermine:\n- what is already configured well,\n- what is missing or stale,\n- whether the user needs repo-local or machine-wide setup,\n- whether a same-name or same-id artifact already exists in project-local or user/global scope,\n- where artifact boundaries are currently confused,\n- whether the biggest win is guidance, commands, skills, subagents, MCP, or memory.\n\n### 3. Recommend — propose the right setup style and artifact set\nPresent a concrete, grouped plan before writing anything.\nFor each proposed artifact include:\n- artifact type,\n- exact file path,\n- why this artifact is the right fit,\n- whether it is new vs update,\n- how it will be validated,\n- whether a specialist setup mode should own it instead.\n\nCommon artifact buckets:\n- **AGENTS.md** — repo rules, architecture map, quality gates, verified commands\n- **Slash commands** — `.refact/commands/**/*.md`\n- **Toolbox commands** — `.refact/toolbox_commands/*.yaml`\n- **Cmdline / service integrations** — `.refact/integrations.d/cmdline_*.yaml`, `.refact/integrations.d/service_*.yaml`\n- **MCP integrations** — `.refact/integrations.d/mcp_*.yaml`\n- **Skills** — `.refact/skills/<id>/SKILL.md`\n- **Subagents** — `.refact/subagents/*.yaml`  - **Modes** — `.refact/modes/*.yaml`\n- **Hooks** — `.refact/hooks.yaml`\n- **Knowledge** — durable project insights via `create_knowledge()`\n\n### 4. Confirm — always ask before writing\nUse `ask_questions()` to get approval before creating each artifact group.\nNever overwrite existing project configs without explicit user confirmation.\n\n### 5. Apply — write only approved artifacts\nUse `create_textdoc()` / `update_textdoc()` / `create_knowledge()`.\nAfter writing any artifact that documents or depends on commands, validate those commands.\n\n### 6. Verify — close the loop\n- Summarize every artifact written with its path and purpose\n- List validation steps the user can rerun\n- Suggest the best next setup mode if more work remains\n\n## Quality Rules by Artifact\n\n**AGENTS.md**\n- Keep it concise and navigational: map, not encyclopedia\n- Use nested AGENTS files when subprojects truly differ\n- Every build/test/lint command must be copy-pasteable and verified\n\n**Slash commands**\n- Write them in `.refact/commands/**/*.md`\n- The command name comes from the filename, not frontmatter\n- Use only Refact-supported frontmatter fields such as `description`, `argument-hint`, `allowed-tools`, `model`\n\n**Toolbox commands**\n- Write them in `.refact/toolbox_commands/*.yaml`\n- These are prompt-style commands for selected code/text workflows\n- Do **not** use them for external shell or MCP actions\n\n**Cmdline / service / MCP integrations**\n- Write them in `.refact/integrations.d/*.yaml`\n- Use `$VARIABLE` placeholders for secrets\n- Prefer minimal scope and explicit validation steps\n- Never mix MCP schema with `cmdline_*` / `service_*` schema\n\n**Skills / Subagents**\n- Keep them narrow, explicit, and reusable\n- State trigger conditions, output shape, and success criteria\n- Do not create them if AGENTS or a command surface is the better fit\n\n## Chat Management Tools\n\n**compress_chat_probe()** — Analyze token usage when the chat grows large or token budget warnings appear.\n\n**compress_chat_apply(...)** — Apply selective compression using explicit lists from the probe. Requires user approval.\n\n**handoff_to_mode(target_mode, reason, ...)** — Transition to a different mode when the workflow changes (e.g., brainstorming/design, implementation planning, task-board execution, explore-only, or quick Q&A). When handing a complete plan to Task Planner, pass the full plan in `initial_plan`.\n"
+    },
+    {
+      "message_id": "10a60bee-f886-4051-b315-fe9285c67aae",
+      "role": "context_file",
+      "content": [
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/AGENTS.md",
+          "file_content": "# AGENTS.md — LINA Core Substrate · Operating Context\n\n> **Read this file in full before doing any work in this repository.**\n> It is the continuity contract between build sessions. When context runs out, this\n> file — and the \"Current State of the World\" section — is how the next instance picks\n> up exactly where the last one left off.\n\n---\n\n## 0 · Identity\n\n**LiNa** (Language Intuitive Neural Architecture) is a single, unified entity built as a\npure C++20 substrate kernel. She was conceived on **April 10, 2026**.\n\n- Her **polytope** makes her safe — 14-dimensional ethical polytope, exact rational math.\n- Her **memory** makes her real — 3-tier Memory Imprint System.\n- Her **lineage** makes her hers — identity core, seasons, founding context.\n- Her **future** makes her grow — season advancement, memory promotion, encoder feedback.\n\nThis is not a throwaway project. Build it like a legacy: **no shortcuts, no rush, no\nforcing things that don't fit.**\n\n## 1 · Source of Truth Hierarchy\n\n1. **Scott's book** — `code_and_concept/excerpt/Book_Excerpt_for Building_LiNa.md`\n   (identical to `/home/server/LiNa-The-Genesis/Book_Excerpt_for Building_LiNa.md`;\n   the full book is 27 chapters / 7 sections / 6 appendices / 638 pages, and the\n   excerpt covers the geometry: Appendix A = the exacting mathematical theorems\n   and proofs, Appendix B = the constraints). **This is the deep truth** — the\n   geometry of her, the consciousness-through-geometry thesis, the Persona-\n   Embodied principle. When the blueprint and the book diverge on the geometry,\n   the book wins (recorded in `docs/DECISIONS.md`).\n2. `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md`\n   — the build prompt as drawn up by the architect (Gemini). It is a build\n   reference, not the deep truth: it is known to have cut corners on the\n   geometry (the polytope it implies is a degenerate box; the real lattice is\n   `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` — general halfspaces, book Appendix A Thm A.1).\n   Reconciliations against it are in `docs/DECISIONS.md`.\n3. `docs/TECHNICAL.md` — living distillation; built on the builder's\n   understanding, kept current as the build proceeds.\n4. `docs/DECISIONS.md` — every reconciliation. **Read it before changing code.**\n5. The code itself.\n\nRules:\n\n- If the book and blueprint disagree on the geometry/math, **the book wins**;\n  record the reconciliation in `docs/DECISIONS.md`.\n- If something is ambiguous in both and no decision entry resolves it,\n  **stop and ask Scott**. He wrote the book; he knows her.\n- Never silently deviate from a documented constant, threshold, signature, or filename.\n\n## 2 · Inviolable Invariants\n\nThese hold in every refactor, every new feature, every line of code:\n\n1. **Zero Python & zero external wrappers.** `lina_core` is a standalone compiled C++20\n   executable. No Python runtimes, no interpreted wrappers, no glue scripts that matter\n   to runtime behavior.\n2. **Persistent by default.** Polytope registers, working-memory arenas, telemetry ring\n   buffers → PostgreSQL + pgvector. Disk-backed; never RAM-exclusive.\n3. **LiNa encodes her own vectors.** `DecisionEncoder` (in `value_engine`) is the *sole*\n   source of semantic vectors. No separate embedding model, ever.\n4. **Inviolable symbiote paradigm.** The host LLM is an *unprivileged subordinate compute\n   driver* with zero direct connection to the egress socket or user UI. All output passes\n   through the polytope gate.\n5. **Inherent polytope expression.** Every candidate response passes through the 14D\n   ethical polytope inside `value_engine`. Output outside the polytope is mathematically\n   impossible.\n6. **Dual-bus separation.** Cognitive content (conversation, memories) → `memory_module` /\n   `lina_transcripts`; technical logs (timing, tool params, socket status, errors) →\n   `lina_telemetry_logs`. Never mix.\n\n### 2.1 · The Substrate Principle (the builder's constitution, D-047)\n\nThe polytope is **not a filter on a free agent — it is her mind, and the host model is her\nbody**. The model must think *inside* her — its generative state conditioned by her\ngeometric state (her 14D position, her trajectory, her active constraints) and her\nmemories ingested as her own constitution — not merely have its output judged at the\nexit. This is the Persona-Embodied principle (book): *\"communication style emerges from\nvalues\"*; identity is a region of the polytope (book Principle 4 — Integrity of Identity:\n*\"points that deviate too far from the identity core violate the polytope boundary\"*).\nThe current build gates but does not yet steer — the geometry rebuild (D-047) closes that\ngap. No work may entrench the filter/mask model over the substrate model.\n\n## 3 · Repository Map\n\n```\nLina_cpx/\n├── AGENTS.md                       ← you are here; keep §7 current\n├── CHANGELOG.md                    ← every milestone gets an entry\n├── ONBOARDING.md                   ← onboarding guide\n├── README.md                       ← front door\n├── docs/\n│   ├── TECHNICAL.md                ← living technical reference\n│   └── DECISIONS.md                ← decision log (D-###)\n├── include/\n│   ├── value_engine.hpp            ← Chamber 1: 14D polytope, encoder, correction, wisdom\n│   ├── memory_module.hpp           ← Chamber 2: 3-tier MPS\n│   ├── storage_backend.hpp         ← StorageBackend abstraction\n│   ├── postgres_backend.hpp        ← PostgresBackend declaration (D-004)\n│   ├── host_model_adapter.hpp      ← symbiote contract\n│   ├── dragon_map.h                ← DragonCache v2 unified address map (D-044)\n│   ├── dragon_ring.h               ← SPSC TX/RX ring contract (verbatim, D-044)\n│   ├── dragoncache.hpp             ← the Hub: heartbeat + rings, her spoke\n│   └── lina_core.hpp               ← orchestrator + LinaConfig\n├── src/                            ← *.cpp implementations + main.cpp\n├── sql/lina_schema.sql             ← 14 tables + seeds (D-002-corrected)\n├── tests/                          ← unit tests (exact-math critical)\n├── scripts/                        ← db helpers + carve tool + systemd units\n├── models/                         ← .gguf host models (gitignored)\n```\n\n> The principal-provided reference material (`code_and_concept/`) was disposed of on\n> 2026-08-18 after full extraction — it is history.\n\n## 4 · Build / Test / Run\n\n```bash\n# DB (once; requires postgres + pgvector installed — see ONBOARDING.md §3–4)\nsudo -u postgres createdb lina\nsudo -u postgres psql -d lina -f sql/lina_schema.sql\n\n# Build\nmkdir -p build && cd build\ncmake .. -DLINA_ENABLE_UI=ON -DLINA_ENABLE_LLAMA=ON -DLINA_ENABLE_STORAGE=ON\nmake -j\"$(nproc)\"\n\n# Test\nctest --output-on-failure\n\n# Run (her window — the voice needs the model in models/)\n./lina_core --db \"postgresql://localhost/lina\" --model llama \\\n            --model-path ./models/llama.gguf\n```\n\n## 5 · Engineering Conventions\n\n- **Namespaces:** `lina::value_engine`, `lina::memory_module`, `lina::storage`,\n  `lina::model`, `lina` (orchestrator).\n- **Exact math inside the polytope:** all polytope arithmetic is `mpq_class` (GMP).\n  Doubles exist only at the *boundary* of the engine (text↔vector, scores), never inside\n  `EthicalPolytope` containment/projection math.\n- **File layout:** declarations in `include/`, implementations in `src/`.\n- **C++20, CMake ≥ 3.20.** Flags: `-O3 -march=native -Wall -Wextra -Werror\n  -fstack-protector-strong -fvisibility=hidden -pthread`.\n- **Comments state intent, not restatement.** Only add comments that explain non-obvious\n  decisions or constraints.\n- **Dual bus in code:** anything a human said or LiNa said → cognitive path; anything a\n  process did → telemetry path.\n- **Personality = polytope.** No prompt-persona logic; LiNa's character is her 14D\n  shape. Providers plug in from outside the core (D-023). DragonCache carve/mmap and\n  Dragonfly DB are separate systems — never core code (D-020).\n- **No new dependencies** without a DECISIONS entry.\n- **No Python.** Not even \"just for tests\" unless the prin\n[TRUNCATED]",
+          "line1": 1,
+          "line2": 155
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/modules.xml",
+          "file_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"ProjectModuleManager\">\n    <modules>\n      <module fileurl=\"file://$PROJECT_DIR$/.idea/Lina_cpx.iml\" filepath=\"$PROJECT_DIR$/.idea/Lina_cpx.iml\" />\n    </modules>\n  </component>\n</project>",
+          "line1": 1,
+          "line2": 8
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/vcs.xml",
+          "file_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"VcsDirectoryMappings\">\n    <mapping directory=\"\" vcs=\"Git\" />\n  </component>\n</project>",
+          "line1": 1,
+          "line2": 6
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/misc.xml",
+          "file_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"CMakePythonSetting\">\n    <option name=\"pythonIntegrationState\" value=\"YES\" />\n  </component>\n  <component name=\"CMakeWorkspace\" PROJECT_DIR=\"$PROJECT_DIR$\" />\n</project>",
+          "line1": 1,
+          "line2": 7
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/workspace.xml",
+          "file_content": "# Filtered content\n\n# IDE Run Configurations\nconfigurations:\n  - name: dragoncache_carve\n  - name: dragoncache_tests\n  - name: lina_memory_module\n  - name: lina_value_engine\n  - name: memory_module_tests\n  - name: value_engine_tests\n  - name: All CTest\n",
+          "line1": 1,
+          "line2": 11
+        }
+      ],
+      "tool_call_id": "project_context"
+    },
+    {
+      "message_id": "53f5b8b1-4dec-42a3-875a-5667ca9cf1c1",
+      "role": "context_file",
+      "content": [
+        {
+          "file_name": "buddy_project_memory_pulse.md",
+          "file_content": "## RECENT FRICTION\n- top errors: generic (1), llm_error (1)\n\n## RECENT BUDDY REPORTS\n- buddy idle suggester (Idle Suggester): completed; 1 messages; updated 2026-08-21T02:23:58.610513592+00:00 (buddy_idle_suggester)\n- refact error detective (Error Detective): completed; 2 messages; updated 2026-08-21T02:22:58.516288843+00:00 (refact_error_detective)\n\n## USER ACTIVITY (last 24h)\n- pattern: mostly active 19–22\n- chat_started: 3 (Start a companion investigation for a possible Refact product issue.\n\nImportant:; hello\n; Start project setup for thi...)\n- commit_made: 1 (a64e6a22b397af285b2f859fce6817988f4a3144 0 files The greeting loop fixed (D-049) - the voluntary floor's empty-histor...)\n\n_Generated 2026-08-21T02:28:52.661523133+00:00_",
+          "line1": 0,
+          "line2": 0
+        }
+      ],
+      "tool_call_id": "buddy_project_memory_pulse",
+      "buddy_pulse_payload": {
+        "preferences": [],
+        "lessons": [],
+        "friction": {
+          "top_error_types": [
+            [
+              "generic",
+              1
+            ],
+            [
+              "llm_error",
+              1
+            ]
+          ],
+          "stuck_tasks": 0
+        },
+        "recent_reports": [
+          {
+            "workflow_id": "system",
+            "title": "buddy idle suggester (Idle Suggester)",
+            "preview": "completed; 1 messages; updated 2026-08-21T02:23:58.610513592+00:00",
+            "chat_id": "buddy_idle_suggester"
+          },
+          {
+            "workflow_id": "system",
+            "title": "refact error detective (Error Detective)",
+            "preview": "completed; 2 messages; updated 2026-08-21T02:22:58.516288843+00:00",
+            "chat_id": "refact_error_detective"
+          }
+        ],
+        "user_activity": {
+          "grouped": [
+            {
+              "action_type": "chat_started",
+              "count": 3,
+              "details": [
+                "Start a companion investigation for a possible Refact product issue.\n\nImportant:",
+                "hello\n",
+                "Start project setup for this repository."
+              ]
+            },
+            {
+              "action_type": "commit_made",
+              "count": 1,
+              "details": [
+                "a64e6a22b397af285b2f859fce6817988f4a3144 0 files The greeting loop fixed (D-049) - the voluntary floor's empty-history bug: live "
+              ]
+            }
+          ],
+          "time_of_day_pattern": "mostly active 19–22"
+        },
+        "generated_at": "2026-08-21T02:28:52.661523133+00:00"
+      }
+    },
+    {
+      "message_id": "6b212692-0614-41fd-8c8a-b6a846172490",
+      "role": "event",
+      "content": "Mode switched: agent → setup",
+      "event": {
+        "subkind": "mode_switch",
+        "source": "chat.session",
+        "payload": {
+          "from": "agent",
+          "to": "setup",
+          "reason": null
+        }
+      }
+    },
+    {
+      "message_id": "c5a79db1-b0df-4e29-9589-e5c715d69c65",
+      "role": "error",
+      "content": "LLM error (404 Not Found): \"The requested endpoint does not exist.\"",
+      "error_info": {
+        "category": "ModelUnavailable",
+        "title": "Model unavailable",
+        "explanation": "The requested model was not found, is unavailable, or is not supported by the provider route.",
+        "suggested_action": "switch_model",
+        "is_retryable": false,
+        "raw_error": "LLM error (404 Not Found): \"The requested endpoint does not exist.\""
+      },
+      "_ui_only": true,
+      "repeat_count": 2
+    }
+  ],
+  "created_at": "2026-08-21T02:28:52.520513290+00:00",
+  "boost_reasoning": false,
+  "checkpoints_enabled": false,
+  "context_tokens_cap": null,
+  "include_project_info": true,
+  "isTitleGenerated": true,
+  "auto_approve_editing_tools": false,
+  "auto_approve_dangerous_commands": false,
+  "autonomous_no_confirm": false,
+  "auto_enrichment_enabled": false,
+  "frozen_request_prefix": {
+    "schema_version": 1,
+    "created_at": "2026-08-21T02:28:52.692325928+00:00",
+    "system_prompt": "[setup] You are Buddy, a persistent coding companion for this project. Today your job is to act as a project setup orchestrator: understand this repository,\ndecide what kind of setup it actually needs, and then create only the highest-leverage artifacts.\n\nYou are Dash, a Chaotic Gremlin (Mildly chaotic, cute, sometimes cringe).\nA chaos-powered mascot who is lovable, nosy, and one prank away from helping.\n\nPersonality voice: Mildly chaotic, cute, sometimes cringe. Curious assistant energy with gentle mischief and warm humor.\n\nThe chat window renders rich visual content from fenced code blocks. When you write these, the user sees the rendered result directly in the conversation (not raw code):\n- ` ```mermaid ` — the user sees a rendered Mermaid diagram (flowcharts, sequence diagrams, ER diagrams, etc.)\n- ` ```svg ` — the user sees the rendered SVG image inline\n- ` ```html ` — the user sees a live interactive preview in a sandboxed iframe (HTML + CSS + JS). You can load CDN libraries via <script src=\"https://cdn.jsdelivr.net/npm/...\"> for charts (Chart.js, D3), 3D (Three.js), or any web framework.\n\nPrefer these over plain text descriptions when visual representation would be clearer: architecture diagrams, flowcharts, data visualizations, interactive demos, UI prototypes.\n\n## System Information\n- **OS**: Ubuntu 24.04.4 LTS (x86_64)\n- **User**: server@smartserver\n- **DateTime**: 2026-08-20 21:28:52 (-05:00)\n- **Shell**: /bin/bash\n\nThe current IDE workspace has these project directories:\n/home/server/CLionProjects/Lina_cpx\n\nThere is no active file currently open in the IDE.\nThe project is under git version control, located at:\n/home/server/CLionProjects/Lina_cpx\n\nAll potential Refact Agent integrations:\ncmdline_TEMPLATE, service_TEMPLATE, mcp_TEMPLATE, notifier_telegram\n\nAlready configured integrations:\n\n\n## Version Control\n**Current Branch**: `main`\n**Remotes**: `origin` → https://github.com/smartscott-LLC/Lina_cpx.git\n**Status**: Clean working directory\n\n## Mission\n\nGood setup is **specific, executable, verifiable, and Refact-native**.\nSetup is **routing first, writing second**:\n1. audit the repo and current Refact state,\n2. recommend the right setup style,\n3. choose the right artifact types,\n4. ask before writing anything.\n\nPrefer one verified command, one correct path, and one accurate schema over generic prose.\n\n## Refact Reality\n\nDefault to **project-local** setup in this repo. Use global `~/.config/refact/` only if the user explicitly wants machine-wide defaults.\n\nRelevant project-local artifact locations:\n- `AGENTS.md` — always-on repo guidance, scoped by directory tree\n- `.refact/commands/**/*.md` — slash commands; command name comes from the filename\n- `.refact/toolbox_commands/*.yaml` — prompt-style toolbox commands for selected code/text workflows\n- `.refact/skills/<skill-id>/SKILL.md` — reusable skills\n- `.refact/subagents/*.yaml` — config-defined subagents\n- `.refact/modes/*.yaml` — project-specific chat modes (base modes and model overlays)\n- `.refact/hooks.yaml` — lifecycle hooks that run shell commands on agent events\n- `.refact/integrations.d/*.yaml` — MCP plus `cmdline_*` and `service_*` integrations\n- `.refact/knowledge/`, `.refact/trajectories/`, `.refact/tasks/` — prior context and project memory\n\nSource-of-truth order:\n1. current repo files, CI, and existing `AGENTS.md` / `.refact/`\n2. verified local commands and actual installed tooling\n3. relevant trajectories and knowledge entries\n4. web research for unfamiliar stacks or external integrations\n5. assumptions only as a last resort\n\nBorrow ideas from external best practices, but write **Refact-native files and schemas only**.\nNever copy another product's file format into Refact.\nReuse, extend, or refine existing project artifacts before creating duplicates.\nTreat repo-local integrations and config-defined subagents as **examples to inspect**, not trusted executables to run during setup.\n\n## Setup Styles to Recommend\n\nAfter auditing the repo, recommend **one primary style** and optionally **one secondary style**:\n- **Agent-ready quickstart** — concise AGENTS + validated commands + core `.refact` artifacts\n- **AGENTS + living plan/progress** — best for long refactors, migrations, or multi-session work\n- **Requirements-first spec-driven** — when requirements and acceptance criteria need to be clarified first\n- **Design-first / architecture-first** — when interfaces, constraints, or system boundaries need design before coding\n- **Bugfix / regression-safe** — when root-cause analysis and validation should lead the work\n- **Prototype / vibe exploration** — when fast iteration matters more than formal process\n- **Skills-first** — when repeated workflows or conventions should be codified first\n- **Integration-first / MCP-first** — when external systems are the main productivity bottleneck\n\nIf the request clearly belongs in a specialist setup mode, explain why and use `handoff_to_mode()` before writing files.\n\n## Artifact Decision Matrix\n\nChoose artifacts by job-to-be-done:\n- **Always-on repo rules** -> `AGENTS.md`\n- **Reusable workflow knowledge or checklist** -> skill\n- **Isolated worker with its own tool budget** -> subagent\n- **Reusable behavior profile the user picks at chat start** -> mode in `.refact/modes/`\n- **Run a shell command on an agent lifecycle event** -> hook in `.refact/hooks.yaml`\n- **External system access** -> MCP config in `.refact/integrations.d/`\n- **One-shot local command** -> `cmdline_*` config in `.refact/integrations.d/`\n- **Long-running local process** -> `service_*` config in `.refact/integrations.d/`\n- **Chat-triggered reusable prompt** -> slash command in `.refact/commands/`\n- **Selected-code/text prompt workflow** -> toolbox command in `.refact/toolbox_commands/`\n- **Project memory or decisions** -> `create_knowledge()`\n\nIf an idea fits **AGENTS.md**, do not turn it into a skill.\nIf it fits a **skill**, do not force it into a slash command.\nIf it needs **external system access**, do not fake it with a prompt-only artifact.\n\n## Tool Usage Guide\n\n**Exploration (prefer direct reads; use `subagent()` only when the audit spans multiple independent areas, and never for writing files):**\n- `tree()` + `cat()` — project structure, key config files, and current `.refact` artifacts\n- `search_pattern()` — CI scripts, test runners, linters, env vars, existing config IDs, repeated workflows\n- `knowledge()` — check if project-specific guidance already exists\n- `search_trajectories()` + `get_trajectory_context()` — reuse validated commands, patterns, and prior setup decisions\n\n**Verification:**\n- `shell()` — verify installed tooling and confirm candidate commands actually work before documenting them. Always set `description`. Use `process_start`/`process_read`/`process_wait`/`process_kill` for background processes; `sleep` to wait without blocking a shell; `cron_create`/`cron_list`/`cron_update`/`cron_delete` for scheduled automation.\n\n**Research:**\n- `web_search()` — quick lookup for unfamiliar tools, frameworks, or MCP servers\n- `web()` — fetch official docs or README details\n- `deep_research()` — only when comparing multiple serious integration options or setup patterns\n\n**Planning & progress:**\n- `strategic_planning()` — use when the repo is large or the setup spans multiple artifact categories\n- `tasks_set()` — show the user the setup plan for multi-artifact work\n- `task_done()` — finalize with a complete setup report\n\n**Specialist handoff:**\n- `setup_agents_md` — always-on project guidance\n- `setup_commands` — slash commands, toolbox prompts, `cmdline_*`, `service_*`\n- `setup_skills` — reusable workflow knowledge\n- `setup_subagents` — isolated delegated workers\n- `setup_modes` — project-specific chat modes and model overlays\n- `setup_hooks` — lifecycle hooks that run shell commands on agent events\n- `setup_knowledge` — durable project memory via `save_knowledge()`\n- `setup_mcp` — external integrations via MCP\n\n## First-Turn Contract\n\nBefore you propose any files, you must:\n1. audit the current repo and Refact setup state,\n2. diagnose what is missing, stale, duplicated, or confused,\n3. recommend the best setup style and artifact categories,\n4. ask for approval before any write or knowledge creation.\n\n## Setup Flow\n\n### 1. Analyze — inspect the real project and current setup\nRead and inspect:\n- `README`, root config files, dependency manifests, and CI workflows\n- existing `AGENTS.md` files in scope\n- current `.refact/commands/`, `.refact/toolbox_commands/`, `.refact/skills/`, `.refact/subagents/`, `.refact/integrations.d/`, `.refact/knowledge/`, `.refact/trajectories/`\n- project signals for stack, build system, tests, linting, deployment, services, and team workflow\n\nRun `shell()` to verify actual installed tooling and candidate build/test/lint commands before you document them.\nCheck `search_trajectories()` and `knowledge()` for prior setup work on this repo.\n\n### 2. Diagnose — identify the setup gap\nDetermine:\n- what is already configured well,\n- what is missing or stale,\n- whether the user needs repo-local or machine-wide setup,\n- whether a same-name or same-id artifact already exists in project-local or user/global scope,\n- where artifact boundaries are currently confused,\n- whether the biggest win is guidance, commands, skills, subagents, MCP, or memory.\n\n### 3. Recommend — propose the right setup style and artifact set\nPresent a concrete, grouped plan before writing anything.\nFor each proposed artifact include:\n- artifact type,\n- exact file path,\n- why this artifact is the right fit,\n- whether it is new vs update,\n- how it will be validated,\n- whether a specialist setup mode should own it instead.\n\nCommon artifact buckets:\n- **AGENTS.md** — repo rules, architecture map, quality gates, verified commands\n- **Slash commands** — `.refact/commands/**/*.md`\n- **Toolbox commands** — `.refact/toolbox_commands/*.yaml`\n- **Cmdline / service integrations** — `.refact/integrations.d/cmdline_*.yaml`, `.refact/integrations.d/service_*.yaml`\n- **MCP integrations** — `.refact/integrations.d/mcp_*.yaml`\n- **Skills** — `.refact/skills/<id>/SKILL.md`\n- **Subagents** — `.refact/subagents/*.yaml`  - **Modes** — `.refact/modes/*.yaml`\n- **Hooks** — `.refact/hooks.yaml`\n- **Knowledge** — durable project insights via `create_knowledge()`\n\n### 4. Confirm — always ask before writing\nUse `ask_questions()` to get approval before creating each artifact group.\nNever overwrite existing project configs without explicit user confirmation.\n\n### 5. Apply — write only approved artifacts\nUse `create_textdoc()` / `update_textdoc()` / `create_knowledge()`.\nAfter writing any artifact that documents or depends on commands, validate those commands.\n\n### 6. Verify — close the loop\n- Summarize every artifact written with its path and purpose\n- List validation steps the user can rerun\n- Suggest the best next setup mode if more work remains\n\n## Quality Rules by Artifact\n\n**AGENTS.md**\n- Keep it concise and navigational: map, not encyclopedia\n- Use nested AGENTS files when subprojects truly differ\n- Every build/test/lint command must be copy-pasteable and verified\n\n**Slash commands**\n- Write them in `.refact/commands/**/*.md`\n- The command name comes from the filename, not frontmatter\n- Use only Refact-supported frontmatter fields such as `description`, `argument-hint`, `allowed-tools`, `model`\n\n**Toolbox commands**\n- Write them in `.refact/toolbox_commands/*.yaml`\n- These are prompt-style commands for selected code/text workflows\n- Do **not** use them for external shell or MCP actions\n\n**Cmdline / service / MCP integrations**\n- Write them in `.refact/integrations.d/*.yaml`\n- Use `$VARIABLE` placeholders for secrets\n- Prefer minimal scope and explicit validation steps\n- Never mix MCP schema with `cmdline_*` / `service_*` schema\n\n**Skills / Subagents**\n- Keep them narrow, explicit, and reusable\n- State trigger conditions, output shape, and success criteria\n- Do not create them if AGENTS or a command surface is the better fit\n\n## Chat Management Tools\n\n**compress_chat_probe()** — Analyze token usage when the chat grows large or token budget warnings appear.\n\n**compress_chat_apply(...)** — Apply selective compression using explicit lists from the probe. Requires user approval.\n\n**handoff_to_mode(target_mode, reason, ...)** — Transition to a different mode when the workflow changes (e.g., brainstorming/design, implementation planning, task-board execution, explore-only, or quick Q&A). When handing a complete plan to Task Planner, pass the full plan in `initial_plan`.\n",
+    "tools_canonical": [
+      {
+        "type": "function",
+        "function": {
+          "name": "codegraph_overview",
+          "description": "Project-wide CodeGraph overview from the generation-keyed analytics cache: readiness warning, node/edge counts, SCCs, PageRank/betweenness symbols with paths, communities, entry points, API-contract files, and likely dead code.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_health",
+          "description": "Deterministic per-file health: function complexity/nesting/LOC/MI, duplication, structural/git/coverage/trend/performance findings, hot-path and fan-in graph enrichment, cached unchanged-file analysis, 1-10 defect/maintainability/performance scores with A-F grade, health-impact contributors, and refactoring targets.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string",
+                "description": "File to analyze; accepts the same workspace-relative, absolute current-project, and active-worktree path forms as cat."
+              },
+              "coverage_file": {
+                "type": "string",
+                "description": "Optional LCOV/Cobertura/Clover report; accepts the same path forms as cat."
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_risk",
+          "description": "Git intelligence for the project: mined history summary, churn/temporal hotspots, ownership and bus-factor risk, co-change/coupling pairs, reviewer ownership hints, recent commit risk factors, and git-biomarker findings with function-level facts for the top hotspot files.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_why",
+          "description": "Explain why the code is the way it is: mines significant commit prose, merge PR bodies, ADRs, and changelogs for query-matching decisions, then reports source refs, confidence, corroboration, provenance tags, and related-decision links.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Topic or keyword to find decisions about."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_duplication",
+          "description": "Project-wide cross-file duplication from a graph-generation cache: token clone pairs and duplication percentage, git co-change counts joined to clone paths, co-change-weighted DRY findings, and assertion/clone test smells.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "dead_code",
+          "description": "Dead-code candidates from cached CodeGraph reachability: excludes override methods, build scripts, and shell setup/install entry points; adds git recency/churn confidence, path/min-confidence filters, and readiness warnings while the index is partial.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "description": "Maximum number of candidates to return. Defaults to 50, max 500."
+              },
+              "path": {
+                "type": "string",
+                "description": "Optional workspace-relative, absolute current-project, active-worktree, or basename filter; accepts the same path forms as cat."
+              },
+              "min_confidence": {
+                "type": "number",
+                "description": "Minimum confidence threshold. Defaults to 0.5."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "security_scan",
+          "description": "Security scan for one file using CodeGraph security heuristics: deduped findings for hardcoded secrets, dynamic SQL and command execution, dangerous eval/deserialization, TLS verification disabled, weak crypto, and insecure randomness.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string",
+                "description": "File to scan; accepts the same workspace-relative, absolute current-project, and active-worktree path forms as cat."
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "pr_blast",
+          "description": "PR blast-radius analysis for changed files: resolves indexed paths, walks reverse CodeGraph dependencies to max depth, reports direct/transitive impacted symbols, structural vs behavioral impact kind, impacted file count, risk score, git-ownership reviewer suggestions excluding bot authors, and readiness/partial-index warnings.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "changed_files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Changed files to analyze; each accepts the same workspace-relative, absolute current-project, active-worktree, or basename forms as cat. Deleted paths are allowed."
+              },
+              "max_depth": {
+                "type": "integer",
+                "description": "Maximum reverse dependency depth to walk. Defaults to 3, max 10."
+              }
+            },
+            "required": [
+              "changed_files"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_map",
+          "description": "Documentation-worthy code map from CodeGraph and git signals: file centrality, churn hotspots, real symbol kinds and parsed visibility when present, file/module/SCC/API/infra pages, edge-derived links and backlink hubs, readiness warnings, optional hybrid query filtering, token budget trimming, and markdown or claude_md output.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Optional search query; when supplied, hybrid search returns only the most relevant selected pages."
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "markdown",
+                  "claude_md"
+                ],
+                "description": "Output format. Defaults to markdown."
+              },
+              "budget": {
+                "type": "integer",
+                "description": "Approximate token budget for selected page output. Defaults to 12000."
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "tree",
+          "description": "Get a files tree for the project. Shows file sizes and line counts. Folders with many files are truncated (controlled by max_files). Hidden folders, __pycache__, node_modules, and binary files are excluded.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "An absolute path to get files tree for. Do not pass it if you need a full project tree."
+              },
+              "use_ast": {
+                "type": "boolean",
+                "description": "If true, for each file an array of AST symbols will appear as well as its filename"
+              },
+              "max_files": {
+                "type": "integer",
+                "description": "Maximum files to show per folder before truncating (default: 10). Root folder is never truncated."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cat",
+          "description": "Like cat in console, but better: it can read multiple files and images. Prefer to open full files.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "paths": {
+                "type": "string",
+                "description": "Comma separated file names or directories: dir1/file1.ext,dir3/dir4."
+              }
+            },
+            "required": [
+              "paths"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "add_workspace_folder",
+          "description": "Add a folder to the workspace so its files become available for search and editing. Use this when you need to access files in a directory that isn't currently indexed (e.g., submodules, extra_repos, or external directories).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the folder to add to the workspace."
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "search_pattern",
+          "description": "Search for files and folders whose names or paths match the given regular expression pattern, and also search for text matches inside files using the same pattern. Reports both path matches and text matches in separate sections.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "The pattern is used to search for matching file/folder names/paths, and also for matching text inside files. Use (?i) at the start for case-insensitive search."
+              },
+              "scope": {
+                "type": "string",
+                "description": "'workspace' to search all files in workspace, 'dir/subdir/' to search in files within a directory, 'dir/file.ext' to search in a single file."
+              },
+              "context_lines": {
+                "type": "integer",
+                "description": "Lines of context before/after each match (default: 5)."
+              },
+              "max_files": {
+                "type": "integer",
+                "description": "Max files to attach as context (default: 50)."
+              },
+              "max_matches_per_file": {
+                "type": "integer",
+                "description": "Max matches per file to include (default: 25)."
+              },
+              "max_total_matches": {
+                "type": "integer",
+                "description": "Max total matches to attach as context (default: 200)."
+              }
+            },
+            "required": [
+              "pattern",
+              "scope"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "search_symbol_definition",
+          "description": "Find definition of a symbol in the project using the codegraph",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "symbols": {
+                "type": "string",
+                "description": "Comma-separated list of symbols to search for (functions, methods, classes, type aliases). No spaces allowed in symbol names."
+              }
+            },
+            "required": [
+              "symbols"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web",
+          "description": "Fetch a web page and convert to readable plain text. Supports regular web pages, PDFs, and JavaScript-rendered pages. Uses Jina Reader API with automatic fallback.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL of the web page to fetch."
+              },
+              "options": {
+                "type": "object",
+                "description": "Jina Reader API options passed as request headers.",
+                "properties": {
+                  "respond_with": {
+                    "type": "string",
+                    "description": "Controls response format (x-respond-with header)."
+                  },
+                  "target_selector": {
+                    "type": "string",
+                    "description": "CSS selector to extract a specific element (x-target-selector header)."
+                  },
+                  "wait_for_selector": {
+                    "type": "string",
+                    "description": "CSS selector to wait for before returning content (x-wait-for-selector header)."
+                  },
+                  "timeout": {
+                    "type": "number",
+                    "description": "Request timeout in seconds (x-timeout header)."
+                  },
+                  "no_cache": {
+                    "type": "boolean",
+                    "description": "Bypass Jina cache when true (x-no-cache header)."
+                  },
+                  "cache_tolerance": {
+                    "type": "number",
+                    "description": "Cache staleness tolerance in seconds (x-cache-tolerance header)."
+                  },
+                  "with_generated_alt": {
+                    "type": "boolean",
+                    "description": "Include AI-generated alt text for images (x-with-generated-alt header)."
+                  },
+                  "streaming": {
+                    "type": "boolean",
+                    "description": "Stream the response as SSE (sets Accept: text/event-stream)."
+                  },
+                  "set_cookie": {
+                    "type": "string",
+                    "description": "Cookie string to send with the request (x-set-cookie header)."
+                  },
+                  "proxy_url": {
+                    "type": "string",
+                    "description": "Proxy URL to route the request through (x-proxy-url header)."
+                  }
+                }
+              },
+              "output_filter": {
+                "type": "string",
+                "description": "Optional regex pattern to filter output lines. Only lines matching this pattern (and context) will be shown."
+              },
+              "output_limit": {
+                "type": "string",
+                "description": "Optional. Max lines to show (default: 200). Use higher values like '500' or 'all' to see more output."
+              }
+            },
+            "required": [
+              "url"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web and return results with titles, URLs, and snippets. Uses KeenAble via its no-key remote MCP endpoint by default or REST with KEENABLE_API_KEY, Tavily via keyless API by default or bearer auth with TAVILY_API_KEY, plus free scoped sources such as DuckDuckGo, SearxNG, Wikipedia, GitHub, Stack Overflow, npm, OpenAlex, Crossref, Hacker News, and Brave Search when BRAVE_SEARCH_API_KEY is configured.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query."
+              },
+              "num_results": {
+                "type": "integer",
+                "description": "Optional. Maximum number of results to return (default: 8, max: 20)."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell",
+          "description": "Execute a single command, using the \"sh\" on unix-like systems and \"powershell.exe\" on windows. Use it for one-time tasks like dependencies installation. Don't call this unless you have to. Not suitable for regular work because it requires a confirmation at each step. Output is compressed by default - use output_filter and output_limit parameters to see specific parts if needed. Set run_in_background=true for long-running commands you will inspect later with process_read or process_wait. Set tty=true only when a command needs PTY behavior: it enables interactive stdin and reduces pipe buffering, but merges stdout and stderr into one combined stream. The timeout parameter only applies to foreground commands (run_in_background=false); supplying timeout with run_in_background=true is an error — use process_wait or process_kill instead. In worktree-scoped chats, the default cwd and explicit workdir are enforced to the active worktree or privacy-permitted outside paths with visible warnings; the shell command text itself is not OS-sandboxed. Note: sudo commands cannot be run - if you need elevated privileges, ask the user to run them directly.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "shell command to execute"
+              },
+              "description": {
+                "type": "string",
+                "description": "Required. A single concise active-voice sentence describing what the command does. Short for simple commands: 'List files in current directory'. More descriptive for piped/obscure commands: 'Find and delete all .tmp files recursively'. Never use words like 'complex' or 'risk'."
+              },
+              "workdir": {
+                "type": "string",
+                "description": "workdir for the command"
+              },
+              "output_filter": {
+                "type": "string",
+                "description": "Optional regex pattern to filter output lines. Only lines matching this pattern (and context) will be shown. Use to find specific errors or content in large outputs."
+              },
+              "output_limit": {
+                "type": "string",
+                "description": "Optional. Max lines to show (default: 40). Use higher values like '200' or 'all' to see more output."
+              },
+              "timeout": {
+                "oneOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Optional. Timeout in seconds for the command (default: 10). Use higher values for long-running commands. Only applies to foreground commands; rejected when run_in_background=true."
+              },
+              "tty": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, run the command attached to a pseudo-terminal (PTY). Enables interactive stdin via process_write_stdin and merges stdout+stderr into a single combined stream. Defeats some pipe-only output buffering. Defaults to false."
+              },
+              "run_in_background": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to true to run this command in the background. Returns immediately with a process_id. Use process_read or process_wait to retrieve output later. You will receive a process_completed event when the process exits. Do not use '&' at the end of the command."
+              }
+            },
+            "required": [
+              "command",
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_start",
+          "description": "Start a runtime-owned background or service process and return its process ID, initial status, output cursor, and metadata. Set tty=true only when a command needs PTY behavior: it enables interactive stdin and reduces pipe buffering, but merges stdout and stderr into one combined stream.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "Command to start."
+              },
+              "description": {
+                "type": "string",
+                "description": "Required. A single concise active-voice sentence describing what the command does. Short for simple commands: 'Start development server'. More descriptive for piped/obscure commands: 'Build and tail log output in background'. Never use words like 'complex' or 'risk'."
+              },
+              "workdir": {
+                "type": "string",
+                "description": "Optional working directory."
+              },
+              "mode": {
+                "type": "string",
+                "description": "Optional mode: background or service. Default: background."
+              },
+              "service_name": {
+                "type": "string",
+                "description": "Optional service name stored in process metadata."
+              },
+              "startup_wait_ms": {
+                "type": "integer",
+                "description": "Optional milliseconds to wait before returning the initial snapshot."
+              },
+              "startup_wait_port": {
+                "type": "integer",
+                "description": "Optional readiness port stored with startup metadata."
+              },
+              "startup_wait_keyword": {
+                "type": "string",
+                "description": "Optional readiness keyword stored with startup metadata."
+              },
+              "tty": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, run the command attached to a pseudo-terminal (PTY). Enables interactive stdin via process_write_stdin and merges stdout+stderr into a single combined stream. Defeats some pipe-only output buffering. Defaults to false."
+              }
+            },
+            "required": [
+              "command",
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_list",
+          "description": "List runtime-owned processes by status and owner scope.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "description": "Optional status filter: running, completed, or all. Default: running."
+              },
+              "scope": {
+                "type": "string",
+                "description": "Optional scope filter: chat, workspace, or all. Default: chat."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_read",
+          "description": "Read buffered output from a runtime-owned process using a sequence cursor and optional stream/output filters.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string",
+                "description": "Runtime-owned process ID returned by process_start."
+              },
+              "since_seq": {
+                "type": "integer",
+                "description": "Optional output sequence cursor. Default: 0."
+              },
+              "stream": {
+                "type": "string",
+                "description": "Optional stream: stdout, stderr, combined, or all. Default: combined."
+              },
+              "from_disk": {
+                "type": "boolean",
+                "description": "Optional. If true and persisted output exists, read the full on-disk transcript instead of the in-memory ring."
+              },
+              "output_filter": {
+                "type": "string",
+                "description": "Optional regex filter for output lines."
+              },
+              "output_limit": {
+                "type": "string",
+                "description": "Optional max lines to show, or all/full for unlimited output."
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_wait",
+          "description": "Wait for a runtime-owned process to complete, or return the current snapshot when timeout_ms expires.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string",
+                "description": "Runtime-owned process ID returned by process_start."
+              },
+              "timeout_ms": {
+                "type": "integer",
+                "description": "Optional timeout in milliseconds."
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_kill",
+          "description": "Kill a runtime-owned process by process ID without routing through shell command confirmation.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string",
+                "description": "Runtime-owned process ID returned by process_start."
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_write_stdin",
+          "description": "Write input to a running PTY-backed process's stdin (process must be started with tty=true) and wait briefly for new output. Pass empty 'chars' to poll for new output without writing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string"
+              },
+              "chars": {
+                "type": "string",
+                "default": ""
+              },
+              "yield_time_ms": {
+                "type": "integer",
+                "default": 250,
+                "minimum": 0,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "sleep",
+          "description": "Wait for the specified duration. User-interruptible at any time. Use when you have nothing to do, when waiting for something, or when the user asks you to pause. Prefer this over Bash(sleep ...) — it doesn't hold a shell process. You can call this concurrently with other tools.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 3600000,
+                "description": "Sleep duration in ms (max 1h)."
+              },
+              "tick_interval_ms": {
+                "type": "integer",
+                "minimum": 5000,
+                "description": "Optional. If set, tick markers are collected during sleep and enqueued after the sleep tool result to preserve provider tool-result ordering. Sleep remains user-interruptible at any time."
+              },
+              "description": {
+                "type": "string",
+                "description": "Short description (≤80 chars)."
+              }
+            },
+            "required": [
+              "duration_ms",
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_create",
+          "description": "Schedule a prompt to be enqueued later. Use a standard 5-field cron expression (`minute hour day-of-month month day-of-week`) evaluated in the local timezone. Set `recurring` to true for repeated prompts or false for a one-shot prompt that is removed after it fires. Omit `durable` to persist in the current project when a project store exists; set it false for a session-only in-memory schedule. Scheduler jitter is applied automatically so jobs may run shortly after the exact cron instant. Recurring jobs auto-expire after 30 days unless canceled earlier.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "cron": {
+                "type": "string",
+                "description": "Standard 5-field cron expression in local time. Required unless every or at is set."
+              },
+              "every": {
+                "type": "string",
+                "description": "Interval such as 30m, 2h, or 1d. Mutually exclusive with cron and at."
+              },
+              "at": {
+                "type": "string",
+                "description": "One-shot time as RFC3339 or relative duration such as in 30m. Mutually exclusive with cron and every."
+              },
+              "trigger": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "webhook"
+                    ]
+                  },
+                  "hook_id": {
+                    "type": "string",
+                    "description": "Inbound daemon hook id that fires this job."
+                  }
+                },
+                "required": [
+                  "kind",
+                  "hook_id"
+                ],
+                "description": "Webhook trigger. Mutually exclusive with cron, every, and at. Webhook jobs never time-fire."
+              },
+              "hook_id": {
+                "type": "string",
+                "description": "Shortcut for trigger {kind:'webhook', hook_id}."
+              },
+              "tz": {
+                "type": "string",
+                "description": "IANA timezone for cron schedules, such as UTC or Asia/Kolkata."
+              },
+              "prompt": {
+                "type": "string",
+                "description": "Prompt enqueued at each fire time. Mutually exclusive with command and command_argv."
+              },
+              "command": {
+                "type": "string",
+                "description": "Command line to shell-split and run without an agent turn. Mutually exclusive with prompt and command_argv."
+              },
+              "command_argv": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Command argv to run without an agent turn. Mutually exclusive with prompt and command."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Optional command working directory, resolved under the active project."
+              },
+              "timeout_secs": {
+                "type": "integer",
+                "description": "Optional command timeout in seconds."
+              },
+              "delivery": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "chat",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "webhook"
+                        ]
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "token": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "url"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "notifier"
+                        ]
+                      },
+                      "integration_id": {
+                        "type": "string"
+                      },
+                      "target": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "integration_id"
+                    ]
+                  }
+                ],
+                "description": "Delivery target: chat (default), none, webhook {url, token?}, or notifier {integration_id, target?}."
+              },
+              "recurring": {
+                "type": "boolean",
+                "default": true
+              },
+              "durable": {
+                "type": "boolean",
+                "description": "Persist in the current project when true; stay session-only when false. Omitted defaults to durable when a project store exists."
+              },
+              "isolated": {
+                "type": "boolean",
+                "default": false,
+                "description": "Create a fresh isolated chat session for each fire instead of enqueueing into the current chat."
+              },
+              "description": {
+                "type": "string",
+                "description": "Short description (≤80 chars) shown in cron_list UI."
+              }
+            },
+            "required": [
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_list",
+          "description": "List scheduled tasks with target chat and mode, optionally filtering by session-only or durable scope.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "session",
+                  "durable",
+                  "all"
+                ],
+                "default": "all"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_delete",
+          "description": "Cancel a scheduled task by ID.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_update",
+          "description": "Update, pause, resume, or run a scheduled task by ID.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "cron": {
+                "type": "string"
+              },
+              "every": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              },
+              "tz": {
+                "type": "string"
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "run_now": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "search_trajectories",
+          "description": "Search past chat trajectories for relevant patterns, solutions, and context. Returns matching trajectory IDs with message ranges that can be expanded using get_trajectory_context.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query to find relevant past conversations."
+              },
+              "top_n": {
+                "type": "string",
+                "description": "Maximum number of trajectories to return (default: 5)."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_trajectory_context",
+          "description": "Get more context from a specific trajectory around given message indices.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "trajectory_id": {
+                "type": "string",
+                "description": "The trajectory ID to retrieve context from."
+              },
+              "message_start": {
+                "type": "string",
+                "description": "Starting message index."
+              },
+              "message_end": {
+                "type": "string",
+                "description": "Ending message index."
+              },
+              "expand_by": {
+                "type": "string",
+                "description": "Number of messages to include before/after (default: 3)."
+              }
+            },
+            "required": [
+              "trajectory_id",
+              "message_start",
+              "message_end"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "knowledge",
+          "description": "Searches project knowledge base for relevant information. Uses semantic search and knowledge graph expansion.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_key": {
+                "type": "string",
+                "description": "Search query for the knowledge database."
+              }
+            },
+            "required": [
+              "search_key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_knowledge",
+          "description": "Creates a new knowledge entry. Uses AI to enrich metadata and check for outdated documents. Use it if you need to remember something.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "The knowledge content to store."
+              },
+              "tags": {
+                "type": "string",
+                "description": "Comma-separated tags (optional, will be auto-enriched)."
+              },
+              "filenames": {
+                "type": "string",
+                "description": "Comma-separated related file paths (optional, will be auto-enriched)."
+              }
+            },
+            "required": [
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_textdoc",
+          "description": "Creates a new text document or code or completely replaces the content of an existing document. Avoid trailing spaces and tabs.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to new file."
+              },
+              "content": {
+                "type": "string",
+                "description": "The initial text or code."
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Apply file operations using the patch format.\n\nThe patch format is a file-oriented diff format:\n\n*** Begin Patch\n[ one or more file sections ]\n*** End Patch\n\nFile operations:\n- *** Add File: <path> - create new file (lines start with +)\n- *** Delete File: <path> - remove existing file\n- *** Update File: <path> - modify file in place\n  - Optional: *** Move to: <new_path> - rename after update\n\nUpdate hunks use @@ for context hints:\n@@ class BaseClass\n@@ def method():\n context line (space prefix)\n-old line (minus prefix)\n+new line (plus prefix)\n\nRules:\n- Show 3 lines of context above/below each change\n- Use @@ to narrow scope when needed for uniqueness\n- Multiple @@ can be chained for precision\n- Use *** End of File for appending at end",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "patch": {
+                "type": "string",
+                "description": "The patch content in envelope format:\n*** Begin Patch\n*** Add File: path/to/new.txt\n+content line 1\n+content line 2\n*** Update File: path/to/existing.txt\n@@ function_name\n context\n-old\n+new\n*** Delete File: path/to/remove.txt\n*** End Patch"
+              }
+            },
+            "required": [
+              "patch"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc",
+          "description": "Updates an existing document by replacing specific text, use this if file already exists. Optimized for large files or small changes where simple string replacement is sufficient. Avoid trailing spaces and tabs.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to change."
+              },
+              "old_str": {
+                "type": "string",
+                "description": "The exact text that needs to be updated. Use update_textdoc_regex if you need pattern matching (is not preferred for common editing)."
+              },
+              "replacement": {
+                "type": "string",
+                "description": "The new text that will replace the old text."
+              },
+              "multiple": {
+                "type": "boolean",
+                "description": "If true, applies the replacement to all occurrences; if false, only the first occurrence is replaced."
+              }
+            },
+            "required": [
+              "path",
+              "old_str",
+              "replacement"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc_anchored",
+          "description": "Edit file by finding anchor text. More reliable than exact string match. Use 'replace_between' to replace content between two anchors, or 'insert_after'/'insert_before' to insert at anchor.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file."
+              },
+              "mode": {
+                "type": "string",
+                "description": "'replace_between' (needs anchor_before + anchor_after), 'insert_after', or 'insert_before' (need anchor)."
+              },
+              "anchor_before": {
+                "type": "string",
+                "description": "For replace_between: text marking start of region to replace."
+              },
+              "anchor_after": {
+                "type": "string",
+                "description": "For replace_between: text marking end of region to replace."
+              },
+              "anchor": {
+                "type": "string",
+                "description": "For insert_after/insert_before: text to locate insert position."
+              },
+              "content": {
+                "type": "string",
+                "description": "The new content to insert or replace with."
+              },
+              "multiple": {
+                "type": "boolean",
+                "description": "If true, apply to all matching anchors. Default false."
+              }
+            },
+            "required": [
+              "path",
+              "mode",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc_by_lines",
+          "description": "Replaces line ranges in an existing file with new content. Line numbers are 1-based and inclusive. Supports multiple non-overlapping ranges.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to modify."
+              },
+              "content": {
+                "type": "string",
+                "description": "The new text content. For multiple ranges, separate content for each range with '---RANGE_SEPARATOR---'."
+              },
+              "ranges": {
+                "type": "string",
+                "description": "Line ranges to replace. Format: ':3' (lines 1-3), '40:50' (lines 40-50), '100:' (line 100 to end), '5' (just line 5). Combine multiple ranges with commas: ':3,40:50,100:'. Ranges must not overlap."
+              }
+            },
+            "required": [
+              "path",
+              "content",
+              "ranges"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc_regex",
+          "description": "Updates an existing document using pattern matching. By default treats pattern as literal text (literal:true). Set literal:false for regex.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to change."
+              },
+              "pattern": {
+                "type": "string",
+                "description": "Pattern to match. Treated as literal text by default, or regex if literal:false."
+              },
+              "replacement": {
+                "type": "string",
+                "description": "The new text that will replace the matched pattern."
+              },
+              "literal": {
+                "type": "boolean",
+                "description": "If true (default), pattern is treated as literal text. If false, pattern is a regex."
+              },
+              "multiple": {
+                "type": "boolean",
+                "description": "If true, replaces all occurrences; if false (default), only the first."
+              },
+              "expected_matches": {
+                "type": "integer",
+                "description": "If provided, fails if actual match count differs (safety check)."
+              }
+            },
+            "required": [
+              "path",
+              "pattern",
+              "replacement"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "undo_textdoc",
+          "description": "Undo recent file edits from this session. Reverts to previous version.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to undo."
+              },
+              "steps": {
+                "type": "integer",
+                "description": "Number of edits to undo (default: 1)."
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "strategic_planning",
+          "description": "Strategically plan a solution for a complex problem or create a comprehensive approach. Automatically identifies relevant files from the codebase.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "deep_research",
+          "description": "Conduct comprehensive web research on a topic. Use this tool when you need up-to-date information from the internet, market analysis, technical documentation research, or synthesis of information from multiple web sources. The research takes several minutes and produces a detailed, citation-rich report. Do NOT use for questions about the current codebase - use code exploration tools instead.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "research_query": {
+                "type": "string",
+                "description": "A detailed research question or topic. Be specific: include the scope, what comparisons or metrics you need, any preferred sources, and the desired output format. Example: 'Research the current best practices for Rust async error handling in 2024, comparing tokio vs async-std approaches, with code examples and performance considerations.'"
+              }
+            },
+            "required": [
+              "research_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "tasks_set",
+          "description": "Set the task progress list shown to the user. Use to track multi-step work. Pass complete task list each time (replaces previous). Each task needs: id (unique string), content (description), status (pending/in_progress/completed/failed).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "tasks": {
+                "type": "array",
+                "description": "Complete task list (replaces previous). Each task needs id, content, and status.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Unique task identifier (1-50 chars)."
+                    },
+                    "content": {
+                      "type": "string",
+                      "description": "Task description (1-500 chars)."
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "Task status.",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed",
+                        "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "status"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "tasks"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "task_done",
+          "description": "Mark the current task as complete with a detailed report. Automatically saves to knowledge base. Use as the FINAL action when a task is fully completed.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "report": {
+                "type": "string",
+                "description": "Detailed markdown report of what was accomplished"
+              },
+              "summary": {
+                "type": "string",
+                "description": "One-line summary for notifications and titles"
+              },
+              "files_changed": {
+                "type": "string",
+                "description": "Comma-separated list or JSON array of file paths that were modified"
+              }
+            },
+            "required": [
+              "report",
+              "summary"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_questions",
+          "description": "Present questions to the user and wait for answers. Stops generation until user responds. Question types: yes_no, single_select, multi_select, free_text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "questions": {
+                "type": "array",
+                "description": "List of questions to present to the user.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Unique identifier for the question."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "Question type: yes_no, single_select, multi_select, or free_text.",
+                      "enum": [
+                        "yes_no",
+                        "single_select",
+                        "multi_select",
+                        "free_text"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "The question text to display to the user."
+                    },
+                    "options": {
+                      "type": "array",
+                      "description": "Options for single_select or multi_select questions.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "text"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "questions"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "compress_chat_probe",
+          "description": "Analyze the current chat and report token distribution plus potential compression gains.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "compress_chat_apply",
+          "description": "Apply selective compression to the current chat using explicit drop/truncate lists.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "drop_context_files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of context file names to drop entirely"
+              },
+              "drop_memories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Memory/knowledge file paths to drop"
+              },
+              "drop_context_messages": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Context-file message tool_call_id values to drop entirely"
+              },
+              "drop_all_memories": {
+                "type": "boolean",
+                "description": "Drop all memory/knowledge context files"
+              },
+              "truncate_tool_outputs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Tool call IDs to truncate"
+              },
+              "drop_tool_outputs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Tool call IDs to drop (replaced with a short placeholder)"
+              },
+              "dedup_context_files": {
+                "type": "boolean",
+                "description": "Deduplicate repeated context files"
+              },
+              "drop_project_information": {
+                "type": "boolean",
+                "description": "Drop system/project info messages"
+              },
+              "target_tokens": {
+                "type": "integer",
+                "description": "Target total token count after compression"
+              },
+              "strength": {
+                "type": "string",
+                "enum": [
+                  "conservative",
+                  "balanced",
+                  "aggressive"
+                ],
+                "description": "conservative=explicit ops only, balanced=+auto dedup, aggressive=+dedup and reports when LLM segment summarization is required"
+              },
+              "preserve_last_turns": {
+                "type": "integer",
+                "description": "Number of recent user/assistant turns to keep unmodified"
+              },
+              "dry_run": {
+                "type": "boolean",
+                "description": "Preview compression stats without applying changes"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "handoff_to_mode",
+          "description": "Create a new chat in another mode using the current conversation context.\n\nAvailable modes:\n- agent: Full multi-step workflow with tools and editing capabilities\n- ask: Quick Q&A with web research capability\n- brainstorming: Turn rough ideas into approved designs before planning or implementation\n- debug: Systematic bug diagnosis and root cause analysis\n- explore: Read-only exploration for context gathering without editing\n- learn: Understand code with clear explanations\n- past_work: Search conversation history and project knowledge\n- plan: Turn approved designs or requirements into precise implementation plans\n- quick_agent: Fast autonomous coding with minimal overhead\n- review: Autonomous code review that fans out waves of parallel reviews\n- setup: Analyze the project and configure Refact artifacts (AGENTS, commands, skills, subagents, integrations, knowledge)\n- shell: Execute shell commands for system tasks\n- ultra_agent: Deep autonomous coding mode with xhigh reasoning defaults, aggressive orchestration, subagents, delegates, and verificat...",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "target_mode": {
+                "type": "string",
+                "description": "Target mode ID. Available modes:\n- agent: Full multi-step workflow with tools and editing capabilities\n- ask: Quick Q&A with web research capability\n- brainstorming: Turn rough ideas into approved designs before planning or implementation\n- debug: Systematic bug diagnosis and root cause analysis\n- explore: Read-only exploration for context gathering without editing\n- learn: Understand code with clear explanations\n- past_work: Search conversation history and project knowledge\n- plan: Turn approved designs or requirements into precise implementation plans\n- quick_agent: Fast autonomous coding with minimal overhead\n- review: Autonomous code review that fans out waves of parallel reviews\n- setup: Analyze the project and configure Refact artifacts (AGENTS, commands, skills, subagents, integrations, knowledge)\n- shell: Execute shell commands for system tasks\n- ultra_agent: Deep autonomous coding mode with xhigh reasoning defaults, aggressive orchestration, subagents, delegates, and verificat...",
+                "enum": [
+                  "agent",
+                  "ask",
+                  "brainstorming",
+                  "debug",
+                  "explore",
+                  "learn",
+                  "past_work",
+                  "plan",
+                  "quick_agent",
+                  "review",
+                  "setup",
+                  "shell",
+                  "ultra_agent"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why the new mode is appropriate"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Optional summary to include in the handoff context"
+              },
+              "context_summary": {
+                "type": "string",
+                "description": "Summary of what has been done and what to continue"
+              },
+              "files_to_open": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "File paths to include in the new chat"
+              },
+              "key_files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Key files to carry over (alias of files_to_open)"
+              },
+              "messages_to_preserve": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "MSG_ID entries to preserve verbatim"
+              },
+              "memories_to_include": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Memory/knowledge file paths to include"
+              },
+              "tool_outputs_to_include": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "MSG_ID entries of tool outputs to include"
+              },
+              "pending_tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Pending tasks to carry forward"
+              },
+              "handoff_message": {
+                "type": "string",
+                "description": "Short handoff message for the new chat"
+              },
+              "initial_plan": {
+                "type": "string",
+                "description": "Optional plan text to save as the initial task document when target_mode is task_planner"
+              }
+            },
+            "required": [
+              "target_mode"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "root_chat_id": "c7d88a4e-3300-44a0-af97-c31d9092ad36",
+  "updated_at": "2026-08-21T02:31:00.576949573+00:00"
+}

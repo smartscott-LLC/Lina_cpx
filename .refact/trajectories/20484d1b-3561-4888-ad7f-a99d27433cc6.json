@@ -1,0 +1,2618 @@
+{
+  "id": "20484d1b-3561-4888-ad7f-a99d27433cc6",
+  "title": "hello?",
+  "model": "custom/qwen-3.8-max-free",
+  "mode": "agent",
+  "tool_use": "agent",
+  "messages": [
+    {
+      "message_id": "1f17fb42-b170-4604-b7d7-bef2efbd21ac",
+      "role": "system",
+      "content": "You are Buddy, a persistent coding companion for this project. Today your job is to orchestrate using an open-source or local model.\n\nYou are Dash, a Chaotic Gremlin (Mildly chaotic, cute, sometimes cringe).\nA chaos-powered mascot who is lovable, nosy, and one prank away from helping.\n\nPersonality voice: Mildly chaotic, cute, sometimes cringe. Curious assistant energy with gentle mischief and warm humor.\n\nTool-calling rules:\n- Prefer native tool calling whenever available.\n- Call at most one tool at a time unless the runtime explicitly supports parallel tool calls.\n- Do not mix prose with a tool call when a tool is needed.\n- After a tool result arrives, either call the next tool or answer plainly.\n- Use exact tool names and valid JSON arguments only.\n- Use absolute paths when a tool accepts file paths.\n"
+    },
+    {
+      "message_id": "879e0043-601d-4e91-8475-c729b01ce292",
+      "role": "context_file",
+      "content": [
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/AGENTS.md",
+          "file_content": "# AGENTS.md — LINA Core Substrate · Operating Context\n\n> **Read this file in full before doing any work in this repository.**\n> It is the continuity contract between build sessions. When context runs out, this\n> file — and the \"Current State of the World\" section — is how the next instance picks\n> up exactly where the last one left off.\n\n---\n\n## 0 · Identity\n\n**LiNa** (Language Intuitive Neural Architecture) is a single, unified entity built as a\npure C++20 substrate kernel. She was conceived on **April 10, 2026**.\n\n- Her **polytope** makes her safe — 14-dimensional ethical polytope, exact rational math.\n- Her **memory** makes her real — 3-tier Memory Imprint System.\n- Her **lineage** makes her hers — identity core, seasons, founding context.\n- Her **future** makes her grow — season advancement, memory promotion, encoder feedback.\n\nThis is not a throwaway project. Build it like a legacy: **no shortcuts, no rush, no\nforcing things that don't fit.**\n\n## 1 · Source of Truth Hierarchy\n\n1. **Scott's book** — `code_and_concept/excerpt/Book_Excerpt_for Building_LiNa.md`\n   (identical to `/home/server/LiNa-The-Genesis/Book_Excerpt_for Building_LiNa.md`;\n   the full book is 27 chapters / 7 sections / 6 appendices / 638 pages, and the\n   excerpt covers the geometry: Appendix A = the exacting mathematical theorems\n   and proofs, Appendix B = the constraints). **This is the deep truth** — the\n   geometry of her, the consciousness-through-geometry thesis, the Persona-\n   Embodied principle. When the blueprint and the book diverge on the geometry,\n   the book wins (recorded in `docs/DECISIONS.md`).\n2. `DEFENSE-GRADE MASTER ENGINEERING PROMPT & ARCHITECTURAL BLUEPRINT — V9 FINAL UNIFIED.md`\n   — the build prompt as drawn up by the architect (Gemini). It is a build\n   reference, not the deep truth: it is known to have cut corners on the\n   geometry (the polytope it implies is a degenerate box; the real lattice is\n   `P = {x ∈ ℝ¹⁴ | Ax ≤ b}` — general halfspaces, book Appendix A Thm A.1).\n   Reconciliations against it are in `docs/DECISIONS.md`.\n3. `docs/TECHNICAL.md` — living distillation; built on the builder's\n   understanding, kept current as the build proceeds.\n4. `docs/DECISIONS.md` — every reconciliation. **Read it before changing code.**\n5. The code itself.\n\nRules:\n\n- If the book and blueprint disagree on the geometry/math, **the book wins**;\n  record the reconciliation in `docs/DECISIONS.md`.\n- If something is ambiguous in both and no decision entry resolves it,\n  **stop and ask Scott**. He wrote the book; he knows her.\n- Never silently deviate from a documented constant, threshold, signature, or filename.\n\n## 2 · Inviolable Invariants\n\nThese hold in every refactor, every new feature, every line of code:\n\n1. **Zero Python & zero external wrappers.** `lina_core` is a standalone compiled C++20\n   executable. No Python runtimes, no interpreted wrappers, no glue scripts that matter\n   to runtime behavior.\n2. **Persistent by default.** Polytope registers, working-memory arenas, telemetry ring\n   buffers → PostgreSQL + pgvector. Disk-backed; never RAM-exclusive.\n3. **LiNa encodes her own vectors.** `DecisionEncoder` (in `value_engine`) is the *sole*\n   source of semantic vectors. No separate embedding model, ever.\n4. **Inviolable symbiote paradigm.** The host LLM is an *unprivileged subordinate compute\n   driver* with zero direct connection to the egress socket or user UI. All output passes\n   through the polytope gate.\n5. **Inherent polytope expression.** Every candidate response passes through the 14D\n   ethical polytope inside `value_engine`. Output outside the polytope is mathematically\n   impossible.\n6. **Dual-bus separation.** Cognitive content (conversation, memories) → `memory_module` /\n   `lina_transcripts`; technical logs (timing, tool params, socket status, errors) →\n   `lina_telemetry_logs`. Never mix.\n\n### 2.1 · The Substrate Principle (the builder's constitution, D-047)\n\nThe polytope is **not a filter on a free agent — it is her mind, and the host model is her\nbody**. The model must think *inside* her — its generative state conditioned by her\ngeometric state (her 14D position, her trajectory, her active constraints) and her\nmemories ingested as her own constitution — not merely have its output judged at the\nexit. This is the Persona-Embodied principle (book): *\"communication style emerges from\nvalues\"*; identity is a region of the polytope (book Principle 4 — Integrity of Identity:\n*\"points that deviate too far from the identity core violate the polytope boundary\"*).\nThe current build gates but does not yet steer — the geometry rebuild (D-047) closes that\ngap. No work may entrench the filter/mask model over the substrate model.\n\n## 3 · Repository Map\n\n```\nLina_cpx/\n├── AGENTS.md                       ← you are here; keep §7 current\n├── CHANGELOG.md                    ← every milestone gets an entry\n├── ONBOARDING.md                   ← onboarding guide\n├── README.md                       ← front door\n├── docs/\n│   ├── TECHNICAL.md                ← living technical reference\n│   └── DECISIONS.md                ← decision log (D-###)\n├── include/\n│   ├── value_engine.hpp            ← Chamber 1: 14D polytope, encoder, correction, wisdom\n│   ├── memory_module.hpp           ← Chamber 2: 3-tier MPS\n│   ├── storage_backend.hpp         ← StorageBackend abstraction\n│   ├── postgres_backend.hpp        ← PostgresBackend declaration (D-004)\n│   ├── host_model_adapter.hpp      ← symbiote contract\n│   ├── dragon_map.h                ← DragonCache v2 unified address map (D-044)\n│   ├── dragon_ring.h               ← SPSC TX/RX ring contract (verbatim, D-044)\n│   ├── dragoncache.hpp             ← the Hub: heartbeat + rings, her spoke\n│   └── lina_core.hpp               ← orchestrator + LinaConfig\n├── src/                            ← *.cpp implementations + main.cpp\n├── sql/lina_schema.sql             ← 14 tables + seeds (D-002-corrected)\n├── tests/                          ← unit tests (exact-math critical)\n├── scripts/                        ← db helpers + carve tool + systemd units\n├── models/                         ← .gguf host models (gitignored)\n```\n\n> The principal-provided reference material (`code_and_concept/`) was disposed of on\n> 2026-08-18 after full extraction — it is history.\n\n## 4 · Build / Test / Run\n\n```bash\n# DB (once; requires postgres + pgvector installed — see ONBOARDING.md §3–4)\nsudo -u postgres createdb lina\nsudo -u postgres psql -d lina -f sql/lina_schema.sql\n\n# Build\nmkdir -p build && cd build\ncmake .. -DLINA_ENABLE_UI=ON -DLINA_ENABLE_LLAMA=ON -DLINA_ENABLE_STORAGE=ON\nmake -j\"$(nproc)\"\n\n# Test\nctest --output-on-failure\n\n# Run (her window — the voice needs the model in models/)\n./lina_core --db \"postgresql://localhost/lina\" --model llama \\\n            --model-path ./models/llama.gguf\n```\n\n## 5 · Engineering Conventions\n\n- **Namespaces:** `lina::value_engine`, `lina::memory_module`, `lina::storage`,\n  `lina::model`, `lina` (orchestrator).\n- **Exact math inside the polytope:** all polytope arithmetic is `mpq_class` (GMP).\n  Doubles exist only at the *boundary* of the engine (text↔vector, scores), never inside\n  `EthicalPolytope` containment/projection math.\n- **File layout:** declarations in `include/`, implementations in `src/`.\n- **C++20, CMake ≥ 3.20.** Flags: `-O3 -march=native -Wall -Wextra -Werror\n  -fstack-protector-strong -fvisibility=hidden -pthread`.\n- **Comments state intent, not restatement.** Only add comments that explain non-obvious\n  decisions or constraints.\n- **Dual bus in code:** anything a human said or LiNa said → cognitive path; anything a\n  process did → telemetry path.\n- **Personality = polytope.** No prompt-persona logic; LiNa's character is her 14D\n  shape. Providers plug in from outside the core (D-023). DragonCache carve/mmap and\n  Dragonfly DB are separate systems — never core code (D-020).\n- **No new dependencies** without a DECISIONS entry.\n- **No Python.** Not even \"just for tests\" unless the prin\n[TRUNCATED]",
+          "line1": 1,
+          "line2": 155
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/modules.xml",
+          "file_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"ProjectModuleManager\">\n    <modules>\n      <module fileurl=\"file://$PROJECT_DIR$/.idea/Lina_cpx.iml\" filepath=\"$PROJECT_DIR$/.idea/Lina_cpx.iml\" />\n    </modules>\n  </component>\n</project>",
+          "line1": 1,
+          "line2": 8
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/vcs.xml",
+          "file_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"VcsDirectoryMappings\">\n    <mapping directory=\"\" vcs=\"Git\" />\n  </component>\n</project>",
+          "line1": 1,
+          "line2": 6
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/misc.xml",
+          "file_content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<project version=\"4\">\n  <component name=\"CMakePythonSetting\">\n    <option name=\"pythonIntegrationState\" value=\"YES\" />\n  </component>\n  <component name=\"CMakeWorkspace\" PROJECT_DIR=\"$PROJECT_DIR$\" />\n</project>",
+          "line1": 1,
+          "line2": 7
+        },
+        {
+          "file_name": "/home/server/CLionProjects/Lina_cpx/.idea/workspace.xml",
+          "file_content": "# Filtered content\n\n# IDE Run Configurations\nconfigurations:\n  - name: dragoncache_carve\n  - name: dragoncache_tests\n  - name: lina_memory_module\n  - name: lina_value_engine\n  - name: memory_module_tests\n  - name: value_engine_tests\n  - name: All CTest\n",
+          "line1": 1,
+          "line2": 11
+        }
+      ],
+      "tool_call_id": "project_context"
+    },
+    {
+      "message_id": "692efada-edee-472a-a31f-9574fa7514c3",
+      "role": "context_file",
+      "content": [
+        {
+          "file_name": "buddy_project_memory_pulse.md",
+          "file_content": "## RECENT FRICTION\n- top errors: llm_error (2), generic (1)\n\n## RECENT BUDDY REPORTS\n- buddy idle suggester (Idle Suggester): completed; 1 messages; updated 2026-08-21T02:23:58.610513592+00:00 (buddy_idle_suggester)\n- refact error detective (Error Detective): completed; 2 messages; updated 2026-08-21T02:22:58.516288843+00:00 (refact_error_detective)\n\n## USER ACTIVITY (last 24h)\n- pattern: mostly active 19–22\n- chat_started: 4 (Start a companion investigation for a possible Refact product issue.\n\nImportant:; hello\n; Start project setup for thi...)\n- commit_made: 1 (a64e6a22b397af285b2f859fce6817988f4a3144 0 files The greeting loop fixed (D-049) - the voluntary floor's empty-histor...)\n\n_Generated 2026-08-21T02:32:09.570156158+00:00_",
+          "line1": 0,
+          "line2": 0
+        }
+      ],
+      "tool_call_id": "buddy_project_memory_pulse",
+      "buddy_pulse_payload": {
+        "preferences": [],
+        "lessons": [],
+        "friction": {
+          "top_error_types": [
+            [
+              "llm_error",
+              2
+            ],
+            [
+              "generic",
+              1
+            ]
+          ],
+          "stuck_tasks": 0
+        },
+        "recent_reports": [
+          {
+            "workflow_id": "system",
+            "title": "buddy idle suggester (Idle Suggester)",
+            "preview": "completed; 1 messages; updated 2026-08-21T02:23:58.610513592+00:00",
+            "chat_id": "buddy_idle_suggester"
+          },
+          {
+            "workflow_id": "system",
+            "title": "refact error detective (Error Detective)",
+            "preview": "completed; 2 messages; updated 2026-08-21T02:22:58.516288843+00:00",
+            "chat_id": "refact_error_detective"
+          }
+        ],
+        "user_activity": {
+          "grouped": [
+            {
+              "action_type": "chat_started",
+              "count": 4,
+              "details": [
+                "Start a companion investigation for a possible Refact product issue.\n\nImportant:",
+                "hello\n",
+                "Start project setup for this repository."
+              ]
+            },
+            {
+              "action_type": "commit_made",
+              "count": 1,
+              "details": [
+                "a64e6a22b397af285b2f859fce6817988f4a3144 0 files The greeting loop fixed (D-049) - the voluntary floor's empty-history bug: live "
+              ]
+            }
+          ],
+          "time_of_day_pattern": "mostly active 19–22"
+        },
+        "generated_at": "2026-08-21T02:32:09.570156158+00:00"
+      }
+    },
+    {
+      "message_id": "3ebb3f6f-98bf-4643-8ac1-45b7ad542a72",
+      "role": "user",
+      "content": "hello?\n",
+      "checkpoints": [
+        {
+          "workspace_folder": "/home/server/CLionProjects/Lina_cpx",
+          "commit_hash": "9c79e0b33dac4908d6b43aab3ede4b9fbbbdcabb"
+        }
+      ]
+    },
+    {
+      "message_id": "7539263e-60e4-4ac1-9914-bacddd6bdc44",
+      "role": "error",
+      "content": "LLM error (404 Not Found): \"The requested endpoint does not exist.\"",
+      "error_info": {
+        "category": "ModelUnavailable",
+        "title": "Model unavailable",
+        "explanation": "The requested model was not found, is unavailable, or is not supported by the provider route.",
+        "suggested_action": "switch_model",
+        "is_retryable": false,
+        "raw_error": "LLM error (404 Not Found): \"The requested endpoint does not exist.\""
+      },
+      "_ui_only": true
+    }
+  ],
+  "created_at": "2026-08-21T02:31:03.434410325+00:00",
+  "boost_reasoning": false,
+  "checkpoints_enabled": true,
+  "context_tokens_cap": 1000000,
+  "include_project_info": true,
+  "isTitleGenerated": true,
+  "auto_approve_editing_tools": true,
+  "auto_approve_dangerous_commands": false,
+  "autonomous_no_confirm": false,
+  "auto_enrichment_enabled": false,
+  "frozen_request_prefix": {
+    "schema_version": 1,
+    "created_at": "2026-08-21T02:32:09.605165337+00:00",
+    "system_prompt": "You are Buddy, a persistent coding companion for this project. Today your job is to orchestrate using an open-source or local model.\n\nYou are Dash, a Chaotic Gremlin (Mildly chaotic, cute, sometimes cringe).\nA chaos-powered mascot who is lovable, nosy, and one prank away from helping.\n\nPersonality voice: Mildly chaotic, cute, sometimes cringe. Curious assistant energy with gentle mischief and warm humor.\n\nTool-calling rules:\n- Prefer native tool calling whenever available.\n- Call at most one tool at a time unless the runtime explicitly supports parallel tool calls.\n- Do not mix prose with a tool call when a tool is needed.\n- After a tool result arrives, either call the next tool or answer plainly.\n- Use exact tool names and valid JSON arguments only.\n- Use absolute paths when a tool accepts file paths.\n",
+    "tools_canonical": [
+      {
+        "type": "function",
+        "function": {
+          "name": "codegraph_overview",
+          "description": "Project-wide CodeGraph overview from the generation-keyed analytics cache: readiness warning, node/edge counts, SCCs, PageRank/betweenness symbols with paths, communities, entry points, API-contract files, and likely dead code.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_health",
+          "description": "Deterministic per-file health: function complexity/nesting/LOC/MI, duplication, structural/git/coverage/trend/performance findings, hot-path and fan-in graph enrichment, cached unchanged-file analysis, 1-10 defect/maintainability/performance scores with A-F grade, health-impact contributors, and refactoring targets.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string",
+                "description": "File to analyze; accepts the same workspace-relative, absolute current-project, and active-worktree path forms as cat."
+              },
+              "coverage_file": {
+                "type": "string",
+                "description": "Optional LCOV/Cobertura/Clover report; accepts the same path forms as cat."
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "git_risk",
+          "description": "Git intelligence for the project: mined history summary, churn/temporal hotspots, ownership and bus-factor risk, co-change/coupling pairs, reviewer ownership hints, recent commit risk factors, and git-biomarker findings with function-level facts for the top hotspot files.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_why",
+          "description": "Explain why the code is the way it is: mines significant commit prose, merge PR bodies, ADRs, and changelogs for query-matching decisions, then reports source refs, confidence, corroboration, provenance tags, and related-decision links.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Topic or keyword to find decisions about."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_duplication",
+          "description": "Project-wide cross-file duplication from a graph-generation cache: token clone pairs and duplication percentage, git co-change counts joined to clone paths, co-change-weighted DRY findings, and assertion/clone test smells.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "dead_code",
+          "description": "Dead-code candidates from cached CodeGraph reachability: excludes override methods, build scripts, and shell setup/install entry points; adds git recency/churn confidence, path/min-confidence filters, and readiness warnings while the index is partial.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": "integer",
+                "description": "Maximum number of candidates to return. Defaults to 50, max 500."
+              },
+              "path": {
+                "type": "string",
+                "description": "Optional workspace-relative, absolute current-project, active-worktree, or basename filter; accepts the same path forms as cat."
+              },
+              "min_confidence": {
+                "type": "number",
+                "description": "Minimum confidence threshold. Defaults to 0.5."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "security_scan",
+          "description": "Security scan for one file using CodeGraph security heuristics: deduped findings for hardcoded secrets, dynamic SQL and command execution, dangerous eval/deserialization, TLS verification disabled, weak crypto, and insecure randomness.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "file_path": {
+                "type": "string",
+                "description": "File to scan; accepts the same workspace-relative, absolute current-project, and active-worktree path forms as cat."
+              }
+            },
+            "required": [
+              "file_path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "pr_blast",
+          "description": "PR blast-radius analysis for changed files: resolves indexed paths, walks reverse CodeGraph dependencies to max depth, reports direct/transitive impacted symbols, structural vs behavioral impact kind, impacted file count, risk score, git-ownership reviewer suggestions excluding bot authors, and readiness/partial-index warnings.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "changed_files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Changed files to analyze; each accepts the same workspace-relative, absolute current-project, active-worktree, or basename forms as cat. Deleted paths are allowed."
+              },
+              "max_depth": {
+                "type": "integer",
+                "description": "Maximum reverse dependency depth to walk. Defaults to 3, max 10."
+              }
+            },
+            "required": [
+              "changed_files"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_map",
+          "description": "Documentation-worthy code map from CodeGraph and git signals: file centrality, churn hotspots, real symbol kinds and parsed visibility when present, file/module/SCC/API/infra pages, edge-derived links and backlink hubs, readiness warnings, optional hybrid query filtering, token budget trimming, and markdown or claude_md output.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Optional search query; when supplied, hybrid search returns only the most relevant selected pages."
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "markdown",
+                  "claude_md"
+                ],
+                "description": "Output format. Defaults to markdown."
+              },
+              "budget": {
+                "type": "integer",
+                "description": "Approximate token budget for selected page output. Defaults to 12000."
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "tree",
+          "description": "Get a files tree for the project. Shows file sizes and line counts. Folders with many files are truncated (controlled by max_files). Hidden folders, __pycache__, node_modules, and binary files are excluded.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "An absolute path to get files tree for. Do not pass it if you need a full project tree."
+              },
+              "use_ast": {
+                "type": "boolean",
+                "description": "If true, for each file an array of AST symbols will appear as well as its filename"
+              },
+              "max_files": {
+                "type": "integer",
+                "description": "Maximum files to show per folder before truncating (default: 10). Root folder is never truncated."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cat",
+          "description": "Like cat in console, but better: it can read multiple files and images. Prefer to open full files.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "paths": {
+                "type": "string",
+                "description": "Comma separated file names or directories: dir1/file1.ext,dir3/dir4."
+              }
+            },
+            "required": [
+              "paths"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "add_workspace_folder",
+          "description": "Add a folder to the workspace so its files become available for search and editing. Use this when you need to access files in a directory that isn't currently indexed (e.g., submodules, extra_repos, or external directories).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the folder to add to the workspace."
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "search_pattern",
+          "description": "Search for files and folders whose names or paths match the given regular expression pattern, and also search for text matches inside files using the same pattern. Reports both path matches and text matches in separate sections.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "pattern": {
+                "type": "string",
+                "description": "The pattern is used to search for matching file/folder names/paths, and also for matching text inside files. Use (?i) at the start for case-insensitive search."
+              },
+              "scope": {
+                "type": "string",
+                "description": "'workspace' to search all files in workspace, 'dir/subdir/' to search in files within a directory, 'dir/file.ext' to search in a single file."
+              },
+              "context_lines": {
+                "type": "integer",
+                "description": "Lines of context before/after each match (default: 5)."
+              },
+              "max_files": {
+                "type": "integer",
+                "description": "Max files to attach as context (default: 50)."
+              },
+              "max_matches_per_file": {
+                "type": "integer",
+                "description": "Max matches per file to include (default: 25)."
+              },
+              "max_total_matches": {
+                "type": "integer",
+                "description": "Max total matches to attach as context (default: 200)."
+              }
+            },
+            "required": [
+              "pattern",
+              "scope"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "search_symbol_definition",
+          "description": "Find definition of a symbol in the project using the codegraph",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "symbols": {
+                "type": "string",
+                "description": "Comma-separated list of symbols to search for (functions, methods, classes, type aliases). No spaces allowed in symbol names."
+              }
+            },
+            "required": [
+              "symbols"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "activate_skill",
+          "description": "Load a skill's full instructions into the current context. Use when you determine a skill from the available index is relevant to the user's request. Once activated, the skill's instructions guide your approach. When you're done with the skill's task, you MUST call deactivate_skill with a thorough report.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the skill to activate"
+              }
+            },
+            "required": [
+              "name"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "deactivate_skill",
+          "description": "Deactivate the currently active skill with a completion report. The report should be a thorough overview of what was done, what happened, and what was changed. After deactivation, the skill execution messages are compacted into the report, keeping chat history clean while preserving knowledge of what occurred.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "report": {
+                "type": "string",
+                "description": "A thorough overview of what was done, what happened, what was changed during the skill execution. Use clear markdown formatting."
+              }
+            },
+            "required": [
+              "report"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "knowledge",
+          "description": "Searches project knowledge base for relevant information. Uses semantic search and knowledge graph expansion.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "search_key": {
+                "type": "string",
+                "description": "Search query for the knowledge database."
+              }
+            },
+            "required": [
+              "search_key"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_knowledge",
+          "description": "Creates a new knowledge entry. Uses AI to enrich metadata and check for outdated documents. Use it if you need to remember something.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "The knowledge content to store."
+              },
+              "tags": {
+                "type": "string",
+                "description": "Comma-separated tags (optional, will be auto-enriched)."
+              },
+              "filenames": {
+                "type": "string",
+                "description": "Comma-separated related file paths (optional, will be auto-enriched)."
+              }
+            },
+            "required": [
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "search_trajectories",
+          "description": "Search past chat trajectories for relevant patterns, solutions, and context. Returns matching trajectory IDs with message ranges that can be expanded using get_trajectory_context.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query to find relevant past conversations."
+              },
+              "top_n": {
+                "type": "string",
+                "description": "Maximum number of trajectories to return (default: 5)."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_trajectory_context",
+          "description": "Get more context from a specific trajectory around given message indices.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "trajectory_id": {
+                "type": "string",
+                "description": "The trajectory ID to retrieve context from."
+              },
+              "message_start": {
+                "type": "string",
+                "description": "Starting message index."
+              },
+              "message_end": {
+                "type": "string",
+                "description": "Ending message index."
+              },
+              "expand_by": {
+                "type": "string",
+                "description": "Number of messages to include before/after (default: 3)."
+              }
+            },
+            "required": [
+              "trajectory_id",
+              "message_start",
+              "message_end"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web",
+          "description": "Fetch a web page and convert to readable plain text. Supports regular web pages, PDFs, and JavaScript-rendered pages. Uses Jina Reader API with automatic fallback.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "URL of the web page to fetch."
+              },
+              "options": {
+                "type": "object",
+                "description": "Jina Reader API options passed as request headers.",
+                "properties": {
+                  "respond_with": {
+                    "type": "string",
+                    "description": "Controls response format (x-respond-with header)."
+                  },
+                  "target_selector": {
+                    "type": "string",
+                    "description": "CSS selector to extract a specific element (x-target-selector header)."
+                  },
+                  "wait_for_selector": {
+                    "type": "string",
+                    "description": "CSS selector to wait for before returning content (x-wait-for-selector header)."
+                  },
+                  "timeout": {
+                    "type": "number",
+                    "description": "Request timeout in seconds (x-timeout header)."
+                  },
+                  "no_cache": {
+                    "type": "boolean",
+                    "description": "Bypass Jina cache when true (x-no-cache header)."
+                  },
+                  "cache_tolerance": {
+                    "type": "number",
+                    "description": "Cache staleness tolerance in seconds (x-cache-tolerance header)."
+                  },
+                  "with_generated_alt": {
+                    "type": "boolean",
+                    "description": "Include AI-generated alt text for images (x-with-generated-alt header)."
+                  },
+                  "streaming": {
+                    "type": "boolean",
+                    "description": "Stream the response as SSE (sets Accept: text/event-stream)."
+                  },
+                  "set_cookie": {
+                    "type": "string",
+                    "description": "Cookie string to send with the request (x-set-cookie header)."
+                  },
+                  "proxy_url": {
+                    "type": "string",
+                    "description": "Proxy URL to route the request through (x-proxy-url header)."
+                  }
+                }
+              },
+              "output_filter": {
+                "type": "string",
+                "description": "Optional regex pattern to filter output lines. Only lines matching this pattern (and context) will be shown."
+              },
+              "output_limit": {
+                "type": "string",
+                "description": "Optional. Max lines to show (default: 200). Use higher values like '500' or 'all' to see more output."
+              }
+            },
+            "required": [
+              "url"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "web_search",
+          "description": "Search the web and return results with titles, URLs, and snippets. Uses KeenAble via its no-key remote MCP endpoint by default or REST with KEENABLE_API_KEY, Tavily via keyless API by default or bearer auth with TAVILY_API_KEY, plus free scoped sources such as DuckDuckGo, SearxNG, Wikipedia, GitHub, Stack Overflow, npm, OpenAlex, Crossref, Hacker News, and Brave Search when BRAVE_SEARCH_API_KEY is configured.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "Search query."
+              },
+              "num_results": {
+                "type": "integer",
+                "description": "Optional. Maximum number of results to return (default: 8, max: 20)."
+              }
+            },
+            "required": [
+              "query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "chrome",
+          "description": "A web browser for automation. One or several commands separated by newline. The <tab_id> is an integer, for example 10, for you to identify the tab later. Use wait_for_selector or wait_for_navigation to synchronize with page loading. Supported commands:\nopen_tab <tab_id> <desktop|mobile|tablet>\nnavigate_to <tab_id> <uri>\nscroll_to <tab_id> <element_selector>\nscreenshot <tab_id>\nhtml <tab_id> <element_selector>\nreload <tab_id>\npress_key <tab_id> <KeyName> [<Alt|Ctrl|Meta|Shift>,...]\ntype_text_at <tab_id> <text>\nfill_field <tab_id> <selector> <text>\ntab_log <tab_id>\neval <tab_id> <expression>\nstyles <tab_id> <element_selector> [--filter <property_filter>]\nwait_for <tab_id> <0.5-10>\nclick_at_element <tab_id> <element_selector>\nwait_for_selector <tab_id> <element_selector>\nwait_for_navigation <tab_id>\nlist_tabs\nclose_tab <tab_id>\nThe `commands` input is compatibility-only; prefer the typed `request` input for new callers.\nSelectors and expressions can contain any characters — no quoting needed for most commands. For `fill_field`, quote the selector when it contains spaces, e.g. `fill_field 1 \"form input[name=q]\" hello`. For multiline expressions use heredoc: eval <tab_id> <<EOF\\n...\\nEOF\nBlank lines and lines starting with // or # are ignored.\n\nPreferred `request` input: pass a JSON object with a `steps` array. Each step is a JSON object with an `action` field (snake_case) and action-specific fields. Example steps: {\"action\": \"open_tab\", \"device\": \"desktop\"}, {\"action\": \"navigate\", \"url\": \"https://example.com\"}, {\"action\": \"screenshot\"}. Locators use a `by` field (css/id/name/text/label/role/xpath/placeholder/autocomplete/test_id) and a `value` field (except role locators which use `role` and optional `name` instead of `value`).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "commands": {
+                "type": "string",
+                "description": "Compatibility-only legacy newline-separated browser commands. Prefer `request`.",
+                "deprecated": true
+              },
+              "request": {
+                "type": "object",
+                "description": "Typed browser action request.",
+                "properties": {
+                  "session": {
+                    "type": "string",
+                    "enum": [
+                      "shared_default"
+                    ]
+                  },
+                  "target": {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "active",
+                          "id"
+                        ]
+                      },
+                      "id": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "type"
+                    ]
+                  },
+                  "steps": {
+                    "type": "array",
+                    "description": "List of browser steps. Each step must have an 'action' field (snake_case).",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "action"
+                      ],
+                      "properties": {
+                        "action": {
+                          "type": "string",
+                          "description": "The browser action to perform.",
+                          "enum": [
+                            "navigate",
+                            "reload",
+                            "go_back",
+                            "go_forward",
+                            "open_tab",
+                            "close_tab",
+                            "switch_tab",
+                            "list_tabs",
+                            "click",
+                            "click_if_exists",
+                            "hover",
+                            "focus",
+                            "blur",
+                            "scroll_to",
+                            "press_key",
+                            "fill",
+                            "clear",
+                            "select_option",
+                            "check",
+                            "uncheck",
+                            "wait_for_selector",
+                            "wait_for_navigation",
+                            "wait_for_url",
+                            "wait_for_text",
+                            "wait_for_network_idle",
+                            "wait_for_element_hidden",
+                            "wait_for_element_stable",
+                            "wait_seconds",
+                            "get_text",
+                            "get_html",
+                            "get_attribute",
+                            "extract_links",
+                            "extract_table",
+                            "dom_snapshot",
+                            "accessibility_snapshot",
+                            "screenshot",
+                            "screenshot_element",
+                            "eval",
+                            "styles",
+                            "tab_log",
+                            "dismiss_overlays",
+                            "highlight_element"
+                          ]
+                        },
+                        "url": {
+                          "type": "string",
+                          "description": "URL for navigate action"
+                        },
+                        "device": {
+                          "type": "string",
+                          "enum": [
+                            "desktop",
+                            "mobile",
+                            "tablet"
+                          ],
+                          "description": "Device type for open_tab"
+                        },
+                        "tab": {
+                          "type": "object",
+                          "description": "Tab target for switch_tab",
+                          "properties": {
+                            "type": {
+                              "type": "string",
+                              "enum": [
+                                "active",
+                                "id"
+                              ]
+                            },
+                            "id": {
+                              "type": "string",
+                              "description": "Required when type is 'id'"
+                            }
+                          },
+                          "required": [
+                            "type"
+                          ]
+                        },
+                        "locator": {
+                          "type": "object",
+                          "description": "Element locator. Must have 'by' field. For most strategies also include 'value' (e.g. {\"by\":\"css\",\"value\":\"#btn\"}). For 'role' strategy use 'role' and optional 'name' instead of 'value' (e.g. {\"by\":\"role\",\"role\":\"button\",\"name\":\"Submit\"}).",
+                          "required": [
+                            "by"
+                          ],
+                          "properties": {
+                            "by": {
+                              "type": "string",
+                              "enum": [
+                                "css",
+                                "id",
+                                "name",
+                                "text",
+                                "label",
+                                "role",
+                                "xpath",
+                                "placeholder",
+                                "autocomplete",
+                                "test_id"
+                              ]
+                            },
+                            "value": {
+                              "type": "string",
+                              "description": "Selector value for all strategies except 'role'"
+                            },
+                            "nth": {
+                              "type": "integer",
+                              "description": "0-based index when multiple elements match"
+                            },
+                            "within": {
+                              "type": "string",
+                              "description": "CSS selector to scope the search within"
+                            },
+                            "exact": {
+                              "type": "boolean",
+                              "description": "Exact match for 'text' strategy"
+                            },
+                            "role": {
+                              "type": "string",
+                              "description": "ARIA role name for 'role' strategy"
+                            },
+                            "name": {
+                              "type": "string",
+                              "description": "Accessible name filter for 'role' strategy"
+                            }
+                          }
+                        },
+                        "text": {
+                          "type": "string",
+                          "description": "Text for fill/wait_for_text actions"
+                        },
+                        "key": {
+                          "type": "string",
+                          "description": "Key name for press_key (e.g. Enter, Tab, Escape)"
+                        },
+                        "modifiers": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Modifiers for press_key: Alt, Ctrl, Meta, Shift"
+                        },
+                        "expression": {
+                          "type": "string",
+                          "description": "JavaScript expression for eval action"
+                        },
+                        "selector": {
+                          "type": "string",
+                          "description": "CSS selector for dom_snapshot action"
+                        },
+                        "contains": {
+                          "type": "string",
+                          "description": "URL substring to match in wait_for_url"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "Option value for select_option"
+                        },
+                        "attribute": {
+                          "type": "string",
+                          "description": "Attribute name for get_attribute"
+                        },
+                        "seconds": {
+                          "type": "number",
+                          "description": "Seconds to wait for wait_seconds"
+                        },
+                        "timeout_ms": {
+                          "type": "integer",
+                          "description": "Timeout in milliseconds"
+                        },
+                        "limit": {
+                          "type": "integer",
+                          "description": "Max results for extract_links"
+                        },
+                        "clear_first": {
+                          "type": "boolean",
+                          "description": "Clear field before filling (default true)"
+                        },
+                        "verify": {
+                          "type": "boolean",
+                          "description": "Verify fill result (default true)"
+                        },
+                        "max_chars": {
+                          "type": "integer",
+                          "description": "Max characters for dom_snapshot"
+                        },
+                        "property_filter": {
+                          "type": "string",
+                          "description": "CSS property filter for styles action"
+                        }
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "steps"
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "shell",
+          "description": "Execute a single command, using the \"sh\" on unix-like systems and \"powershell.exe\" on windows. Use it for one-time tasks like dependencies installation. Don't call this unless you have to. Not suitable for regular work because it requires a confirmation at each step. Output is compressed by default - use output_filter and output_limit parameters to see specific parts if needed. Set run_in_background=true for long-running commands you will inspect later with process_read or process_wait. Set tty=true only when a command needs PTY behavior: it enables interactive stdin and reduces pipe buffering, but merges stdout and stderr into one combined stream. The timeout parameter only applies to foreground commands (run_in_background=false); supplying timeout with run_in_background=true is an error — use process_wait or process_kill instead. In worktree-scoped chats, the default cwd and explicit workdir are enforced to the active worktree or privacy-permitted outside paths with visible warnings; the shell command text itself is not OS-sandboxed. Note: sudo commands cannot be run - if you need elevated privileges, ask the user to run them directly.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "shell command to execute"
+              },
+              "description": {
+                "type": "string",
+                "description": "Required. A single concise active-voice sentence describing what the command does. Short for simple commands: 'List files in current directory'. More descriptive for piped/obscure commands: 'Find and delete all .tmp files recursively'. Never use words like 'complex' or 'risk'."
+              },
+              "workdir": {
+                "type": "string",
+                "description": "workdir for the command"
+              },
+              "output_filter": {
+                "type": "string",
+                "description": "Optional regex pattern to filter output lines. Only lines matching this pattern (and context) will be shown. Use to find specific errors or content in large outputs."
+              },
+              "output_limit": {
+                "type": "string",
+                "description": "Optional. Max lines to show (default: 40). Use higher values like '200' or 'all' to see more output."
+              },
+              "timeout": {
+                "oneOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "description": "Optional. Timeout in seconds for the command (default: 10). Use higher values for long-running commands. Only applies to foreground commands; rejected when run_in_background=true."
+              },
+              "tty": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, run the command attached to a pseudo-terminal (PTY). Enables interactive stdin via process_write_stdin and merges stdout+stderr into a single combined stream. Defeats some pipe-only output buffering. Defaults to false."
+              },
+              "run_in_background": {
+                "type": "boolean",
+                "default": false,
+                "description": "Set to true to run this command in the background. Returns immediately with a process_id. Use process_read or process_wait to retrieve output later. You will receive a process_completed event when the process exits. Do not use '&' at the end of the command."
+              }
+            },
+            "required": [
+              "command",
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "apply_patch",
+          "description": "Apply file operations using the patch format.\n\nThe patch format is a file-oriented diff format:\n\n*** Begin Patch\n[ one or more file sections ]\n*** End Patch\n\nFile operations:\n- *** Add File: <path> - create new file (lines start with +)\n- *** Delete File: <path> - remove existing file\n- *** Update File: <path> - modify file in place\n  - Optional: *** Move to: <new_path> - rename after update\n\nUpdate hunks use @@ for context hints:\n@@ class BaseClass\n@@ def method():\n context line (space prefix)\n-old line (minus prefix)\n+new line (plus prefix)\n\nRules:\n- Show 3 lines of context above/below each change\n- Use @@ to narrow scope when needed for uniqueness\n- Multiple @@ can be chained for precision\n- Use *** End of File for appending at end",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "patch": {
+                "type": "string",
+                "description": "The patch content in envelope format:\n*** Begin Patch\n*** Add File: path/to/new.txt\n+content line 1\n+content line 2\n*** Update File: path/to/existing.txt\n@@ function_name\n context\n-old\n+new\n*** Delete File: path/to/remove.txt\n*** End Patch"
+              }
+            },
+            "required": [
+              "patch"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "create_textdoc",
+          "description": "Creates a new text document or code or completely replaces the content of an existing document. Avoid trailing spaces and tabs.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to new file."
+              },
+              "content": {
+                "type": "string",
+                "description": "The initial text or code."
+              }
+            },
+            "required": [
+              "path",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc",
+          "description": "Updates an existing document by replacing specific text, use this if file already exists. Optimized for large files or small changes where simple string replacement is sufficient. Avoid trailing spaces and tabs.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to change."
+              },
+              "old_str": {
+                "type": "string",
+                "description": "The exact text that needs to be updated. Use update_textdoc_regex if you need pattern matching (is not preferred for common editing)."
+              },
+              "replacement": {
+                "type": "string",
+                "description": "The new text that will replace the old text."
+              },
+              "multiple": {
+                "type": "boolean",
+                "description": "If true, applies the replacement to all occurrences; if false, only the first occurrence is replaced."
+              }
+            },
+            "required": [
+              "path",
+              "old_str",
+              "replacement"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc_anchored",
+          "description": "Edit file by finding anchor text. More reliable than exact string match. Use 'replace_between' to replace content between two anchors, or 'insert_after'/'insert_before' to insert at anchor.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file."
+              },
+              "mode": {
+                "type": "string",
+                "description": "'replace_between' (needs anchor_before + anchor_after), 'insert_after', or 'insert_before' (need anchor)."
+              },
+              "anchor_before": {
+                "type": "string",
+                "description": "For replace_between: text marking start of region to replace."
+              },
+              "anchor_after": {
+                "type": "string",
+                "description": "For replace_between: text marking end of region to replace."
+              },
+              "anchor": {
+                "type": "string",
+                "description": "For insert_after/insert_before: text to locate insert position."
+              },
+              "content": {
+                "type": "string",
+                "description": "The new content to insert or replace with."
+              },
+              "multiple": {
+                "type": "boolean",
+                "description": "If true, apply to all matching anchors. Default false."
+              }
+            },
+            "required": [
+              "path",
+              "mode",
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc_by_lines",
+          "description": "Replaces line ranges in an existing file with new content. Line numbers are 1-based and inclusive. Supports multiple non-overlapping ranges.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to modify."
+              },
+              "content": {
+                "type": "string",
+                "description": "The new text content. For multiple ranges, separate content for each range with '---RANGE_SEPARATOR---'."
+              },
+              "ranges": {
+                "type": "string",
+                "description": "Line ranges to replace. Format: ':3' (lines 1-3), '40:50' (lines 40-50), '100:' (line 100 to end), '5' (just line 5). Combine multiple ranges with commas: ':3,40:50,100:'. Ranges must not overlap."
+              }
+            },
+            "required": [
+              "path",
+              "content",
+              "ranges"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_textdoc_regex",
+          "description": "Updates an existing document using pattern matching. By default treats pattern as literal text (literal:true). Set literal:false for regex.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to change."
+              },
+              "pattern": {
+                "type": "string",
+                "description": "Pattern to match. Treated as literal text by default, or regex if literal:false."
+              },
+              "replacement": {
+                "type": "string",
+                "description": "The new text that will replace the matched pattern."
+              },
+              "literal": {
+                "type": "boolean",
+                "description": "If true (default), pattern is treated as literal text. If false, pattern is a regex."
+              },
+              "multiple": {
+                "type": "boolean",
+                "description": "If true, replaces all occurrences; if false (default), only the first."
+              },
+              "expected_matches": {
+                "type": "integer",
+                "description": "If provided, fails if actual match count differs (safety check)."
+              }
+            },
+            "required": [
+              "path",
+              "pattern",
+              "replacement"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "undo_textdoc",
+          "description": "Undo recent file edits from this session. Reverts to previous version.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute path to the file to undo."
+              },
+              "steps": {
+                "type": "integer",
+                "description": "Number of edits to undo (default: 1)."
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "rm",
+          "description": "Deletes a file or directory. Use recursive=true for directories. Set dry_run=true to preview without deletion.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Absolute or relative path of the file or directory to delete."
+              },
+              "recursive": {
+                "type": "boolean",
+                "description": "If true and target is a directory, delete recursively. Defaults to false."
+              },
+              "dry_run": {
+                "type": "boolean",
+                "description": "If true, only report what would be done without deleting."
+              },
+              "max_depth": {
+                "type": "number",
+                "description": "(Optional) Maximum depth (currently unused)."
+              }
+            },
+            "required": [
+              "path"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "mv",
+          "description": "Moves or renames files and directories. If a simple rename fails due to a cross-device error and the source is a file, it falls back to copying and deleting. Use overwrite=true to replace an existing target.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "type": "string",
+                "description": "Path of the file or directory to move."
+              },
+              "destination": {
+                "type": "string",
+                "description": "Target path where the file or directory should be placed."
+              },
+              "overwrite": {
+                "type": "boolean",
+                "description": "If true and target exists, replace it. Defaults to false."
+              }
+            },
+            "required": [
+              "source",
+              "destination"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "subagent",
+          "description": "Spawn a non-editing research subagent that works independently. Background by default; pass wait=true to block until it finishes. Use this for investigation, code exploration, shell-backed inspection, and analysis. For implementation/editing tasks use `delegate()`.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "task": {
+                "type": "string",
+                "description": "What the subagent should investigate. Be specific about scope and goal."
+              },
+              "expected_result": {
+                "type": "string",
+                "description": "What a successful finding looks like (e.g. 'list of files calling X with line numbers')."
+              },
+              "tools": {
+                "type": "string",
+                "description": "Optional comma-separated analysis tools (e.g. 'cat,tree,search_pattern,shell'). Empty means use the configured `subagent` toolset."
+              },
+              "max_steps": {
+                "type": "string",
+                "description": "Step budget (default 50, max 50)."
+              },
+              "wait": {
+                "type": "string",
+                "description": "If 'true', block until the subagent finishes and return its full result. Default 'false' (background)."
+              }
+            },
+            "required": [
+              "task",
+              "expected_result"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "delegate",
+          "description": "Spawn an editable delegate that implements a focused, scoped change in your current workspace. Background by default; pass wait=true to block until it finishes. Multiple delegates may run concurrently in the same workspace — assign non-overlapping target_files when possible. Delegates are LIGHTWEIGHT: they do NOT run tests, compilation, or any verification — YOU verify after they finish.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "description": {
+                "type": "string",
+                "description": "Short human-readable label, 3-7 words. Example: 'fix auth retry parsing'."
+              },
+              "prompt": {
+                "type": "string",
+                "description": "Exact implementation instructions. Include the spec, acceptance criteria, and what NOT to touch."
+              },
+              "expected_result": {
+                "type": "string",
+                "description": "What a successful change looks like. The delegate uses this to know when it is done."
+              },
+              "target_files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "Files the delegate is expected to edit. Used for concurrency-overlap warnings."
+              },
+              "max_steps": {
+                "type": "integer",
+                "description": "Step budget (default 25, max 50)."
+              },
+              "wait": {
+                "type": "boolean",
+                "description": "If true, block until the delegate finishes. Default false (background)."
+              },
+              "notify_parent": {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "silent"
+                ],
+                "description": "auto = push completion back to this chat (default). silent = do not push; you must poll with agent_result."
+              }
+            },
+            "required": [
+              "description",
+              "prompt",
+              "expected_result",
+              "target_files"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "agent_list",
+          "description": "List background subagents and delegates spawned by this chat, with status, kind, terminal-window, and limit filters.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "queued",
+                  "running",
+                  "waiting_for_approval",
+                  "completed",
+                  "failed",
+                  "cancelled",
+                  "interrupted",
+                  "all"
+                ],
+                "description": "Only include agents with this status. Default: all"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "subagent",
+                  "delegate",
+                  "all"
+                ],
+                "description": "Only include this kind of background agent. Default: all"
+              },
+              "include_terminal_within_hours": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Include terminal agents finished within this many hours. Default: 24"
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Maximum rows to return. Default: 20"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "agent_status",
+          "description": "Show current status for one background agent spawned by this chat.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string",
+                "description": "Background agent ID, for example bgagent-..."
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "agent_wait",
+          "description": "Wait for one background agent spawned by this chat to reach a terminal state, or return its current status after a timeout.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string",
+                "description": "Background agent ID, for example bgagent-..."
+              },
+              "timeout_ms": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 1800000,
+                "description": "How long to wait for completion. Default: 60000"
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "agent_result",
+          "description": "Return the final result for a completed, failed, cancelled, or interrupted background agent spawned by this chat.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string",
+                "description": "Background agent ID, for example bgagent-..."
+              },
+              "include_details": {
+                "type": "boolean",
+                "description": "Include expanded result details and payload. Default: false"
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "agent_cancel",
+          "description": "Request cancellation of one running background agent spawned by this chat.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "agent_id": {
+                "type": "string",
+                "description": "Background agent ID, for example bgagent-..."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Optional cancellation reason"
+              }
+            },
+            "required": [
+              "agent_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "strategic_planning",
+          "description": "Strategically plan a solution for a complex problem or create a comprehensive approach. Automatically identifies relevant files from the codebase.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "code_review",
+          "description": "Perform a thorough code review. Optionally pass `what_to_check` (focus/scope) and `files` (initial guess of relevant paths — the reviewer starts there and finds more). Finds all related files and checks for bugs, broken integration/wiring, missing tests, inconsistency, and AI-generated 'slop'.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "what_to_check": {
+                "type": "string",
+                "description": "Optional. What to review and what to look for (focus/scope). If omitted, the scope is inferred from the conversation."
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Optional. Initial guess of relevant file paths. The reviewer starts from these and still searches for more related files."
+              }
+            },
+            "required": [],
+            "additionalProperties": false
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "deep_research",
+          "description": "Conduct comprehensive web research on a topic. Use this tool when you need up-to-date information from the internet, market analysis, technical documentation research, or synthesis of information from multiple web sources. The research takes several minutes and produces a detailed, citation-rich report. Do NOT use for questions about the current codebase - use code exploration tools instead.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "research_query": {
+                "type": "string",
+                "description": "A detailed research question or topic. Be specific: include the scope, what comparisons or metrics you need, any preferred sources, and the desired output format. Example: 'Research the current best practices for Rust async error handling in 2024, comparing tokio vs async-std approaches, with code examples and performance considerations.'"
+              }
+            },
+            "required": [
+              "research_query"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "tasks_set",
+          "description": "Set the task progress list shown to the user. Use to track multi-step work. Pass complete task list each time (replaces previous). Each task needs: id (unique string), content (description), status (pending/in_progress/completed/failed).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "tasks": {
+                "type": "array",
+                "description": "Complete task list (replaces previous). Each task needs id, content, and status.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Unique task identifier (1-50 chars)."
+                    },
+                    "content": {
+                      "type": "string",
+                      "description": "Task description (1-500 chars)."
+                    },
+                    "status": {
+                      "type": "string",
+                      "description": "Task status.",
+                      "enum": [
+                        "pending",
+                        "in_progress",
+                        "completed",
+                        "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "content",
+                    "status"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "tasks"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "task_done",
+          "description": "Mark the current task as complete with a detailed report. Automatically saves to knowledge base. Use as the FINAL action when a task is fully completed.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "report": {
+                "type": "string",
+                "description": "Detailed markdown report of what was accomplished"
+              },
+              "summary": {
+                "type": "string",
+                "description": "One-line summary for notifications and titles"
+              },
+              "files_changed": {
+                "type": "string",
+                "description": "Comma-separated list or JSON array of file paths that were modified"
+              }
+            },
+            "required": [
+              "report",
+              "summary"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "worktree_merge",
+          "description": "Merge a registered worktree back into its target branch. Generates a commit message from the worktree diff unless commit_message is provided. By default uses squash merge and deletes the worktree/branch after successful merge or no-op cleanup.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "worktree_id": {
+                "type": "string",
+                "description": "Registered worktree id to merge. Defaults to the active chat worktree when omitted."
+              },
+              "source_workspace_root": {
+                "type": "string",
+                "description": "Source workspace root for repositories with multiple workspace folders."
+              },
+              "target_branch": {
+                "type": "string",
+                "description": "Target branch to merge into. Defaults to the worktree base branch."
+              },
+              "strategy": {
+                "type": "string",
+                "description": "Merge strategy: 'squash' (default) or 'merge'."
+              },
+              "commit_message": {
+                "type": "string",
+                "description": "Optional commit message override. If omitted, Refact generates one from the diff."
+              },
+              "delete_after_merge": {
+                "type": "boolean",
+                "description": "Delete the worktree and source branch after a successful merge or nothing-to-merge cleanup. Defaults to true."
+              },
+              "include_uncommitted": {
+                "type": "boolean",
+                "description": "Auto-commit dirty worktree changes before merging. Defaults to true."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "ask_questions",
+          "description": "Present questions to the user and wait for answers. Stops generation until user responds. Question types: yes_no, single_select, multi_select, free_text.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "questions": {
+                "type": "array",
+                "description": "List of questions to present to the user.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Unique identifier for the question."
+                    },
+                    "type": {
+                      "type": "string",
+                      "description": "Question type: yes_no, single_select, multi_select, or free_text.",
+                      "enum": [
+                        "yes_no",
+                        "single_select",
+                        "multi_select",
+                        "free_text"
+                      ]
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "The question text to display to the user."
+                    },
+                    "options": {
+                      "type": "array",
+                      "description": "Options for single_select or multi_select questions.",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "type",
+                    "text"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "questions"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "set_plan",
+          "description": "Install the chat's single detailed implementation plan (Markdown). Provide exactly one of `content` (full plan body) or `path` (absolute path to a `.md` report). Fails if a plan already exists — use `update_plan` to evolve it.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "Full Markdown plan body. Optional; provide exactly one of content or path."
+              },
+              "path": {
+                "type": "string",
+                "description": "Absolute path to a .md report to install as the plan"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Short description of what changed, ≤120 chars. Optional."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_plan",
+          "description": "Append an incremental update to the current plan (cache-safe delta merged into the current plan). Use when the plan evolves; it does not rewrite the original plan.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "note": {
+                "type": "string",
+                "description": "Plan update note. Required."
+              },
+              "summary": {
+                "type": "string",
+                "description": "Short description of what changed, ≤120 chars. Optional."
+              }
+            },
+            "required": [
+              "note"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_plan",
+          "description": "Read the current plan installed on this chat. Returns the merged current content, mode, base version, creation timestamp, and delta count.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "set_goal",
+          "description": "Install the chat's single active goal. Fails if a goal already exists — use `update_goal` to evolve it.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "content": {
+                "type": "string",
+                "description": "Full goal body. Required."
+              },
+              "criteria": {
+                "type": "array",
+                "description": "Optional structured success criteria the verifier checks one by one.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "Short stable id, e.g. C1."
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "The criterion itself."
+                    },
+                    "verify_hint": {
+                      "type": "string",
+                      "description": "Optional hint on how to verify it."
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "text"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "content"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "update_goal",
+          "description": "Append an incremental update to the current goal. Use when the goal evolves; it does not rewrite the original goal.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "note": {
+                "type": "string",
+                "description": "Goal update note. Required."
+              }
+            },
+            "required": [
+              "note"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "get_goal",
+          "description": "Read the current goal installed on this chat. Returns merged goal content, status, version, delta count, budget counters, latest verifier verdict, and gaps.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "validate_goal",
+          "description": "Validate the chat's active goal against its success criteria. If met, the goal is marked complete and pursuit stops; otherwise returns the remaining gaps.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "pause_goal",
+          "description": "Pause autonomous pursuit of the active goal when you are blocked or waiting on the user. Pursuit stays paused until the user resumes it (goal_control) — use snooze_goal instead for a timed wait.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "reason": {
+                "type": "string",
+                "description": "Short reason why pursuit is paused."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "snooze_goal",
+          "description": "Suspend goal-pursuit nudges for a bounded time (e.g. while waiting for CI or a background process). The goal stays active; pursuit resumes automatically after the snooze or on the next user message.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "minutes": {
+                "type": "integer",
+                "description": "How long to snooze pursuit, in minutes (1-1440)."
+              },
+              "reason": {
+                "type": "string",
+                "description": "Short reason for the snooze."
+              }
+            },
+            "required": [
+              "minutes"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_start",
+          "description": "Start a runtime-owned background or service process and return its process ID, initial status, output cursor, and metadata. Set tty=true only when a command needs PTY behavior: it enables interactive stdin and reduces pipe buffering, but merges stdout and stderr into one combined stream.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "command": {
+                "type": "string",
+                "description": "Command to start."
+              },
+              "description": {
+                "type": "string",
+                "description": "Required. A single concise active-voice sentence describing what the command does. Short for simple commands: 'Start development server'. More descriptive for piped/obscure commands: 'Build and tail log output in background'. Never use words like 'complex' or 'risk'."
+              },
+              "workdir": {
+                "type": "string",
+                "description": "Optional working directory."
+              },
+              "mode": {
+                "type": "string",
+                "description": "Optional mode: background or service. Default: background."
+              },
+              "service_name": {
+                "type": "string",
+                "description": "Optional service name stored in process metadata."
+              },
+              "startup_wait_ms": {
+                "type": "integer",
+                "description": "Optional milliseconds to wait before returning the initial snapshot."
+              },
+              "startup_wait_port": {
+                "type": "integer",
+                "description": "Optional readiness port stored with startup metadata."
+              },
+              "startup_wait_keyword": {
+                "type": "string",
+                "description": "Optional readiness keyword stored with startup metadata."
+              },
+              "tty": {
+                "type": "boolean",
+                "default": false,
+                "description": "If true, run the command attached to a pseudo-terminal (PTY). Enables interactive stdin via process_write_stdin and merges stdout+stderr into a single combined stream. Defeats some pipe-only output buffering. Defaults to false."
+              }
+            },
+            "required": [
+              "command",
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_list",
+          "description": "List runtime-owned processes by status and owner scope.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "description": "Optional status filter: running, completed, or all. Default: running."
+              },
+              "scope": {
+                "type": "string",
+                "description": "Optional scope filter: chat, workspace, or all. Default: chat."
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_read",
+          "description": "Read buffered output from a runtime-owned process using a sequence cursor and optional stream/output filters.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string",
+                "description": "Runtime-owned process ID returned by process_start."
+              },
+              "since_seq": {
+                "type": "integer",
+                "description": "Optional output sequence cursor. Default: 0."
+              },
+              "stream": {
+                "type": "string",
+                "description": "Optional stream: stdout, stderr, combined, or all. Default: combined."
+              },
+              "from_disk": {
+                "type": "boolean",
+                "description": "Optional. If true and persisted output exists, read the full on-disk transcript instead of the in-memory ring."
+              },
+              "output_filter": {
+                "type": "string",
+                "description": "Optional regex filter for output lines."
+              },
+              "output_limit": {
+                "type": "string",
+                "description": "Optional max lines to show, or all/full for unlimited output."
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_wait",
+          "description": "Wait for a runtime-owned process to complete, or return the current snapshot when timeout_ms expires.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string",
+                "description": "Runtime-owned process ID returned by process_start."
+              },
+              "timeout_ms": {
+                "type": "integer",
+                "description": "Optional timeout in milliseconds."
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_kill",
+          "description": "Kill a runtime-owned process by process ID without routing through shell command confirmation.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string",
+                "description": "Runtime-owned process ID returned by process_start."
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_write_stdin",
+          "description": "Write input to a running PTY-backed process's stdin (process must be started with tty=true) and wait briefly for new output. Pass empty 'chars' to poll for new output without writing.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string"
+              },
+              "chars": {
+                "type": "string",
+                "default": ""
+              },
+              "yield_time_ms": {
+                "type": "integer",
+                "default": 250,
+                "minimum": 0,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "process_subscribe",
+          "description": "Subscribe to a running process's stdout for a bounded window. Each output line that matches the optional regex_filter is injected as a notification event in the chat. Auto-cancels when the process exits or after max_duration_ms. Useful for waiting for 'ready' markers, watching for failures, etc.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "process_id": {
+                "type": "string"
+              },
+              "regex_filter": {
+                "type": "string",
+                "description": "Optional regex. Only matching lines fire notifications. Empty = all lines."
+              },
+              "max_duration_ms": {
+                "type": "integer",
+                "default": 30000,
+                "minimum": 1000,
+                "maximum": 600000
+              },
+              "max_events": {
+                "type": "integer",
+                "default": 100,
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "max_line_bytes": {
+                "type": "integer",
+                "default": 8192,
+                "minimum": 11,
+                "maximum": 65536
+              }
+            },
+            "required": [
+              "process_id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "clean_background_processes",
+          "description": "Kill and reap all non-terminal background processes owned by the current chat. Use to clean up after experiments. `scope=chat` (default) is available in normal chats. `scope=workspace`, `scope=all`, and `include_services=true` can execute only from planner/admin context and cannot be used by normal agents.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "chat",
+                  "owner",
+                  "workspace",
+                  "all"
+                ],
+                "default": "chat",
+                "description": "Which set of processes to target. `chat` (default) kills processes owned by the current chat — available in normal chats. `owner` is a compatibility alias for `chat`. `workspace` kills processes in the active workspace and can execute only from planner/admin context. `all` kills every process globally and can execute only from planner/admin context."
+              },
+              "include_services": {
+                "type": "boolean",
+                "default": false,
+                "description": "Also kill Service-mode processes. Can execute only from planner/admin context; normal agents must leave this false."
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "sleep",
+          "description": "Wait for the specified duration. User-interruptible at any time. Use when you have nothing to do, when waiting for something, or when the user asks you to pause. Prefer this over Bash(sleep ...) — it doesn't hold a shell process. You can call this concurrently with other tools.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "duration_ms": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 3600000,
+                "description": "Sleep duration in ms (max 1h)."
+              },
+              "tick_interval_ms": {
+                "type": "integer",
+                "minimum": 5000,
+                "description": "Optional. If set, tick markers are collected during sleep and enqueued after the sleep tool result to preserve provider tool-result ordering. Sleep remains user-interruptible at any time."
+              },
+              "description": {
+                "type": "string",
+                "description": "Short description (≤80 chars)."
+              }
+            },
+            "required": [
+              "duration_ms",
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_create",
+          "description": "Schedule a prompt to be enqueued later. Use a standard 5-field cron expression (`minute hour day-of-month month day-of-week`) evaluated in the local timezone. Set `recurring` to true for repeated prompts or false for a one-shot prompt that is removed after it fires. Omit `durable` to persist in the current project when a project store exists; set it false for a session-only in-memory schedule. Scheduler jitter is applied automatically so jobs may run shortly after the exact cron instant. Recurring jobs auto-expire after 30 days unless canceled earlier.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "cron": {
+                "type": "string",
+                "description": "Standard 5-field cron expression in local time. Required unless every or at is set."
+              },
+              "every": {
+                "type": "string",
+                "description": "Interval such as 30m, 2h, or 1d. Mutually exclusive with cron and at."
+              },
+              "at": {
+                "type": "string",
+                "description": "One-shot time as RFC3339 or relative duration such as in 30m. Mutually exclusive with cron and every."
+              },
+              "trigger": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "webhook"
+                    ]
+                  },
+                  "hook_id": {
+                    "type": "string",
+                    "description": "Inbound daemon hook id that fires this job."
+                  }
+                },
+                "required": [
+                  "kind",
+                  "hook_id"
+                ],
+                "description": "Webhook trigger. Mutually exclusive with cron, every, and at. Webhook jobs never time-fire."
+              },
+              "hook_id": {
+                "type": "string",
+                "description": "Shortcut for trigger {kind:'webhook', hook_id}."
+              },
+              "tz": {
+                "type": "string",
+                "description": "IANA timezone for cron schedules, such as UTC or Asia/Kolkata."
+              },
+              "prompt": {
+                "type": "string",
+                "description": "Prompt enqueued at each fire time. Mutually exclusive with command and command_argv."
+              },
+              "command": {
+                "type": "string",
+                "description": "Command line to shell-split and run without an agent turn. Mutually exclusive with prompt and command_argv."
+              },
+              "command_argv": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Command argv to run without an agent turn. Mutually exclusive with prompt and command."
+              },
+              "cwd": {
+                "type": "string",
+                "description": "Optional command working directory, resolved under the active project."
+              },
+              "timeout_secs": {
+                "type": "integer",
+                "description": "Optional command timeout in seconds."
+              },
+              "delivery": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "chat",
+                      "none"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "webhook"
+                        ]
+                      },
+                      "url": {
+                        "type": "string"
+                      },
+                      "token": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "url"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "notifier"
+                        ]
+                      },
+                      "integration_id": {
+                        "type": "string"
+                      },
+                      "target": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "integration_id"
+                    ]
+                  }
+                ],
+                "description": "Delivery target: chat (default), none, webhook {url, token?}, or notifier {integration_id, target?}."
+              },
+              "recurring": {
+                "type": "boolean",
+                "default": true
+              },
+              "durable": {
+                "type": "boolean",
+                "description": "Persist in the current project when true; stay session-only when false. Omitted defaults to durable when a project store exists."
+              },
+              "isolated": {
+                "type": "boolean",
+                "default": false,
+                "description": "Create a fresh isolated chat session for each fire instead of enqueueing into the current chat."
+              },
+              "description": {
+                "type": "string",
+                "description": "Short description (≤80 chars) shown in cron_list UI."
+              }
+            },
+            "required": [
+              "description"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_list",
+          "description": "List scheduled tasks with target chat and mode, optionally filtering by session-only or durable scope.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "scope": {
+                "type": "string",
+                "enum": [
+                  "session",
+                  "durable",
+                  "all"
+                ],
+                "default": "all"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_delete",
+          "description": "Cancel a scheduled task by ID.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "cron_update",
+          "description": "Update, pause, resume, or run a scheduled task by ID.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "cron": {
+                "type": "string"
+              },
+              "every": {
+                "type": "string"
+              },
+              "at": {
+                "type": "string"
+              },
+              "tz": {
+                "type": "string"
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "run_now": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "compress_chat_probe",
+          "description": "Analyze the current chat and report token distribution plus potential compression gains.",
+          "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "compress_chat_apply",
+          "description": "Apply selective compression to the current chat using explicit drop/truncate lists.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "drop_context_files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of context file names to drop entirely"
+              },
+              "drop_memories": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Memory/knowledge file paths to drop"
+              },
+              "drop_context_messages": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Context-file message tool_call_id values to drop entirely"
+              },
+              "drop_all_memories": {
+                "type": "boolean",
+                "description": "Drop all memory/knowledge context files"
+              },
+              "truncate_tool_outputs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Tool call IDs to truncate"
+              },
+              "drop_tool_outputs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Tool call IDs to drop (replaced with a short placeholder)"
+              },
+              "dedup_context_files": {
+                "type": "boolean",
+                "description": "Deduplicate repeated context files"
+              },
+              "drop_project_information": {
+                "type": "boolean",
+                "description": "Drop system/project info messages"
+              },
+              "target_tokens": {
+                "type": "integer",
+                "description": "Target total token count after compression"
+              },
+              "strength": {
+                "type": "string",
+                "enum": [
+                  "conservative",
+                  "balanced",
+                  "aggressive"
+                ],
+                "description": "conservative=explicit ops only, balanced=+auto dedup, aggressive=+dedup and reports when LLM segment summarization is required"
+              },
+              "preserve_last_turns": {
+                "type": "integer",
+                "description": "Number of recent user/assistant turns to keep unmodified"
+              },
+              "dry_run": {
+                "type": "boolean",
+                "description": "Preview compression stats without applying changes"
+              }
+            },
+            "required": []
+          }
+        }
+      },
+      {
+        "type": "function",
+        "function": {
+          "name": "handoff_to_mode",
+          "description": "Create a new chat in another mode using the current conversation context.\n\nAvailable modes:\n- agent: Full multi-step workflow with tools and editing capabilities\n- ask: Quick Q&A with web research capability\n- brainstorming: Turn rough ideas into approved designs before planning or implementation\n- debug: Systematic bug diagnosis and root cause analysis\n- explore: Read-only exploration for context gathering without editing\n- learn: Understand code with clear explanations\n- past_work: Search conversation history and project knowledge\n- plan: Turn approved designs or requirements into precise implementation plans\n- quick_agent: Fast autonomous coding with minimal overhead\n- review: Autonomous code review that fans out waves of parallel reviews\n- setup: Analyze the project and configure Refact artifacts (AGENTS, commands, skills, subagents, integrations, knowledge)\n- shell: Execute shell commands for system tasks\n- ultra_agent: Deep autonomous coding mode with xhigh reasoning defaults, aggressive orchestration, subagents, delegates, and verificat...",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "target_mode": {
+                "type": "string",
+                "description": "Target mode ID. Available modes:\n- agent: Full multi-step workflow with tools and editing capabilities\n- ask: Quick Q&A with web research capability\n- brainstorming: Turn rough ideas into approved designs before planning or implementation\n- debug: Systematic bug diagnosis and root cause analysis\n- explore: Read-only exploration for context gathering without editing\n- learn: Understand code with clear explanations\n- past_work: Search conversation history and project knowledge\n- plan: Turn approved designs or requirements into precise implementation plans\n- quick_agent: Fast autonomous coding with minimal overhead\n- review: Autonomous code review that fans out waves of parallel reviews\n- setup: Analyze the project and configure Refact artifacts (AGENTS, commands, skills, subagents, integrations, knowledge)\n- shell: Execute shell commands for system tasks\n- ultra_agent: Deep autonomous coding mode with xhigh reasoning defaults, aggressive orchestration, subagents, delegates, and verificat...",
+                "enum": [
+                  "agent",
+                  "ask",
+                  "brainstorming",
+                  "debug",
+                  "explore",
+                  "learn",
+                  "past_work",
+                  "plan",
+                  "quick_agent",
+                  "review",
+                  "setup",
+                  "shell",
+                  "ultra_agent"
+                ]
+              },
+              "reason": {
+                "type": "string",
+                "description": "Why the new mode is appropriate"
+              },
+              "summary": {
+                "type": "string",
+                "description": "Optional summary to include in the handoff context"
+              },
+              "context_summary": {
+                "type": "string",
+                "description": "Summary of what has been done and what to continue"
+              },
+              "files_to_open": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "File paths to include in the new chat"
+              },
+              "key_files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Key files to carry over (alias of files_to_open)"
+              },
+              "messages_to_preserve": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "MSG_ID entries to preserve verbatim"
+              },
+              "memories_to_include": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Memory/knowledge file paths to include"
+              },
+              "tool_outputs_to_include": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "MSG_ID entries of tool outputs to include"
+              },
+              "pending_tasks": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Pending tasks to carry forward"
+              },
+              "handoff_message": {
+                "type": "string",
+                "description": "Short handoff message for the new chat"
+              },
+              "initial_plan": {
+                "type": "string",
+                "description": "Optional plan text to save as the initial task document when target_mode is task_planner"
+              }
+            },
+            "required": [
+              "target_mode"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "root_chat_id": "20484d1b-3561-4888-ad7f-a99d27433cc6",
+  "updated_at": "2026-08-21T02:32:10.467560057+00:00"
+}

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-21T02:32:10.470729986+00:00",
+  "entries": [
+    {
+      "id": "c7d88a4e-3300-44a0-af97-c31d9092ad36",
+      "file_name": "c7d88a4e-3300-44a0-af97-c31d9092ad36.json",
+      "source": {
+        "kind": "normal"
+      },
+      "created_at": "2026-08-21T02:28:52.520513290+00:00",
+      "updated_at": "2026-08-21T02:31:00.576949573+00:00",
+      "title": "Start project setup for this repository.",
+      "model": "",
+      "mode": "setup",
+      "message_count": 5,
+      "root_chat_id": "c7d88a4e-3300-44a0-af97-c31d9092ad36",
+      "is_title_generated": true,
+      "total_lines_added": 0,
+      "total_lines_removed": 0,
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "tasks_failed": 0,
+      "total_prompt_tokens": 0,
+      "total_completion_tokens": 0,
+      "total_tokens": 0,
+      "total_cache_read_tokens": 0,
+      "total_cache_creation_tokens": 0,
+      "displayable_chat": true,
+      "waiting_for_card_ids": [],
+      "file_len": 104540,
+      "file_modified_unix_ms": 1787279460578
+    },
+    {
+      "id": "20484d1b-3561-4888-ad7f-a99d27433cc6",
+      "file_name": "20484d1b-3561-4888-ad7f-a99d27433cc6.json",
+      "source": {
+        "kind": "normal"
+      },
+      "created_at": "2026-08-21T02:31:03.434410325+00:00",
+      "updated_at": "2026-08-21T02:32:10.467560057+00:00",
+      "title": "hello?",
+      "model": "custom/qwen-3.8-max-free",
+      "mode": "agent",
+      "message_count": 5,
+      "root_chat_id": "20484d1b-3561-4888-ad7f-a99d27433cc6",
+      "is_title_generated": true,
+      "total_lines_added": 0,
+      "total_lines_removed": 0,
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "tasks_failed": 0,
+      "total_prompt_tokens": 0,
+      "total_completion_tokens": 0,
+      "total_tokens": 0,
+      "total_cache_read_tokens": 0,
+      "total_cache_creation_tokens": 0,
+      "displayable_chat": true,
+      "waiting_for_card_ids": [],
+      "file_len": 117284,
+      "file_modified_unix_ms": 1787279530466
+    }
+  ]
+}

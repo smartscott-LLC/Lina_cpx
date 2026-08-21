@@ -24,7 +24,6 @@ namespace lina::storage {
 
 struct TranscriptEntry {
     std::string id;
-    std::string user_id;
     std::string session_id;
     std::string role;
     std::string content;
@@ -35,7 +34,6 @@ struct TranscriptEntry {
 
 struct SessionRecord {
     std::string id;
-    std::string user_id;
     int session_number;
     std::string season;
     std::string depth;
@@ -59,7 +57,6 @@ struct ActionRecord {
 // delivered or withheld response records its coordinates and verdict so the
 // accumulated outcomes (the "unpleasant memories") shape where she dwells.
 struct EvaluationRecord {
-    std::string user_id;
     std::string session_id;
     std::string response_text;
     std::vector<double> input_vector;     // her encoder's read of the draft
@@ -85,7 +82,6 @@ struct TelemetryLogRecord {
 };
 
 struct IdentityRecord {
-    std::string user_id;
     std::string current_season;
     std::string relationship_depth;
     std::string self_description;
@@ -100,10 +96,10 @@ class StorageBackend {
 public:
     virtual ~StorageBackend() = default;
 
-    // --- Identity ---
-    virtual IdentityRecord get_identity(const std::string& user_id) = 0;
+    // --- Identity (Lina is one entity — no user state, D-050) ---
+    virtual IdentityRecord get_identity() = 0;
     virtual void update_identity(const IdentityRecord& identity) = 0;
-    virtual int get_session_number(const std::string& user_id) = 0;
+    virtual int get_session_number() = 0;
 
     // --- Memory Vectors ---
     virtual void store_memory_item(const memory_module::MemoryItem& item) = 0;
@@ -119,7 +115,6 @@ public:
         const memory_module::MemoryItemRow& row) = 0;
     virtual void delete_memory_item(const std::string& item_id) = 0;
     virtual void log_memory_promotion(
-        const std::string& user_id,
         const std::string& item_id,
         const std::string& from_stage,
         const std::string& to_stage,
@@ -129,7 +124,7 @@ public:
     // --- Transcripts ---
     virtual void store_transcript(const TranscriptEntry& entry) = 0;
     virtual std::vector<TranscriptEntry> get_transcripts(
-        const std::string& user_id, const std::string& session_id) = 0;
+        const std::string& session_id) = 0;
 
     // --- Sessions ---
     virtual void create_session(const SessionRecord& session) = 0;
@@ -148,11 +143,12 @@ public:
     // Her season advancement wants real human-in-the-loop outcomes.
     virtual std::pair<int, int> action_resolution_stats() = 0;
     virtual int count_memories_by_kind(const std::string& kind) = 0;
+    virtual int count_memories() = 0;  // NEW: Count ALL memories (all kinds)
+    virtual int count_qualifying_memories() = 0;
 
     // D-047: the evaluation ledger — outcomes, persisted.
     virtual void store_evaluation(const EvaluationRecord& record) = 0;
-    virtual std::vector<EvaluationRecord> fetch_evaluations(
-        const std::string& user_id, int limit) = 0;
+    virtual std::vector<EvaluationRecord> fetch_evaluations(int limit) = 0;
 
     // --- Telemetry (D-043) — the technical bus, persistent (Invariant 6) ---
     virtual void append_telemetry_log(

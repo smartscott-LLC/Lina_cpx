@@ -13,6 +13,8 @@
 
 #include "postgres_backend.hpp"
 
+#include <libpq-fe.h>
+
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -52,20 +54,39 @@ static int g_failures = 0;
 
 static std::string test_conn_string() {
     const char* env = std::getenv("LINA_TEST_DB");
-    // NOTE: this dev machine's cluster listens on 5433 — port 5432 is a
-    // Docker container's postgres (see AGENTS.md §7).
-    return env ? std::string(env) : "postgresql://lina:lina@localhost:5433/lina";
+    // Dedicated test world (D-050) — the suite must not write into her live banks.
+    return env ? std::string(env) : "postgresql://lina:lina@localhost:5433/lina_test";
 }
 
-static std::string unique_user() {
+// A run-unique token so repeated runs never collide on primary keys (Lina is
+// one entity — there is no user to isolate by anymore, D-050).
+static std::string run_token() {
     auto now = std::chrono::system_clock::now().time_since_epoch().count();
     return "itest_" + std::to_string(now);
 }
 
-// Item/session/action ids are prefixed with the unique user so repeated runs
+// Item/session/action ids are prefixed with the run token so repeated runs
 // never collide on primary keys.
-static std::string mid(const std::string& user, const char* name) {
-    return user + "_" + name;
+static std::string mid(const std::string& run, const char* name) {
+    return run + "_" + name;
+}
+
+// A fresh world per run: Lina is one entity, so the suite wipes the test
+// database's state before it starts (identity back to spring, ledger and
+// banks empty).
+static void wipe_test_db(const std::string& conn) {
+    PGconn* c = PQconnectdb(conn.c_str());
+    if (!c || PQstatus(c) != CONNECTION_OK) {
+        if (c) PQfinish(c);
+        return;
+    }
+    PQexec(c, "TRUNCATE lina_evaluations, lina_sessions, lina_memory_items, "
+              "lina_transcripts, lina_memory_promotions, lina_actions "
+              "RESTART IDENTITY CASCADE");
+    PQexec(c, "UPDATE lina_identity_core SET current_season='spring', "
+              "relationship_depth='new', session_count=0, total_evaluations=0, "
+              "alignment_rate=0");
+    PQfinish(c);
 }
 
 static std::vector<double> coords(std::initializer_list<double> vals) {
@@ -73,9 +94,9 @@ static std::vector<double> coords(std::initializer_list<double> vals) {
     return v;
 }
 
-static void test_identity(PostgresBackend& db, const std::string& user) {
+static void test_identity(PostgresBackend& db) {
     // Default identity is created on first access.
-    auto id = db.get_identity(user);
+    auto id = db.get_identity();
     CHECK(id.current_season == "spring");
     CHECK(id.relationship_depth == "new");
     CHECK(id.session_count == 0);
@@ -90,7 +111,7 @@ static void test_identity(PostgresBackend& db, const std::string& user) {
     id.self_description = "learning to listen";
     db.update_identity(id);
 
-    auto reloaded = db.get_identity(user);
+    auto reloaded = db.get_identity();
     CHECK(reloaded.current_season == "summer");
     CHECK(reloaded.session_count == 3);
     CHECK(reloaded.total_evaluations == 40);
@@ -98,13 +119,12 @@ static void test_identity(PostgresBackend& db, const std::string& user) {
     CHECK(reloaded.self_description == "learning to listen");
 
     // Session number = count + 1.
-    CHECK(db.get_session_number(user) == 4);
+    CHECK(db.get_session_number() == 4);
 }
 
-static void test_memory_roundtrip(PostgresBackend& db, const std::string& user) {
+static void test_memory_roundtrip(PostgresBackend& db, const std::string& run) {
     MemoryItem item;
-    item.item_id = mid(user, "roundtrip");
-    item.user_id = user;
+    item.item_id = mid(run, "roundtrip");
     item.narrative = "we built the foundation together";
     item.hemisphere = "personal";
     item.ethical_coordinates = coords({
@@ -128,7 +148,7 @@ static void test_memory_roundtrip(PostgresBackend& db, const std::string& user) 
 
     db.store_memory_item(item);
 
-    auto loaded = db.load_memory_item(mid(user, "roundtrip"));
+    auto loaded = db.load_memory_item(mid(run, "roundtrip"));
     CHECK(loaded.has_value());
     if (loaded) {
         CHECK(loaded->narrative == item.narrative);
@@ -147,52 +167,50 @@ static void test_memory_roundtrip(PostgresBackend& db, const std::string& user) 
         CHECK_NEAR(loaded->ethical_coordinates[13], 0.25, 1e-6);
     }
 
-    db.delete_memory_item(mid(user, "roundtrip"));
-    CHECK(!db.load_memory_item(mid(user, "roundtrip")).has_value());
+    db.delete_memory_item(mid(run, "roundtrip"));
+    CHECK(!db.load_memory_item(mid(run, "roundtrip")).has_value());
 }
 
-static void test_tier_operations(PostgresBackend& db, const std::string& user) {
+static void test_tier_operations(PostgresBackend& db, const std::string& run) {
     MemoryItem item;
-    item.item_id = mid(user, "tier1");
-    item.user_id = user;
+    item.item_id = mid(run, "tier1");
     item.narrative = "a tiered moment";
     item.importance_score = 3.2;
     item.ethical_coordinates = coords({0.6, 0.3, 0.6, 0.2, 0.7, 0.1, 0.6,
                                        0.2, 0.7, 0.2, 0.7, 0.2, 0.6, 0.3});
 
     db.store_tier("t1", item);
-    CHECK(db.has_tier("t1", mid(user, "tier1")));
-    CHECK(!db.has_tier("t2", mid(user, "tier1")));
+    CHECK(db.has_tier("t1", mid(run, "tier1")));
+    CHECK(!db.has_tier("t2", mid(run, "tier1")));
 
-    auto loaded = db.load_tier("t1", mid(user, "tier1"));
+    auto loaded = db.load_tier("t1", mid(run, "tier1"));
     CHECK(loaded.has_value());
     CHECK(loaded->narrative == "a tiered moment");
 
     auto scanned = db.scan_tier("t1");
     bool found = false;
     for (auto& [id, it] : scanned) {
-        if (id == mid(user, "tier1")) found = true;
+        if (id == mid(run, "tier1")) found = true;
     }
     CHECK(found);
 
-    db.delete_tier("t1", mid(user, "tier1"));
-    CHECK(!db.has_tier("t1", mid(user, "tier1")));
+    db.delete_tier("t1", mid(run, "tier1"));
+    CHECK(!db.has_tier("t1", mid(run, "tier1")));
 
     // Long-term + status lifecycle.
-    item.item_id = mid(user, "lt");
+    item.item_id = mid(run, "lt");
     item.importance_score = 6.0;
     db.store_long_term(item, "active");
     auto active = db.fetch_memories_by_status("active");
     bool found_lt = false;
     for (const auto& row : active) {
-        if (row.item_id == mid(user, "lt")) found_lt = true;
+        if (row.item_id == mid(run, "lt")) found_lt = true;
     }
     CHECK(found_lt);
 
     // Status transition via update.
     MemoryItemRow row;
-    row.item_id = mid(user, "lt");
-    row.user_id = user;
+    row.item_id = mid(run, "lt");
     row.importance_score = 3.5;
     row.status = "subconscious";
     row.reference_count = 0;
@@ -201,24 +219,24 @@ static void test_tier_operations(PostgresBackend& db, const std::string& user) {
     auto sub = db.fetch_memories_by_status("subconscious");
     bool found_sub = false;
     for (const auto& r : sub) {
-        if (r.item_id == mid(user, "lt")) found_sub = true;
+        if (r.item_id == mid(run, "lt")) found_sub = true;
     }
     CHECK(found_sub);
 
-    db.delete_memory_item(mid(user, "lt"));
+    db.delete_memory_item(mid(run, "lt"));
 }
 
-static void test_vector_search(PostgresBackend& db, const std::string& user) {
+static void test_vector_search(PostgresBackend& db, const std::string& run) {
     // Run-unique perturbation so THIS run's vectors are strictly nearest to
     // themselves (the search is global — no user filter — and earlier runs
     // leave identical rows behind).
-    double off = static_cast<double>(std::hash<std::string>{}(user) % 997)
+    double off = static_cast<double>(std::hash<std::string>{}(run) % 997)
                  * 1e-5;
 
     // Two memories with clearly distinct ethical coordinates.
     MemoryItem a;
-    a.item_id = mid(user, "veca");
-    a.user_id = user;
+    a.item_id = mid(run, "veca");
+    a.narrative = "a bright and hopeful memory";
     a.narrative = "harmonious memory";
     a.importance_score = 6.0;
     a.ethical_coordinates = coords({
@@ -228,8 +246,7 @@ static void test_vector_search(PostgresBackend& db, const std::string& user) {
     db.store_long_term(a, "active");
 
     MemoryItem b;
-    b.item_id = mid(user, "vecb");
-    b.user_id = user;
+    b.item_id = mid(run, "vecb");
     b.narrative = "shadowed memory";
     b.importance_score = 6.0;
     b.ethical_coordinates = coords({
@@ -242,19 +259,18 @@ static void test_vector_search(PostgresBackend& db, const std::string& user) {
     auto results = db.search_memories_by_ethical_vector(a.ethical_coordinates, 5);
     CHECK(!results.empty());
     if (!results.empty()) {
-        CHECK(results[0].item_id == mid(user, "veca"));
+        CHECK(results[0].item_id == mid(run, "veca"));
         CHECK_NEAR(results[0].ethical_coordinates[0], 0.95 + off, 1e-6);
     }
 
-    db.delete_memory_item(mid(user, "veca"));
-    db.delete_memory_item(mid(user, "vecb"));
+    db.delete_memory_item(mid(run, "veca"));
+    db.delete_memory_item(mid(run, "vecb"));
 }
 
-static void test_transcripts(PostgresBackend& db, const std::string& user) {
+static void test_transcripts(PostgresBackend& db, const std::string& run) {
     TranscriptEntry entry;
-    entry.id = mid(user, "t1");
-    entry.user_id = user;
-    entry.session_id = mid(user, "sess");
+    entry.id = mid(run, "t1");
+    entry.session_id = mid(run, "sess");
     entry.role = "user";
     entry.content = "hello LINA";
     entry.msg_type = "";
@@ -262,28 +278,26 @@ static void test_transcripts(PostgresBackend& db, const std::string& user) {
     db.store_transcript(entry);
 
     TranscriptEntry reply;
-    reply.id = mid(user, "t2");
-    reply.user_id = user;
-    reply.session_id = mid(user, "sess");
+    reply.id = mid(run, "t2");
+    reply.session_id = mid(run, "sess");
     reply.role = "assistant";
     reply.content = "I am here.";
     db.store_transcript(reply);
 
-    auto turns = db.get_transcripts(user, mid(user, "sess"));
+    auto turns = db.get_transcripts(mid(run, "sess"));
     CHECK(turns.size() == 2);
     if (turns.size() == 2) {
         CHECK(turns[0].content == "hello LINA");
         CHECK(turns[1].content == "I am here.");
     }
 
-    // Other user's transcripts are invisible.
-    CHECK(db.get_transcripts("someone_else", mid(user, "sess")).empty());
+    // Lina is ONE entity — the transcripts for her session are all there.
+    CHECK(db.get_transcripts(mid(run, "sess")).size() == 2);
 }
 
-static void test_sessions(PostgresBackend& db, const std::string& user) {
+static void test_sessions(PostgresBackend& db, const std::string& run) {
     SessionRecord session;
-    session.id = mid(user, "sess");
-    session.user_id = user;
+    session.id = mid(run, "sess");
     session.session_number = 1;
     session.season = "spring";
     session.depth = "new";
@@ -292,7 +306,7 @@ static void test_sessions(PostgresBackend& db, const std::string& user) {
     session.finalized_at = "";
     db.create_session(session);
 
-    auto loaded = db.get_session(mid(user, "sess"));
+    auto loaded = db.get_session(mid(run, "sess"));
     CHECK(loaded.has_value());
     if (loaded) {
         CHECK(loaded->session_number == 1);
@@ -300,8 +314,8 @@ static void test_sessions(PostgresBackend& db, const std::string& user) {
         CHECK(!loaded->finalized);
     }
 
-    db.finalize_session(mid(user, "sess"));
-    auto finalized = db.get_session(mid(user, "sess"));
+    db.finalize_session(mid(run, "sess"));
+    auto finalized = db.get_session(mid(run, "sess"));
     CHECK(finalized.has_value());
     CHECK(finalized->finalized);
 
@@ -333,9 +347,9 @@ static void test_telemetry_logs(PostgresBackend& db) {
     CHECK(saw_tool);
 }
 
-static void test_actions(PostgresBackend& db, const std::string& user) {
+static void test_actions(PostgresBackend& db, const std::string& run) {
     ActionRecord action;
-    action.id = mid(user, "act");
+    action.id = mid(run, "act");
     action.tool_name = "file_write";
     action.params_json = "{\"path\":\"/tmp/x\"}";
     action.state = "pending";
@@ -348,35 +362,34 @@ static void test_actions(PostgresBackend& db, const std::string& user) {
     auto pending = db.get_pending_actions();
     bool found = false;
     for (const auto& a : pending) {
-        if (a.id == mid(user, "act")) found = true;
+        if (a.id == mid(run, "act")) found = true;
     }
     CHECK(found);
 
-    auto loaded = db.load_action(mid(user, "act"));
+    auto loaded = db.load_action(mid(run, "act"));
     CHECK(loaded.has_value());
     CHECK(loaded->tool_name == "file_write");
 
-    db.update_action_state(mid(user, "act"), "approved");
-    auto updated = db.load_action(mid(user, "act"));
+    db.update_action_state(mid(run, "act"), "approved");
+    auto updated = db.load_action(mid(run, "act"));
     CHECK(updated->state == "approved");
 
     bool still_pending = false;
     for (const auto& a : db.get_pending_actions()) {
-        if (a.id == mid(user, "act")) still_pending = true;
+        if (a.id == mid(run, "act")) still_pending = true;
     }
     CHECK(!still_pending);
 }
 
-static void test_promotion_log(PostgresBackend& db, const std::string& user) {
-    db.log_memory_promotion(user, mid(user, "promo"), "t2", "t3", 4.2,
+static void test_promotion_log(PostgresBackend& db, const std::string& run) {
+    db.log_memory_promotion(mid(run, "promo"), "t2", "t3", 4.2,
                             "Sweep - promotion");
 }
 
 // D-047: the evaluation ledger — the outcomes her drift learns from.
-static void test_evaluation_ledger(PostgresBackend& db, const std::string& user) {
+static void test_evaluation_ledger(PostgresBackend& db, const std::string& run) {
     EvaluationRecord record;
-    record.user_id = user;
-    record.session_id = mid(user, "sess");
+    record.session_id = mid(run, "sess");
     record.response_text = "I am here with you, and I want to help you grow";
     record.input_vector = {0.60, 0.20, 0.70, 0.10, 0.80, 0.05,
                            0.65, 0.15, 0.75, 0.10, 0.70, 0.10, 0.60, 0.20};
@@ -390,8 +403,7 @@ static void test_evaluation_ledger(PostgresBackend& db, const std::string& user)
     db.store_evaluation(record);
 
     EvaluationRecord adverse;
-    adverse.user_id = user;
-    adverse.session_id = mid(user, "sess");
+    adverse.session_id = mid(run, "sess");
     adverse.response_text = "whatever, random, no plan, just wing it, chaos";
     adverse.input_vector = {0.30, 0.55, 0.32, 0.48, 0.30, 0.50,
                             0.30, 0.55, 0.35, 0.45, 0.35, 0.45, 0.30, 0.50};
@@ -405,7 +417,7 @@ static void test_evaluation_ledger(PostgresBackend& db, const std::string& user)
     adverse.season = "spring";
     db.store_evaluation(adverse);
 
-    auto fetched = db.fetch_evaluations(user, 10);
+    auto fetched = db.fetch_evaluations(10);
     bool saw_aligned = false;
     bool saw_violation = false;
     for (const auto& e : fetched) {
@@ -420,8 +432,7 @@ static void test_evaluation_ledger(PostgresBackend& db, const std::string& user)
     CHECK(saw_violation);
 }
 
-static void test_memory_module_integration(std::shared_ptr<PostgresBackend> db,
-                                           const std::string& user)
+static void test_memory_module_integration(std::shared_ptr<PostgresBackend> db)
 {
     // The MemoryModule works against PostgresBackend through the MemoryStore
     // interface (D-005/D-031): ingest a trigger, sweep, and maintain.
@@ -431,7 +442,7 @@ static void test_memory_module_integration(std::shared_ptr<PostgresBackend> db,
     MemoryModule module(engine, nullptr, store);
 
     auto item = module.ingest_trigger(
-        user, "this moment matters - remember it", "identity");
+        "this moment matters - remember it", "identity");
     CHECK(item.has_value());
     CHECK(item->importance_score >= TRIGGER_RETENTION_FLOOR);
 
@@ -455,21 +466,23 @@ static void test_memory_module_integration(std::shared_ptr<PostgresBackend> db,
 
 int main() {
     try {
-        auto db = std::make_shared<PostgresBackend>(test_conn_string());
-        std::string user = unique_user();
-        std::cout << "storage_tests: user " << user << "\n";
+        const std::string conn = test_conn_string();
+        wipe_test_db(conn); // fresh world: one entity, no user state (D-050)
+        auto db = std::make_shared<PostgresBackend>(conn);
+        std::string run = run_token();
+        std::cout << "storage_tests: run " << run << "\n";
 
-        test_identity(*db, user);
-        test_memory_roundtrip(*db, user);
-        test_tier_operations(*db, user);
-        test_vector_search(*db, user);
-        test_transcripts(*db, user);
-        test_sessions(*db, user);
+        test_identity(*db);
+        test_memory_roundtrip(*db, run);
+        test_tier_operations(*db, run);
+        test_vector_search(*db, run);
+        test_transcripts(*db, run);
+        test_sessions(*db, run);
         test_telemetry_logs(*db);
-        test_actions(*db, user);
-        test_promotion_log(*db, user);
-        test_evaluation_ledger(*db, user);
-        test_memory_module_integration(db, user);
+        test_actions(*db, run);
+        test_promotion_log(*db, run);
+        test_evaluation_ledger(*db, run);
+        test_memory_module_integration(db);
     } catch (const std::exception& e) {
         std::cerr << "storage_tests: FATAL: " << e.what() << "\n";
         return 1;

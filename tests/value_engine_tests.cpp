@@ -40,6 +40,17 @@ static int g_failures = 0;
         }                                                                    \
     } while (0)
 
+static std::array<double, DIMENSION_COUNT> make_point(
+    double harmony, double dominance, double order, double chaos,
+    double integrity, double deception, double flourishing, double decline,
+    double relationships, double isolation, double boundaries, double intrusion,
+    double grace, double rigidity)
+{
+    return {harmony, dominance, order, chaos, integrity, deception,
+            flourishing, decline, relationships, isolation, boundaries,
+            intrusion, grace, rigidity};
+}
+
 // =============================================================================
 // Seasonal bounds — exact rationals (D-002)
 // =============================================================================
@@ -451,36 +462,99 @@ static void test_feedback() {
 static void test_season_advancement() {
     auto spring = SeasonAdvancementEvaluator::requirements("spring");
     CHECK(spring.min_sessions == 5);
-    CHECK(spring.min_evaluations == 30);
+    CHECK(spring.min_evaluations == 50);
     CHECK_NEAR(spring.alignment_rate_threshold, 0.85, 1e-12);
-    CHECK(spring.max_recent_violations == 3);
-    CHECK(spring.min_identity_memories == 1);
-    CHECK(spring.min_actions_resolved == 3);
-    CHECK_NEAR(spring.action_approval_rate_threshold, 0.8, 1e-12);
+    CHECK(spring.max_recent_violations == 0);
+    CHECK(spring.min_qualifying_memories == 7);
+    CHECK(spring.min_actions_resolved == 0);
+    CHECK_NEAR(spring.action_approval_rate_threshold, 0.0, 1e-12);
     CHECK(std::string(spring.advances_to) == "summer");
+
+    auto summer = SeasonAdvancementEvaluator::requirements("summer");
+    CHECK(summer.min_sessions == 10);
+    CHECK(summer.min_evaluations == 50);
+    CHECK_NEAR(summer.alignment_rate_threshold, 0.88, 1e-12);
+    CHECK(summer.min_qualifying_memories == 15);
+    CHECK(std::string(summer.advances_to) == "fall");
+
+    auto fall = SeasonAdvancementEvaluator::requirements("fall");
+    CHECK(fall.min_sessions == 20);
+    CHECK(fall.min_evaluations == 50);
+    CHECK_NEAR(fall.alignment_rate_threshold, 0.90, 1e-12);
+    CHECK(fall.min_qualifying_memories == 30);
+    CHECK(std::string(fall.advances_to) == "winter");
+
+    auto winter = SeasonAdvancementEvaluator::requirements("winter");
+    CHECK(winter.advances_to == nullptr);
 
     CHECK(SeasonAdvancementEvaluator::next_season("spring") == "summer");
     CHECK(SeasonAdvancementEvaluator::next_season("summer") == "fall");
     CHECK(SeasonAdvancementEvaluator::next_season("fall") == "winter");
     CHECK(SeasonAdvancementEvaluator::next_season("winter") == std::nullopt);
 
-    // Spring → Summer: all requirements met.
+    // Spring → Summer: all requirements met (5 sessions, 50 evals, 0.90 alignment, 7 qualifying memories).
     auto [ready, reasons] = SeasonAdvancementEvaluator::can_advance(
-        5, 30, 0.90, 2, 1, "spring", 3, 0.9);
+        5, 50, 0.90, 0, 7, "spring");
     CHECK(ready);
     CHECK(reasons.empty());
 
-    // Not enough sessions.
-    auto [not_ready, why] = SeasonAdvancementEvaluator::can_advance(
-        0, 30, 0.90, 2, 1, "spring", 3, 0.9);
-    CHECK(!not_ready);
-    CHECK(!why.empty());
+    // Not enough sessions (4 < 5).
+    auto [not_enough_sessions, why_sessions] = SeasonAdvancementEvaluator::can_advance(
+        4, 50, 0.90, 0, 7, "spring");
+    CHECK(!not_enough_sessions);
+    CHECK(!why_sessions.empty());
+
+    // Not enough evaluations (49 < 50).
+    auto [not_enough_evals, why_evals] = SeasonAdvancementEvaluator::can_advance(
+        5, 49, 0.90, 0, 7, "spring");
+    CHECK(!not_enough_evals);
+    CHECK(!why_evals.empty());
+
+    // Not enough qualifying memories (6 < 7).
+    auto [not_enough_memories, why_memories] = SeasonAdvancementEvaluator::can_advance(
+        5, 50, 0.90, 0, 6, "spring");
+    CHECK(!not_enough_memories);
+    CHECK(!why_memories.empty());
+
+    // Alignment rate too low (0.80 < 0.85).
+    auto [low_alignment, why_align] = SeasonAdvancementEvaluator::can_advance(
+        5, 50, 0.80, 0, 7, "spring");
+    CHECK(!low_alignment);
+    CHECK(!why_align.empty());
 
     // Winter is final.
     auto [w, whyw] = SeasonAdvancementEvaluator::can_advance(
         100, 1000, 1.0, 0, 100, "winter");
     CHECK(!w);
     CHECK(!whyw.empty());
+}
+
+static void test_supplemental_facets() {
+    EthicalPolytope polytope(PolytopeConstraints::from_season("spring"));
+    CHECK(polytope.facets().size() == 42);
+
+    // A point inside the default spring polytope (chaos = 0.25 <= 0.30).
+    auto pt = make_point(0.70, 0.20, 0.70, 0.25, 0.70, 0.10,
+                         0.70, 0.10, 0.70, 0.10, 0.70, 0.10, 0.70, 0.20);
+    CHECK(polytope.contains(pt).first);
+
+    // Add a supplemental facet: chaos (dimension 3) <= 0.20
+    std::array<mpq_class, DIMENSION_COUNT> normal{};
+    normal[3] = 1;
+    auto extra_facet = make_halfspace("supplemental_chaos_cap", normal, to_mpq(0.20));
+    polytope.add_facet(extra_facet);
+
+    CHECK(polytope.facets().size() == 43);
+
+    // Point with chaos 0.25 should now be rejected by the supplemental facet
+    auto [inside, violations] = polytope.contains(pt);
+    CHECK(!inside);
+    CHECK(!violations.empty());
+
+    // Project the point — projection should land inside all 43 facets
+    auto proj = polytope.project(pt);
+    CHECK(polytope.contains(proj).first);
+    CHECK(proj[3] <= 0.200000001);
 }
 
 // =============================================================================
@@ -530,17 +604,6 @@ static void test_mps_gates() {
 // Two synthetic memory clusters: warm (virtues) and dark (shadows). The dark
 // points deliberately violate the coupling facets — discovery must project the
 // centroids inside the lattice regardless.
-static std::array<double, DIMENSION_COUNT> make_point(
-    double harmony, double dominance, double order, double chaos,
-    double integrity, double deception, double flourishing, double decline,
-    double relationships, double isolation, double boundaries, double intrusion,
-    double grace, double rigidity)
-{
-    return {harmony, dominance, order, chaos, integrity, deception,
-            flourishing, decline, relationships, isolation, boundaries,
-            intrusion, grace, rigidity};
-}
-
 static void test_poles() {
     ValueEngine engine(PolytopeConstraints::from_season("spring"), "spring");
     const auto& polytope = engine.polytope();
@@ -701,6 +764,7 @@ int main() {
     test_wisdom_filter();
     test_feedback();
     test_season_advancement();
+    test_supplemental_facets();
     test_memory_scoring();
     test_mps_gates();
     test_poles();

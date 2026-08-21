@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-21T02:08:08.978821365+00:00",
+  "entries": [
+    {
+      "id": "addaa74c-7567-4db5-b313-2a404d1ff8f8",
+      "file_name": "addaa74c-7567-4db5-b313-2a404d1ff8f8.json",
+      "source": {
+        "kind": "buddy"
+      },
+      "created_at": "2026-08-21T02:07:47.631664344+00:00",
+      "updated_at": "2026-08-21T02:08:08.976517029+00:00",
+      "title": "Investigate: Workflow failed. Buddy model required by subagent 'buddy_re…",
+      "model": "custom/qwen-3.8-max-free",
+      "mode": "buddy",
+      "message_count": 5,
+      "root_chat_id": "addaa74c-7567-4db5-b313-2a404d1ff8f8",
+      "is_title_generated": false,
+      "total_lines_added": 0,
+      "total_lines_removed": 0,
+      "tasks_total": 0,
+      "tasks_done": 0,
+      "tasks_failed": 0,
+      "total_prompt_tokens": 0,
+      "total_completion_tokens": 0,
+      "total_tokens": 0,
+      "total_cache_read_tokens": 0,
+      "total_cache_creation_tokens": 0,
+      "displayable_chat": false,
+      "waiting_for_card_ids": [],
+      "file_len": 88354,
+      "file_modified_unix_ms": 1787278088975
+    }
+  ]
+}

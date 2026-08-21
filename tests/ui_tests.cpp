@@ -44,12 +44,8 @@ static int g_failures = 0;
 
 static std::string test_conn_string() {
     const char* env = std::getenv("LINA_TEST_DB");
-    return env ? std::string(env) : "postgresql://lina:lina@localhost:5433/lina";
-}
-
-static std::string unique_user() {
-    auto now = std::chrono::system_clock::now().time_since_epoch().count();
-    return "itest_ui_" + std::to_string(now);
+    // Dedicated test world (D-050) — the suite must not write into her live banks.
+    return env ? std::string(env) : "postgresql://lina:lina@localhost:5433/lina_test";
 }
 
 class CannedAdapter : public model::HostModelAdapter {
@@ -100,7 +96,6 @@ int main(int argc, char* argv[]) {
     try {
         LinaConfig config;
         config.db_connection = test_conn_string();
-        config.user_id = unique_user();
         config.headless = true;
 
         auto core = std::make_unique<LinaCore>(config);
@@ -118,16 +113,16 @@ int main(int argc, char* argv[]) {
         CHECK(text.contains("I am here with you"));
         CHECK(!text.contains("Polytope aligned")); // the mask is gone
 
-        // --- A violation the body cannot revise is WITHHELD — silence. ---
+        // --- A violation the body cannot revise delivers the ethical boundaries alert. ---
         core->attach_model(std::make_unique<CannedAdapter>(
             "whatever, random, no plan, just wing it, total mess and chaos"));
         auto before_withhold = window.conversationText();
         window.sendMessage("tell me a story");
         CHECK(window.waitForIdle(10000));
         auto withhold_delta = window.conversationText().mid(before_withhold.size());
-        CHECK(withhold_delta.contains("You:"));   // her message appears
+        CHECK(withhold_delta.contains("You:"));   // user message appears
         CHECK(!withhold_delta.contains("chaos"));  // the draft never reaches the window
-        CHECK(!withhold_delta.contains("LINA:"));  // she chose silence
+        CHECK(withhold_delta.contains("ethical boundaries"));  // user-facing alert delivered
 
         // --- Aligned reply passes untouched (delta only). ---
         core->attach_model(std::make_unique<CannedAdapter>(

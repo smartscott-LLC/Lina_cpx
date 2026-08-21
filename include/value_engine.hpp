@@ -111,6 +111,12 @@ struct Halfspace {
     bool critical{true};
 };
 
+Halfspace make_halfspace(
+    const std::string& name,
+    const std::array<mpq_class, DIMENSION_COUNT>& normal,
+    const mpq_class& threshold,
+    bool critical = true);
+
 // The coupling facets per plumb line: min_lead = x_pos − x_neg must be met,
 // and max_sum = x_pos + x_neg must not be exceeded. Stored as exact
 // numerator/denominator pairs (mpq_class is not constexpr); build_lattice()
@@ -315,6 +321,9 @@ public:
     const std::array<mpq_class, DIMENSION_COUNT>& center() const { return center_; }
     // The lattice itself — every halfspace of P = {x | Ax ≤ b}.
     const std::vector<Halfspace>& facets() const { return facets_; }
+
+    void add_facet(const Halfspace& facet);
+    void add_facets(const std::vector<Halfspace>& facets);
 
 private:
     PolytopeConstraints constraints_;
@@ -562,7 +571,7 @@ public:
         int min_evaluations;
         double alignment_rate_threshold;
         int max_recent_violations;
-        int min_identity_memories;
+        int min_qualifying_memories;
         int min_actions_resolved;
         double action_approval_rate_threshold;
         const char* advances_to; // nullptr for winter
@@ -575,7 +584,7 @@ public:
         int total_evaluations,
         double alignment_rate,
         int recent_violations,
-        int identity_memories_count,
+        int qualifying_memories_count,
         const std::string& current_season = "spring",
         int actions_resolved = 0,
         std::optional<double> action_approval_rate = std::nullopt);
